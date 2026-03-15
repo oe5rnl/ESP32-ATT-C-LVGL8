@@ -1,5 +1,8 @@
 # ESP32-ATT-C-LVGL8
 
+~/.platformio/penv/bin/pio run 2>&1 | tail -30
+
+
 LVGL 8 Widget-Demo für das ESP32 Cheap Yellow Display (CYD).
 
 ## Hardware
