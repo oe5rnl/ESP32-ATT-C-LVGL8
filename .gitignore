@@ -1,0 +1,13 @@
+.pio/
+.vscode/
+build/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
