@@ -238,7 +238,7 @@ function digitDown(evt,i){
     const inp=document.getElementById('digitInput');
     inp.value=curVal;
     modal.classList.add('active');
-    setTimeout(()=>inp.select(),50);
+    setTimeout(()=>{inp.value='';inp.focus();},50);
   },600);
 }
 function digitUp(i){
