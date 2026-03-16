@@ -58,7 +58,8 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   .defaults button.active{background:#e94560;outline:2px solid #7ec8e3}
   .switch-row{display:flex;align-items:center;gap:12px}
   input[type=checkbox]{width:40px;height:22px;cursor:pointer;accent-color:#7ec8e3}
-  #status{text-align:center;font-size:.85em;color:#888;margin-top:8px}
+  #status{text-align:center;font-size:.85em;color:#888;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px}
+  .led{width:12px;height:12px;border-radius:50%;display:inline-block;background:#d00}
 </style>
 </head>
 <body>
@@ -92,7 +93,7 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   </div>
 </div>
 
-<div id="status">Verbinde...</div>
+<div id="status"><span class="led" id="led"></span><span id="stxt">Verbinde...</span></div>
 
 <script>
 let ws;
@@ -100,13 +101,15 @@ let selDigit = 2;
 let curVal = 0;
 const defaults = [0,0,0,0,0,0];
 let activeDefIdx = -1;
+let lastContact = 0;
 
 function connectWS(){
   ws = new WebSocket('ws://' + location.host + '/ws');
-  ws.onopen = ()=>{ document.getElementById('status').textContent='Verbunden'; };
-  ws.onclose= ()=>{ document.getElementById('status').textContent='Getrennt – reconnect...'; setTimeout(connectWS,2000); };
+  ws.onopen = ()=>{ lastContact=Date.now(); document.getElementById('stxt').textContent='Verbunden'; };
+  ws.onclose= ()=>{ document.getElementById('stxt').textContent='Getrennt \u2013 reconnect...'; setTimeout(connectWS,2000); };
   ws.onerror= ()=>{ ws.close(); };
   ws.onmessage = e => {
+    lastContact=Date.now();
     const msg = JSON.parse(e.data);
     if(msg.type === 'state'){
       curVal = msg.val;
@@ -206,6 +209,17 @@ function sendAE(){
 }
 
 connectWS();
+setInterval(()=>{
+  const led=document.getElementById('led');
+  const alive=ws&&ws.readyState===WebSocket.OPEN&&(Date.now()-lastContact)<2000;
+  led.style.background=alive?'#0a0':'#d00';
+  if(!alive&&ws&&ws.readyState===WebSocket.OPEN){
+    ws.close();
+  }
+  if(!ws||ws.readyState===WebSocket.CLOSED){
+    connectWS();
+  }
+},500);
 </script>
 </body>
 </html>
@@ -469,6 +483,14 @@ static void webserver_setup(void)
 static void webserver_loop(void)
 {
     ws.cleanupClients();
+
+    /* Send periodic heartbeat so client LED stays green */
+    static unsigned long lastPing = 0;
+    if(millis() - lastPing > 1000) {
+        lastPing = millis();
+        ws.textAll("{\"type\":\"hb\"}");
+    }
+
     if(!ws_cmd_queue) return;
     WsCmdMsg m;
     while(xQueueReceive(ws_cmd_queue, &m, 0) == pdTRUE) {
