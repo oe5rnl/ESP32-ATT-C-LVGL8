@@ -13,22 +13,23 @@
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
 #include <Preferences.h>
+#include "webserver.h"
 
-static Preferences prefs;
+Preferences prefs;
 
 // ----------------------------
 // UI: Tab Menu
 // ----------------------------
 LV_FONT_DECLARE(lv_font_digits_72);
 
-static int32_t config_value = 0;
+int32_t config_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */
 static lv_obj_t * digit_cursor;     /* underline indicator */
 static int selected_digit = 2;      /* default: ones */
 static lv_obj_t * tabview;
 
 /* Default values for the 6 buttons */
-static int32_t default_values[6] = {20, 40, 60, 10, 30, 50};
+int32_t default_values[6] = {20, 40, 60, 10, 30, 50};
 static lv_obj_t * default_labels[6];
 
 /* Keyboard edit state */
@@ -36,8 +37,9 @@ static lv_obj_t * kb = NULL;
 static lv_obj_t * ta = NULL;
 static int editing_index = -1;
 static bool long_press_active = false;
-static bool autoenter = false;
+bool autoenter = false;
 static lv_obj_t * btn_set = NULL;
+static lv_obj_t * ae_switch = NULL;
 
 static void kb_close(void)
 {
@@ -60,6 +62,7 @@ static void ta_event_cb(lv_event_t * e)
             char key[8];
             snprintf(key, sizeof(key), "def%d", editing_index);
             prefs.putInt(key, val);
+            ws_broadcast_def(editing_index);
         }
         kb_close();
     }
@@ -133,6 +136,7 @@ static void btn_up_cb(lv_event_t * e)
     if(config_value > 999) config_value -= 1000;
     update_digit_labels();
     prefs.putInt("cval", config_value);
+    ws_broadcast_val();
 }
 
 static void btn_down_cb(lv_event_t * e)
@@ -142,6 +146,7 @@ static void btn_down_cb(lv_event_t * e)
     if(config_value < 0) config_value = 0;
     update_digit_labels();
     prefs.putInt("cval", config_value);
+    ws_broadcast_val();
 }
 
 static void config_create(lv_obj_t * parent)
@@ -240,12 +245,13 @@ static void config_create(lv_obj_t * parent)
     if(autoenter) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
 }
 
-static void update_config_value(int32_t val)
+void update_config_value(int32_t val)
 {
     config_value = val;
     update_digit_labels();
     prefs.putInt("cval", config_value);
     lv_tabview_set_act(tabview, 0, LV_ANIM_OFF);
+    /* Do NOT call ws_broadcast_val() here – callers handle it */
 }
 
 static void btn_default_cb(lv_event_t * e)
@@ -256,6 +262,7 @@ static void btn_default_cb(lv_event_t * e)
     }
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
     update_config_value(default_values[idx]);
+    ws_broadcast_val();
 }
 
 static void defaults_create(lv_obj_t * parent)
@@ -289,6 +296,7 @@ static void help_create(lv_obj_t * parent)
     lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
 
     lv_obj_t * sw = lv_switch_create(parent);
+    ae_switch = sw;
     lv_obj_align_to(sw, label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
     lv_obj_set_style_bg_color(sw, lv_palette_main(LV_PALETTE_GREY), 0);
     lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
@@ -300,7 +308,31 @@ static void help_create(lv_obj_t * parent)
             if(autoenter) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
             else lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
         }
+        ws_broadcast_ae();
     }, LV_EVENT_VALUE_CHANGED, NULL);
+}
+
+/* Called from webserver.h when web client changes default_values */
+void web_update_defaults(void)
+{
+    for(int i = 0; i < 6; i++) {
+        if(default_labels[i]) {
+            lv_label_set_text_fmt(default_labels[i], "%d dB", default_values[i]);
+        }
+    }
+}
+
+/* Called from webserver.h when web client changes autoenter */
+void web_update_ae(void)
+{
+    if(ae_switch) {
+        if(autoenter) lv_obj_add_state(ae_switch, LV_STATE_CHECKED);
+        else          lv_obj_clear_state(ae_switch, LV_STATE_CHECKED);
+    }
+    if(btn_set) {
+        if(autoenter) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+        else          lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void create_ui(void)
@@ -324,6 +356,9 @@ static void create_ui(void)
     config_create(t1);
     defaults_create(t2);
     help_create(t3);
+
+    /* Disable horizontal swipe navigation between tabs */
+    lv_obj_clear_flag(lv_tabview_get_content(tabview), LV_OBJ_FLAG_SCROLLABLE);
 }
 
 // ----------------------------
@@ -450,11 +485,15 @@ void setup()
     // Create custom UI
     create_ui();
 
+    // Start Webserver
+    webserver_setup();
+
     Serial.println("Setup done");
 }
 
 void loop()
 {
     lv_timer_handler();
+    webserver_loop();
     delay(5);
 }
