@@ -45,7 +45,8 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   h1{text-align:center;color:#7ec8e3;font-size:1.3em;margin-bottom:20px}
   .card{background:#16213e;border-radius:10px;padding:16px;margin-bottom:16px}
   h2{margin:0 0 12px;font-size:1em;color:#aaa}
-  .digits{display:flex;align-items:flex-end;gap:4px;justify-content:center;margin-bottom:10px}
+  .digits{display:flex;align-items:flex-end;gap:4px;justify-content:center;margin-bottom:10px;opacity:0;transition:opacity .15s}
+  .digits.visible{opacity:1}
   .digit{font-size:72px;font-weight:bold;cursor:pointer;padding:0 6px;border-bottom:4px solid transparent;line-height:1;color:#fff}
   .digit.selected{border-bottom-color:#7ec8e3}
   .unit{font-size:28px;margin-bottom:8px;color:#aaa}
@@ -134,6 +135,7 @@ function connectWS(){
     if(msg.type === 'state'){
       curVal = msg.val;
       renderDigits();
+      document.querySelector('.digits').classList.add('visible');
       for(let i=0;i<6;i++) defaults[i]=msg.def[i];
       renderDefaults();
       document.getElementById('swAE').checked = msg.ae;
