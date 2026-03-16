@@ -14,6 +14,7 @@ extern int32_t config_value;
 extern int32_t default_values[6];
 extern bool autoenter;
 extern int selected_digit;
+extern uint8_t wifi_mode_setting;
 void update_config_value(int32_t val);
 void web_update_defaults(void);
 void web_update_ae(void);
@@ -391,32 +392,68 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
 /* -------------------------------------------------------
  * Public API
  * ------------------------------------------------------- */
-static void webserver_setup(void)
-{
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.print("WiFi verbinde");
-    for(int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
-        delay(500);
-        Serial.print('.');
-    }
-    if(WiFi.status() == WL_CONNECTED) {
-        Serial.printf("\nWiFi OK, IP: %s\n", WiFi.localIP().toString().c_str());
-    } else {
-        Serial.println("\nWiFi nicht verbunden – Webserver deaktiviert");
-        return;
-    }
+static bool webserver_running = false;
 
-    ws_cmd_queue = xQueueCreate(8, sizeof(WsCmdMsg));
+static void start_webserver(void)
+{
+    if(webserver_running) return;
+    if(!ws_cmd_queue) ws_cmd_queue = xQueueCreate(8, sizeof(WsCmdMsg));
     ws.onEvent(onWsEvent);
     webServer.addHandler(&ws);
-
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest * req){
         req->send_P(200, "text/html", WEB_PAGE);
     });
-
     webServer.begin();
+    webserver_running = true;
     Serial.println("Webserver gestartet");
+}
+
+static void stop_webserver(void)
+{
+    if(!webserver_running) return;
+    ws.closeAll();
+    webServer.end();
+    webserver_running = false;
+    Serial.println("Webserver gestoppt");
+}
+
+static void apply_wifi_mode(void)
+{
+    stop_webserver();
+    WiFi.disconnect(true);
+    WiFi.softAPdisconnect(true);
+    delay(100);
+
+    if(wifi_mode_setting == 0) {
+        WiFi.mode(WIFI_OFF);
+        Serial.println("WiFi AUS");
+    }
+    else if(wifi_mode_setting == 1) {
+        WiFi.mode(WIFI_AP);
+        WiFi.softAP("ESP32-ATT", "12345678");
+        Serial.printf("AP gestartet, IP: %s\\n", WiFi.softAPIP().toString().c_str());
+        start_webserver();
+    }
+    else {
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+        Serial.print("WiFi verbinde");
+        for(int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
+            delay(500);
+            Serial.print('.');
+        }
+        if(WiFi.status() == WL_CONNECTED) {
+            Serial.printf("\\nWiFi OK, IP: %s\\n", WiFi.localIP().toString().c_str());
+            start_webserver();
+        } else {
+            Serial.println("\\nWiFi nicht verbunden");
+        }
+    }
+}
+
+static void webserver_setup(void)
+{
+    apply_wifi_mode();
 }
 
 static void webserver_loop(void)

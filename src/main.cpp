@@ -41,6 +41,10 @@ bool autoenter = false;
 static lv_obj_t * btn_set = NULL;
 static lv_obj_t * ae_switch = NULL;
 
+/* WiFi mode: 0=off, 1=AP, 2=Client */
+uint8_t wifi_mode_setting = 2; /* default: Client */
+static lv_obj_t * wifi_radio_btns = NULL;
+
 static void kb_close(void)
 {
     if(kb) { lv_obj_del(kb); kb = NULL; }
@@ -312,6 +316,29 @@ static void help_create(lv_obj_t * parent)
         }
         ws_broadcast_ae();
     }, LV_EVENT_VALUE_CHANGED, NULL);
+
+    /* WiFi mode radio buttons */
+    lv_obj_t * wlabel = lv_label_create(parent);
+    lv_label_set_text(wlabel, "WLAN");
+    lv_obj_set_style_text_font(wlabel, &lv_font_montserrat_24, 0);
+    lv_obj_align(wlabel, LV_ALIGN_TOP_LEFT, 10, 55);
+
+    static const char * wifi_opts[] = {"Aus", "AP", "Client", ""};
+    wifi_radio_btns = lv_btnmatrix_create(parent);
+    lv_btnmatrix_set_map(wifi_radio_btns, wifi_opts);
+    lv_btnmatrix_set_btn_ctrl_all(wifi_radio_btns, LV_BTNMATRIX_CTRL_CHECKABLE);
+    lv_btnmatrix_set_one_checked(wifi_radio_btns, true);
+    lv_btnmatrix_set_btn_ctrl(wifi_radio_btns, wifi_mode_setting, LV_BTNMATRIX_CTRL_CHECKED);
+    lv_obj_set_size(wifi_radio_btns, 220, 45);
+    lv_obj_align(wifi_radio_btns, LV_ALIGN_TOP_LEFT, 10, 85);
+    lv_obj_set_style_text_font(wifi_radio_btns, &lv_font_montserrat_14, 0);
+    lv_obj_add_event_cb(wifi_radio_btns, [](lv_event_t * e) {
+        uint32_t id = lv_btnmatrix_get_selected_btn(lv_event_get_target(e));
+        if(id > 2) return;
+        wifi_mode_setting = (uint8_t)id;
+        prefs.putUChar("wmode", wifi_mode_setting);
+        apply_wifi_mode();
+    }, LV_EVENT_VALUE_CHANGED, NULL);
 }
 
 /* Called from webserver.h when web client changes default_values */
@@ -453,6 +480,7 @@ void setup()
     }
     config_value = prefs.getInt("cval", config_value);
     autoenter = prefs.getBool("ae", false);
+    wifi_mode_setting = prefs.getUChar("wmode", 2);
 
     String info = "LVGL version ";
     info += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
