@@ -70,6 +70,8 @@ static void ta_event_cb(lv_event_t * e)
             ws_broadcast_def(editing_index);
         }
         kb_close();
+        update_config_value(val);
+        ws_broadcast_val();
     }
     else if(code == LV_EVENT_CANCEL) {
         kb_close();

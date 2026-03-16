@@ -120,13 +120,13 @@ function connectWS(){
     if(msg.type === 'val'){
       curVal = msg.val;
       renderDigits();
+      renderDefaults();
     }
     if(msg.type === 'def'){
       defaults[msg.idx] = msg.val;
       renderDefaults();
     }
     if(msg.type === 'activedef'){
-      activeDefIdx = msg.idx;
       renderDefaults();
     }
     if(msg.type === 'seldigit'){
@@ -176,14 +176,14 @@ function renderDefaults(){
   defaults.forEach((v,i)=>{
     const b = document.createElement('button');
     b.textContent = v+' dB';
-    b.classList.toggle('active', i===activeDefIdx);
+    b.classList.toggle('active', v===curVal);
     let lpt,lf=false;
     b.onpointerdown=()=>{lf=false;lpt=setTimeout(()=>{lf=true;lpt=0;
       const nv=prompt('Neuer Wert (0-999):',v);
       if(nv===null)return;
       const iv=parseInt(nv);
       if(isNaN(iv)||iv<0||iv>999)return;
-      defaults[i]=iv;curVal=iv;activeDefIdx=i;
+      defaults[i]=iv;curVal=iv;
       renderDigits();renderDefaults();
       ws.send(JSON.stringify({cmd:'setdef',idx:i,val:iv}));
     },600);};
@@ -191,7 +191,6 @@ function renderDefaults(){
     b.onpointerleave=()=>{if(lpt){clearTimeout(lpt);lpt=0;}};
     b.onclick=(e)=>{if(lf){e.preventDefault();return;}
       curVal = defaults[i];
-      activeDefIdx = i;
       renderDigits();
       renderDefaults();
       ws.send(JSON.stringify({cmd:'applydef', idx:i}));
