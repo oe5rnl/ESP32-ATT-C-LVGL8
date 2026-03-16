@@ -3,6 +3,7 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <Preferences.h>
+#include <lvgl.h>
 #include "wifi_credentials.h"
 
 static AsyncWebServer webServer(80);
@@ -15,6 +16,7 @@ extern int32_t default_values[6];
 extern bool autoenter;
 extern int selected_digit;
 extern uint8_t wifi_mode_setting;
+extern lv_obj_t * ip_label;
 void update_config_value(int32_t val);
 void web_update_defaults(void);
 void web_update_ae(void);
@@ -432,11 +434,13 @@ static void apply_wifi_mode(void)
     if(wifi_mode_setting == 0) {
         WiFi.mode(WIFI_OFF);
         Serial.println("WiFi AUS");
+        if(ip_label) lv_label_set_text(ip_label, "");
     }
     else if(wifi_mode_setting == 1) {
         WiFi.mode(WIFI_AP);
         WiFi.softAP("ESP32-ATT", "12345678");
         Serial.printf("AP gestartet, IP: %s\\n", WiFi.softAPIP().toString().c_str());
+        if(ip_label) lv_label_set_text_fmt(ip_label, "IP: %s", WiFi.softAPIP().toString().c_str());
         start_webserver();
     }
     else {
@@ -449,9 +453,11 @@ static void apply_wifi_mode(void)
         }
         if(WiFi.status() == WL_CONNECTED) {
             Serial.printf("\\nWiFi OK, IP: %s\\n", WiFi.localIP().toString().c_str());
+            if(ip_label) lv_label_set_text_fmt(ip_label, "IP: %s", WiFi.localIP().toString().c_str());
             start_webserver();
         } else {
             Serial.println("\\nWiFi nicht verbunden");
+            if(ip_label) lv_label_set_text(ip_label, "Nicht verbunden");
         }
     }
 }

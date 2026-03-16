@@ -44,6 +44,7 @@ static lv_obj_t * ae_switch = NULL;
 /* WiFi mode: 0=off, 1=AP, 2=Client */
 uint8_t wifi_mode_setting = 2; /* default: Client */
 static lv_obj_t * wifi_radio_btns = NULL;
+lv_obj_t * ip_label = NULL;
 
 static void kb_close(void)
 {
@@ -158,12 +159,17 @@ static void config_create(lv_obj_t * parent)
 {
     lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
 
+    /* Dark tab background */
+    lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
+
     /* Title */
     lv_obj_t * title = lv_label_create(parent);
     lv_label_set_text(title, "26.5 GHz Attenuator");
     static lv_style_t style_title;
     lv_style_init(&style_title);
     lv_style_set_text_font(&style_title, &lv_font_montserrat_24);
+    lv_style_set_text_color(&style_title, lv_color_hex(0x60d0ff));
     lv_obj_add_style(title, &style_title, 0);
     lv_obj_align(title, LV_ALIGN_TOP_MID, 0, -5);
 
@@ -171,7 +177,7 @@ static void config_create(lv_obj_t * parent)
     static lv_style_t style_big;
     lv_style_init(&style_big);
     lv_style_set_text_font(&style_big, &lv_font_digits_72);
-    lv_style_set_text_color(&style_big, lv_color_black());
+    lv_style_set_text_color(&style_big, lv_color_white());
 
     /* Container for the 3 digits (no background, no border) */
     lv_obj_t * digit_cont = lv_obj_create(parent);
@@ -198,7 +204,7 @@ static void config_create(lv_obj_t * parent)
     /* Cursor line under selected digit */
     digit_cursor = lv_obj_create(parent);
     lv_obj_set_size(digit_cursor, 38, 3);
-    lv_obj_set_style_bg_color(digit_cursor, lv_color_black(), 0);
+    lv_obj_set_style_bg_color(digit_cursor, lv_color_hex(0x60d0ff), 0);
     lv_obj_set_style_bg_opa(digit_cursor, LV_OPA_COVER, 0);
     lv_obj_set_style_border_opa(digit_cursor, LV_OPA_TRANSP, 0);
     lv_obj_set_style_radius(digit_cursor, 0, 0);
@@ -211,6 +217,7 @@ static void config_create(lv_obj_t * parent)
     static lv_style_t style_unit;
     lv_style_init(&style_unit);
     lv_style_set_text_font(&style_unit, &lv_font_montserrat_24);
+    lv_style_set_text_color(&style_unit, lv_color_hex(0xcccccc));
     lv_obj_add_style(unit_label, &style_unit, 0);
     lv_obj_align_to(unit_label, digit_cont, LV_ALIGN_OUT_RIGHT_BOTTOM, 2, 8);
 
@@ -225,8 +232,17 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_style_border_opa(btn_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_text_font(btn_cont, &lv_font_montserrat_24, 0);
 
+    /* Button style: #0f3460 bg, white text */
+    static lv_style_t style_btn;
+    lv_style_init(&style_btn);
+    lv_style_set_bg_color(&style_btn, lv_color_hex(0x1a5090));
+    lv_style_set_bg_opa(&style_btn, LV_OPA_COVER);
+    lv_style_set_text_color(&style_btn, lv_color_white());
+    lv_style_set_radius(&style_btn, 6);
+
     lv_obj_t * btn_up = lv_btn_create(btn_cont);
     lv_obj_set_width(btn_up, 88);
+    lv_obj_add_style(btn_up, &style_btn, 0);
     lv_obj_add_event_cb(btn_up, btn_up_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t * lbl_up = lv_label_create(btn_up);
     lv_label_set_text(lbl_up, "UP");
@@ -234,6 +250,7 @@ static void config_create(lv_obj_t * parent)
 
     lv_obj_t * btn_down = lv_btn_create(btn_cont);
     lv_obj_set_width(btn_down, 88);
+    lv_obj_add_style(btn_down, &style_btn, 0);
     lv_obj_add_event_cb(btn_down, btn_down_cb, LV_EVENT_CLICKED, NULL);
     lv_obj_t * lbl_down = lv_label_create(btn_down);
     lv_label_set_text(lbl_down, "Down");
@@ -241,6 +258,7 @@ static void config_create(lv_obj_t * parent)
 
     btn_set = lv_btn_create(btn_cont);
     lv_obj_set_width(btn_set, 88);
+    lv_obj_add_style(btn_set, &style_btn, 0);
     lv_obj_add_event_cb(btn_set, [](lv_event_t * e) {
         /* TODO: send config_value to attenuator */
     }, LV_EVENT_CLICKED, NULL);
@@ -273,6 +291,10 @@ static void btn_default_cb(lv_event_t * e)
 
 static void defaults_create(lv_obj_t * parent)
 {
+    /* Dark background */
+    lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
+
     lv_obj_set_flex_flow(parent, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(parent, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_set_style_pad_column(parent, 10, 0);
@@ -283,9 +305,18 @@ static void defaults_create(lv_obj_t * parent)
     lv_obj_set_style_pad_right(parent, 10, 0);
     lv_obj_set_style_text_font(parent, &lv_font_montserrat_24, 0);
 
+    /* Default button style */
+    static lv_style_t style_def;
+    lv_style_init(&style_def);
+    lv_style_set_bg_color(&style_def, lv_color_hex(0x1a5090));
+    lv_style_set_bg_opa(&style_def, LV_OPA_COVER);
+    lv_style_set_text_color(&style_def, lv_color_white());
+    lv_style_set_radius(&style_def, 6);
+
     for(int i = 0; i < 6; i++) {
         lv_obj_t * btn = lv_btn_create(parent);
         lv_obj_set_width(btn, 85);
+        lv_obj_add_style(btn, &style_def, 0);
         lv_obj_add_event_cb(btn, btn_default_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
         lv_obj_add_event_cb(btn, btn_long_press_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
         default_labels[i] = lv_label_create(btn);
@@ -296,15 +327,20 @@ static void defaults_create(lv_obj_t * parent)
 
 static void help_create(lv_obj_t * parent)
 {
+    /* Dark background */
+    lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
+
     lv_obj_t * label = lv_label_create(parent);
     lv_label_set_text(label, "Auto-Enter");
     lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(label, lv_color_white(), 0);
     lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
 
     lv_obj_t * sw = lv_switch_create(parent);
     ae_switch = sw;
     lv_obj_align_to(sw, label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
-    lv_obj_set_style_bg_color(sw, lv_palette_main(LV_PALETTE_GREY), 0);
+    lv_obj_set_style_bg_color(sw, lv_color_hex(0x1a5090), 0);
     lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
     if(autoenter) lv_obj_add_state(sw, LV_STATE_CHECKED);
     lv_obj_add_event_cb(sw, [](lv_event_t * e) {
@@ -321,6 +357,7 @@ static void help_create(lv_obj_t * parent)
     lv_obj_t * wlabel = lv_label_create(parent);
     lv_label_set_text(wlabel, "WLAN");
     lv_obj_set_style_text_font(wlabel, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(wlabel, lv_color_white(), 0);
     lv_obj_align(wlabel, LV_ALIGN_TOP_LEFT, 10, 55);
 
     static const char * wifi_opts[] = {"Aus", "AP", "Client", ""};
@@ -329,9 +366,18 @@ static void help_create(lv_obj_t * parent)
     lv_btnmatrix_set_btn_ctrl_all(wifi_radio_btns, LV_BTNMATRIX_CTRL_CHECKABLE);
     lv_btnmatrix_set_one_checked(wifi_radio_btns, true);
     lv_btnmatrix_set_btn_ctrl(wifi_radio_btns, wifi_mode_setting, LV_BTNMATRIX_CTRL_CHECKED);
-    lv_obj_set_size(wifi_radio_btns, 220, 45);
+    lv_obj_set_size(wifi_radio_btns, 280, 55);
     lv_obj_align(wifi_radio_btns, LV_ALIGN_TOP_LEFT, 10, 85);
-    lv_obj_set_style_text_font(wifi_radio_btns, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(wifi_radio_btns, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(wifi_radio_btns, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_color(wifi_radio_btns, lv_color_hex(0x888888), 0);
+    lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_hex(0x1a5090), LV_PART_ITEMS);
+    lv_obj_set_style_bg_opa(wifi_radio_btns, LV_OPA_COVER, LV_PART_ITEMS);
+    lv_obj_set_style_text_color(wifi_radio_btns, lv_color_white(), LV_PART_ITEMS);
+    lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_hex(0x008000), LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_border_color(wifi_radio_btns, lv_color_hex(0x60d0ff), LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_border_width(wifi_radio_btns, 2, LV_PART_ITEMS | LV_STATE_CHECKED);
     lv_obj_add_event_cb(wifi_radio_btns, [](lv_event_t * e) {
         uint32_t id = lv_btnmatrix_get_selected_btn(lv_event_get_target(e));
         if(id > 2) return;
@@ -339,6 +385,13 @@ static void help_create(lv_obj_t * parent)
         prefs.putUChar("wmode", wifi_mode_setting);
         apply_wifi_mode();
     }, LV_EVENT_VALUE_CHANGED, NULL);
+
+    /* IP address label */
+    ip_label = lv_label_create(parent);
+    lv_label_set_text(ip_label, "");
+    lv_obj_set_style_text_font(ip_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(ip_label, lv_color_hex(0x60d0ff), 0);
+    lv_obj_align(ip_label, LV_ALIGN_TOP_LEFT, 10, 145);
 }
 
 /* Called from webserver.h when web client changes default_values */
@@ -372,17 +425,23 @@ void web_update_seldigit(void)
 
 static void create_ui(void)
 {
-    tabview = lv_tabview_create(lv_scr_act(), LV_DIR_BOTTOM, 40);
+    /* Dark background matching web: #1a1a2e */
+    lv_obj_set_style_bg_color(lv_scr_act(), lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(lv_scr_act(), LV_OPA_COVER, 0);
 
-    /* Style tab buttons: selected = white bg, unselected = blue bg */
+    tabview = lv_tabview_create(lv_scr_act(), LV_DIR_BOTTOM, 40);
+    lv_obj_set_style_bg_color(tabview, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(tabview, LV_OPA_COVER, 0);
+
+    /* Style tab buttons: dark navy bg, accent color when checked */
     lv_obj_t * tab_btns = lv_tabview_get_tab_btns(tabview);
     lv_obj_set_style_text_font(tab_btns, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_bg_color(tab_btns, lv_palette_main(LV_PALETTE_BLUE), 0);
+    lv_obj_set_style_bg_color(tab_btns, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(tab_btns, LV_OPA_COVER, 0);
-    lv_obj_set_style_text_color(tab_btns, lv_color_white(), 0);
-    lv_obj_set_style_bg_color(tab_btns, lv_color_white(), LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(tab_btns, lv_color_hex(0x888888), 0);
+    lv_obj_set_style_bg_color(tab_btns, lv_color_hex(0x1a5090), LV_PART_ITEMS | LV_STATE_CHECKED);
     lv_obj_set_style_bg_opa(tab_btns, LV_OPA_COVER, LV_PART_ITEMS | LV_STATE_CHECKED);
-    lv_obj_set_style_text_color(tab_btns, lv_color_black(), LV_PART_ITEMS | LV_STATE_CHECKED);
+    lv_obj_set_style_text_color(tab_btns, lv_color_white(), LV_PART_ITEMS | LV_STATE_CHECKED);
 
     lv_obj_t * t1 = lv_tabview_add_tab(tabview, "Main");
     lv_obj_t * t2 = lv_tabview_add_tab(tabview, "Default");
