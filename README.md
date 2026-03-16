@@ -117,6 +117,26 @@ Werden automatisch von PlatformIO heruntergeladen (`pio run`):
 
 Das `.pio`-Verzeichnis (Build-Artefakte, Libraries) ist in `.gitignore` ausgeschlossen und wird bei `pio run` automatisch wiederhergestellt.
 
+## Verwendetes Board
+
+ESP32 Display,2.8" ESP32-Display ESP32-2432S028R Resistiver Touchscreen 240x320 TFT LCD Display Modul,ESP32 Entwicklungsplatine mit WiFi Bluetooth, für Arduino IDE(2 Stücke)
+
+```
+✅Prozessor: ESP32-D0WDQ6 Dual-Core 32-Bit LX6 CPUTaktfrequenz: einstellbar von 80 MHz bis 240 MHz
+✅Speicher: 520 KB SRAM, erweiterbar mit externem Flash und TF-Karte
+✅Display: 2,8"" TFT-LCD mit 240×320 Auflösung, Touch-Funktion, inklusive Stylus
+✅Schnittstelle: USB Type-C für Stromversorgung & Programmierung
+✅Konnektivität: WLAN 802.11 b/g/n + Bluetooth Classic + BLE
+✅Audio: Unterstützung für externe Lautsprecher, integrierter Audioausgang
+✅LED: RGB-Dreifarb-LED zur Statusanzeige
+✅Batterie: Unterstützung externer Lithium-Batterien mit integriertem Lade-Management
+✅Kamera-Kompatibilität: OV2640 / OV7670
+✅Speichererweiterung: Micro-TF-Kartenslot (bis 32 GB empfohlen)
+✅Betriebssystem-Unterstützung: LwIP, FreeRTOS
+✅Entwicklungsumgebungen: für Arduino IDE, für MicroPython,PlatformIO, Scratch 3.0
+✅Treiber-Chip: ILI9341
+✅GUI-Entwicklung: Unterstützung für LVGL – Erstellung moderner grafischer Benutzeroberflächen
+```
 ## Basiert auf
 
 [ESP32-Cheap-Yellow-Display](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display) – LVGL8 Beispiel
