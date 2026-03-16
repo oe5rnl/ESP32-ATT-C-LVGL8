@@ -13,9 +13,19 @@ extern Preferences prefs;
 extern int32_t config_value;
 extern int32_t default_values[6];
 extern bool autoenter;
+extern int selected_digit;
 void update_config_value(int32_t val);
 void web_update_defaults(void);
 void web_update_ae(void);
+void web_update_seldigit(void);
+
+/* -------------------------------------------------------
+ * FreeRTOS queue for inter-core LVGL command dispatch
+ * Core 0 (WebSocket task) enqueues, Core 1 (loop) dequeues
+ * ------------------------------------------------------- */
+enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT };
+struct WsCmdMsg { WsCmdType type; int32_t val; int32_t idx; bool bval; };
+static QueueHandle_t ws_cmd_queue = nullptr;
 
 /* -------------------------------------------------------
  * HTML page (stored in flash as a raw string)
@@ -42,6 +52,7 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   #btnSet{display:none}
   .defaults{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
   .defaults button{width:100%}
+  .defaults button.active{background:#e94560;outline:2px solid #7ec8e3}
   .switch-row{display:flex;align-items:center;gap:12px}
   input[type=checkbox]{width:40px;height:22px;cursor:pointer;accent-color:#7ec8e3}
   #status{text-align:center;font-size:.85em;color:#888;margin-top:8px}
@@ -59,8 +70,8 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
     <span class="unit">dB</span>
   </div>
   <div class="btns">
-    <button onclick="step(1)">UP</button>
     <button onclick="step(-1)">DOWN</button>
+    <button onclick="step(1)">UP</button>
     <button id="btnSet" onclick="sendSet()">Set</button>
   </div>
 </div>
@@ -85,6 +96,7 @@ let ws;
 let selDigit = 2;
 let curVal = 0;
 const defaults = [0,0,0,0,0,0];
+let activeDefIdx = -1;
 
 function connectWS(){
   ws = new WebSocket('ws://' + location.host + '/ws');
@@ -100,6 +112,7 @@ function connectWS(){
       renderDefaults();
       document.getElementById('swAE').checked = msg.ae;
       document.getElementById('btnSet').style.display = msg.ae ? 'none' : 'inline-block';
+      if(msg.sel !== undefined) applyDigitSelection(msg.sel);
     }
     if(msg.type === 'val'){
       curVal = msg.val;
@@ -108,6 +121,13 @@ function connectWS(){
     if(msg.type === 'def'){
       defaults[msg.idx] = msg.val;
       renderDefaults();
+    }
+    if(msg.type === 'activedef'){
+      activeDefIdx = msg.idx;
+      renderDefaults();
+    }
+    if(msg.type === 'seldigit'){
+      applyDigitSelection(msg.idx);
     }
     if(msg.type === 'ae'){
       document.getElementById('swAE').checked = msg.val;
@@ -122,11 +142,16 @@ function renderDigits(){
   document.getElementById('d2').textContent = curVal%10;
 }
 
-function selectDigit(i){
+function applyDigitSelection(i){
   selDigit = i;
   document.querySelectorAll('.digit').forEach((el,idx)=>{
     el.classList.toggle('selected', idx===i);
   });
+}
+
+function selectDigit(i){
+  applyDigitSelection(i);
+  ws.send(JSON.stringify({cmd:'seldigit', idx:i}));
 }
 
 function step(dir){
@@ -135,7 +160,7 @@ function step(dir){
   if(curVal<0) curVal=0;
   if(curVal>999) curVal=999;
   renderDigits();
-  ws.send(JSON.stringify({cmd:'val', val:curVal}));
+  ws.send(JSON.stringify({cmd:'upd', val:curVal}));
 }
 
 function sendSet(){
@@ -148,6 +173,7 @@ function renderDefaults(){
   defaults.forEach((v,i)=>{
     const b = document.createElement('button');
     b.textContent = v+' dB';
+    b.classList.toggle('active', i===activeDefIdx);
     b.ondblclick = ()=>{
       const nv = prompt('Neuer Wert (0-999):', v);
       if(nv===null) return;
@@ -156,6 +182,10 @@ function renderDefaults(){
       ws.send(JSON.stringify({cmd:'setdef', idx:i, val:iv}));
     };
     b.onclick = ()=>{
+      curVal = defaults[i];
+      activeDefIdx = i;
+      renderDigits();
+      renderDefaults();
       ws.send(JSON.stringify({cmd:'applydef', idx:i}));
     };
     cont.appendChild(b);
@@ -188,8 +218,8 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
         (int)default_values[3], (int)default_values[4], (int)default_values[5]);
 
     snprintf(buf, sizeof(buf),
-        "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s}",
-        (int)config_value, defArr, autoenter ? "true" : "false");
+        "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"sel\":%d}",
+        (int)config_value, defArr, autoenter ? "true" : "false", selected_digit);
 
     if(client) client->text(buf);
     else        ws.textAll(buf);
@@ -206,6 +236,20 @@ static void ws_send_def(int idx)
 {
     char buf[48];
     snprintf(buf, sizeof(buf), "{\"type\":\"def\",\"idx\":%d,\"val\":%d}", idx, (int)default_values[idx]);
+    ws.textAll(buf);
+}
+
+static void ws_send_active_def(int idx)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "{\"type\":\"activedef\",\"idx\":%d}", idx);
+    ws.textAll(buf);
+}
+
+static void ws_send_seldigit(void)
+{
+    char buf[32];
+    snprintf(buf, sizeof(buf), "{\"type\":\"seldigit\",\"idx\":%d}", selected_digit);
     ws.textAll(buf);
 }
 
@@ -277,13 +321,15 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
         char cmd[16] = "";
         getStr(msg, "cmd", cmd, sizeof(cmd));
 
-        if(strcmp(cmd, "val") == 0) {
+        if(strcmp(cmd, "upd") == 0) {
             int32_t v = config_value;
             if(getInt(msg, "val", v)) {
                 if(v < 0) v = 0;
                 if(v > 999) v = 999;
-                update_config_value(v);          // updates display + NVS
-                ws_send_val();                   // broadcast back to other clients
+                config_value = v;
+                ws_send_val();
+                WsCmdMsg m = {WS_CMD_VAL, v, 0, false};
+                xQueueSend(ws_cmd_queue, &m, 0);
             }
         }
         else if(strcmp(cmd, "set") == 0) {
@@ -291,8 +337,10 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             getInt(msg, "val", v);
             if(v < 0) v = 0;
             if(v > 999) v = 999;
-            update_config_value(v);
+            config_value = v;
             ws_send_val();
+            WsCmdMsg m = {WS_CMD_VAL, v, 0, false};
+            xQueueSend(ws_cmd_queue, &m, 0);
         }
         else if(strcmp(cmd, "setdef") == 0) {
             int32_t idx = -1, val = 0;
@@ -303,16 +351,19 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
                 char key[8];
                 snprintf(key, sizeof(key), "def%d", (int)idx);
                 prefs.putInt(key, val);
-                // update display label via flag (main loop will call web_update_defaults)
                 ws_send_def(idx);
-                web_update_defaults();
+                WsCmdMsg m = {WS_CMD_DEF_SET, val, idx, false};
+                xQueueSend(ws_cmd_queue, &m, 0);
             }
         }
         else if(strcmp(cmd, "applydef") == 0) {
             int32_t idx = -1;
             if(getInt(msg, "idx", idx) && idx >= 0 && idx < 6) {
-                update_config_value(default_values[idx]);
+                config_value = default_values[idx];
                 ws_send_val();
+                ws_send_active_def(idx);
+                WsCmdMsg m = {WS_CMD_APPLY_DEF, 0, idx, false};
+                xQueueSend(ws_cmd_queue, &m, 0);
             }
         }
         else if(strcmp(cmd, "ae") == 0) {
@@ -321,7 +372,17 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
                 autoenter = v;
                 prefs.putBool("ae", autoenter);
                 ws_send_ae();
-                web_update_ae();        // update display switch
+                WsCmdMsg m = {WS_CMD_AE, 0, 0, v};
+                xQueueSend(ws_cmd_queue, &m, 0);
+            }
+        }
+        else if(strcmp(cmd, "seldigit") == 0) {
+            int32_t idx = 2;
+            if(getInt(msg, "idx", idx) && idx >= 0 && idx <= 2) {
+                selected_digit = idx;
+                ws_send_seldigit();
+                WsCmdMsg m = {WS_CMD_SELDIGIT, 0, idx, false};
+                xQueueSend(ws_cmd_queue, &m, 0);
             }
         }
     }
@@ -346,6 +407,7 @@ static void webserver_setup(void)
         return;
     }
 
+    ws_cmd_queue = xQueueCreate(8, sizeof(WsCmdMsg));
     ws.onEvent(onWsEvent);
     webServer.addHandler(&ws);
 
@@ -360,9 +422,34 @@ static void webserver_setup(void)
 static void webserver_loop(void)
 {
     ws.cleanupClients();
+    if(!ws_cmd_queue) return;
+    WsCmdMsg m;
+    while(xQueueReceive(ws_cmd_queue, &m, 0) == pdTRUE) {
+        switch(m.type) {
+            case WS_CMD_VAL:
+                update_config_value(m.val);
+                break;
+            case WS_CMD_APPLY_DEF:
+                update_config_value(default_values[m.idx]);
+                break;
+            case WS_CMD_DEF_SET:
+                web_update_defaults();
+                break;
+            case WS_CMD_AE:
+                autoenter = m.bval;
+                web_update_ae();
+                break;
+            case WS_CMD_SELDIGIT:
+                selected_digit = m.idx;
+                web_update_seldigit();
+                break;
+        }
+    }
 }
 
 /* Called from main.cpp whenever config_value changes from LVGL side */
-static void ws_broadcast_val(void)  { ws_send_val(); }
-static void ws_broadcast_def(int i) { ws_send_def(i); }
-static void ws_broadcast_ae(void)   { ws_send_ae(); }
+static void ws_broadcast_val(void)        { ws_send_val(); }
+static void ws_broadcast_def(int i)       { ws_send_def(i); }
+static void ws_broadcast_ae(void)         { ws_send_ae(); }
+static void ws_broadcast_active_def(int i){ ws_send_active_def(i); }
+static void ws_broadcast_seldigit(int i)  { selected_digit = i; ws_send_seldigit(); }

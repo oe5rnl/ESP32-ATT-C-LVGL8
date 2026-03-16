@@ -144,3 +144,6 @@ ESP32 Display,2.8" ESP32-Display ESP32-2432S028R Resistiver Touchscreen 240x320 
 ## Lizenz
 
 MIT
+
+
+~/.platformio/penv/bin/pio run -e cyd 2>&1 | tail -12

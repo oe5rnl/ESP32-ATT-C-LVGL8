@@ -25,7 +25,7 @@ LV_FONT_DECLARE(lv_font_digits_72);
 int32_t config_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */
 static lv_obj_t * digit_cursor;     /* underline indicator */
-static int selected_digit = 2;      /* default: ones */
+int selected_digit = 2;      /* default: ones */
 static lv_obj_t * tabview;
 
 /* Default values for the 6 buttons */
@@ -127,6 +127,7 @@ static void digit_click_cb(lv_event_t * e)
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
     selected_digit = idx;
     update_cursor();
+    ws_broadcast_seldigit(idx);
 }
 
 static void btn_up_cb(lv_event_t * e)
@@ -263,6 +264,7 @@ static void btn_default_cb(lv_event_t * e)
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
     update_config_value(default_values[idx]);
     ws_broadcast_val();
+    ws_broadcast_active_def(idx);
 }
 
 static void defaults_create(lv_obj_t * parent)
@@ -291,7 +293,7 @@ static void defaults_create(lv_obj_t * parent)
 static void help_create(lv_obj_t * parent)
 {
     lv_obj_t * label = lv_label_create(parent);
-    lv_label_set_text(label, "Set Autovalue");
+    lv_label_set_text(label, "Auto-Enter");
     lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
     lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
 
@@ -333,6 +335,12 @@ void web_update_ae(void)
         if(autoenter) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
         else          lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
     }
+}
+
+/* Called from webserver.h when web client changes selected digit */
+void web_update_seldigit(void)
+{
+    update_cursor();
 }
 
 static void create_ui(void)
