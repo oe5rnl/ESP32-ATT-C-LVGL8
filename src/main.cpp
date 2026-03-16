@@ -104,6 +104,9 @@ static void btn_long_press_cb(lv_event_t * e)
     kb = lv_keyboard_create(lv_scr_act());
     lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_NUMBER);
     lv_keyboard_set_textarea(kb, ta);
+
+    lv_obj_add_state(ta, LV_STATE_FOCUSED);
+    lv_obj_clear_state(ta, LV_STATE_FOCUS_KEY);
 }
 
 /* Update the 3 digit labels from config_value */
@@ -131,10 +134,37 @@ static void update_cursor(void)
 /* Digit click handler */
 static void digit_click_cb(lv_event_t * e)
 {
+    if(long_press_active) {
+        long_press_active = false;
+        return;
+    }
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
     selected_digit = idx;
     update_cursor();
     ws_broadcast_seldigit(idx);
+}
+
+/* Digit long-press: open numeric keyboard for direct value entry */
+static void digit_long_press_cb(lv_event_t * e)
+{
+    long_press_active = true;
+    editing_index = -1;  /* not editing a default button */
+
+    ta = lv_textarea_create(lv_scr_act());
+    lv_textarea_set_one_line(ta, true);
+    lv_textarea_set_max_length(ta, 3);
+    lv_obj_set_width(ta, 120);
+    lv_obj_align(ta, LV_ALIGN_TOP_MID, 0, 30);
+    lv_textarea_set_text(ta, "");
+    lv_obj_add_event_cb(ta, ta_event_cb, LV_EVENT_READY, NULL);
+    lv_obj_add_event_cb(ta, ta_event_cb, LV_EVENT_CANCEL, NULL);
+
+    kb = lv_keyboard_create(lv_scr_act());
+    lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_NUMBER);
+    lv_keyboard_set_textarea(kb, ta);
+
+    lv_obj_add_state(ta, LV_STATE_FOCUSED);
+    lv_obj_clear_state(ta, LV_STATE_FOCUS_KEY);
 }
 
 static void btn_up_cb(lv_event_t * e)
@@ -201,6 +231,7 @@ static void config_create(lv_obj_t * parent)
         lv_label_set_text(digit_labels[i], d);
         lv_obj_add_flag(digit_labels[i], LV_OBJ_FLAG_CLICKABLE);
         lv_obj_add_event_cb(digit_labels[i], digit_click_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        lv_obj_add_event_cb(digit_labels[i], digit_long_press_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
     }
 
     /* Cursor line under selected digit */

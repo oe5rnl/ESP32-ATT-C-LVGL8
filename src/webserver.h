@@ -60,6 +60,13 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   input[type=checkbox]{width:40px;height:22px;cursor:pointer;accent-color:#7ec8e3}
   #status{text-align:center;font-size:.85em;color:#888;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px}
   .led{width:12px;height:12px;border-radius:50%;display:inline-block;background:#d00}
+  .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+  .modal-overlay.active{display:flex}
+  .modal-box{background:#16213e;border-radius:10px;padding:24px;text-align:center;min-width:240px}
+  .modal-box h3{margin:0 0 16px;color:#7ec8e3;font-size:1.1em}
+  .modal-box input{width:100%;padding:12px;font-size:2em;text-align:center;border:2px solid #0f3460;border-radius:6px;background:#1a1a2e;color:#fff;box-sizing:border-box}
+  .modal-btns{display:flex;gap:8px;margin-top:16px;justify-content:center}
+  .modal-btns button{flex:1}
 </style>
 </head>
 <body>
@@ -68,9 +75,9 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
 <div class="card">
   <h2>Main</h2>
   <div class="digits">
-    <span class="digit selected" id="d0" onclick="selectDigit(0)">0</span>
-    <span class="digit" id="d1" onclick="selectDigit(1)">0</span>
-    <span class="digit" id="d2" onclick="selectDigit(2)">0</span>
+    <span class="digit selected" id="d0" onclick="selectDigit(0)" onpointerdown="digitDown(event,0)" onpointerup="digitUp(0)" onpointerleave="digitUp(0)">0</span>
+    <span class="digit" id="d1" onclick="selectDigit(1)" onpointerdown="digitDown(event,1)" onpointerup="digitUp(1)" onpointerleave="digitUp(1)">0</span>
+    <span class="digit" id="d2" onclick="selectDigit(2)" onpointerdown="digitDown(event,2)" onpointerup="digitUp(2)" onpointerleave="digitUp(2)">0</span>
     <span class="unit">dB</span>
   </div>
   <div class="btns">
@@ -95,6 +102,17 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
 
 <div id="status"><span class="led" id="led"></span><span id="stxt">Verbinde...</span></div>
 
+<div class="modal-overlay" id="digitModal">
+  <div class="modal-box">
+    <h3>Wert eingeben (0–999)</h3>
+    <input type="number" id="digitInput" min="0" max="999" inputmode="numeric" pattern="[0-9]*" onkeydown="if(event.key==='Enter')digitModalOk()">
+    <div class="modal-btns">
+      <button onclick="digitModalCancel()">Abbrechen</button>
+      <button onclick="digitModalOk()">OK</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let ws;
 let selDigit = 2;
@@ -102,6 +120,8 @@ let curVal = 0;
 const defaults = [0,0,0,0,0,0];
 let activeDefIdx = -1;
 let lastContact = 0;
+let digitLpTimer = [0,0,0];
+let digitLpFired = false;
 
 function connectWS(){
   ws = new WebSocket('ws://' + location.host + '/ws');
@@ -156,6 +176,7 @@ function applyDigitSelection(i){
 }
 
 function selectDigit(i){
+  if(digitLpFired){digitLpFired=false;return;}
   applyDigitSelection(i);
   ws.send(JSON.stringify({cmd:'seldigit', idx:i}));
 }
@@ -206,6 +227,35 @@ function sendAE(){
   const v = document.getElementById('swAE').checked;
   document.getElementById('btnSet').style.display = v ? 'none' : 'inline-block';
   ws.send(JSON.stringify({cmd:'ae', val:v}));
+}
+
+function digitDown(evt,i){
+  digitLpFired=false;
+  digitLpTimer[i]=setTimeout(()=>{
+    digitLpFired=true;
+    digitLpTimer[i]=0;
+    const modal=document.getElementById('digitModal');
+    const inp=document.getElementById('digitInput');
+    inp.value=curVal;
+    modal.classList.add('active');
+    setTimeout(()=>inp.select(),50);
+  },600);
+}
+function digitUp(i){
+  if(digitLpTimer[i]){clearTimeout(digitLpTimer[i]);digitLpTimer[i]=0;}
+}
+function digitModalOk(){
+  const inp=document.getElementById('digitInput');
+  let v=parseInt(inp.value);
+  if(isNaN(v)||v<0) v=0;
+  if(v>999) v=999;
+  curVal=v;
+  renderDigits();
+  ws.send(JSON.stringify({cmd:'upd', val:curVal}));
+  document.getElementById('digitModal').classList.remove('active');
+}
+function digitModalCancel(){
+  document.getElementById('digitModal').classList.remove('active');
 }
 
 connectWS();
