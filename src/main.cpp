@@ -399,18 +399,18 @@ static void help_create(lv_obj_t * parent)
     lv_btnmatrix_set_btn_ctrl_all(wifi_radio_btns, LV_BTNMATRIX_CTRL_CHECKABLE);
     lv_btnmatrix_set_one_checked(wifi_radio_btns, true);
     lv_btnmatrix_set_btn_ctrl(wifi_radio_btns, wifi_mode_setting, LV_BTNMATRIX_CTRL_CHECKED);
-    lv_obj_set_size(wifi_radio_btns, 280, 55);
+    lv_obj_set_size(wifi_radio_btns, 300, 67);
     lv_obj_align(wifi_radio_btns, LV_ALIGN_TOP_LEFT, 10, 85);
     lv_obj_set_style_text_font(wifi_radio_btns, &lv_font_montserrat_24, 0);
     lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(wifi_radio_btns, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_opa(wifi_radio_btns, LV_OPA_TRANSP, 0);
     lv_obj_set_style_text_color(wifi_radio_btns, lv_color_hex(0x888888), 0);
     lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_hex(0x1a5090), LV_PART_ITEMS);
     lv_obj_set_style_bg_opa(wifi_radio_btns, LV_OPA_COVER, LV_PART_ITEMS);
+    lv_obj_set_style_border_opa(wifi_radio_btns, LV_OPA_TRANSP, LV_PART_ITEMS);
     lv_obj_set_style_text_color(wifi_radio_btns, lv_color_white(), LV_PART_ITEMS);
     lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_hex(0x008000), LV_PART_ITEMS | LV_STATE_CHECKED);
-    lv_obj_set_style_border_color(wifi_radio_btns, lv_color_hex(0x60d0ff), LV_PART_ITEMS | LV_STATE_CHECKED);
-    lv_obj_set_style_border_width(wifi_radio_btns, 2, LV_PART_ITEMS | LV_STATE_CHECKED);
     lv_obj_add_event_cb(wifi_radio_btns, [](lv_event_t * e) {
         uint32_t id = lv_btnmatrix_get_selected_btn(lv_event_get_target(e));
         if(id > 2) return;
