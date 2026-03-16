@@ -175,14 +175,19 @@ function renderDefaults(){
     const b = document.createElement('button');
     b.textContent = v+' dB';
     b.classList.toggle('active', i===activeDefIdx);
-    b.ondblclick = ()=>{
-      const nv = prompt('Neuer Wert (0-999):', v);
-      if(nv===null) return;
+    let lpt,lf=false;
+    b.onpointerdown=()=>{lf=false;lpt=setTimeout(()=>{lf=true;lpt=0;
+      const nv=prompt('Neuer Wert (0-999):',v);
+      if(nv===null)return;
       const iv=parseInt(nv);
-      if(isNaN(iv)||iv<0||iv>999) return;
-      ws.send(JSON.stringify({cmd:'setdef', idx:i, val:iv}));
-    };
-    b.onclick = ()=>{
+      if(isNaN(iv)||iv<0||iv>999)return;
+      defaults[i]=iv;curVal=iv;activeDefIdx=i;
+      renderDigits();renderDefaults();
+      ws.send(JSON.stringify({cmd:'setdef',idx:i,val:iv}));
+    },600);};
+    b.onpointerup=()=>{if(lpt){clearTimeout(lpt);lpt=0;}};
+    b.onpointerleave=()=>{if(lpt){clearTimeout(lpt);lpt=0;}};
+    b.onclick=(e)=>{if(lf){e.preventDefault();return;}
       curVal = defaults[i];
       activeDefIdx = i;
       renderDigits();
@@ -470,6 +475,7 @@ static void webserver_loop(void)
                 update_config_value(default_values[m.idx]);
                 break;
             case WS_CMD_DEF_SET:
+                update_config_value(default_values[m.idx]);
                 web_update_defaults();
                 break;
             case WS_CMD_AE:
