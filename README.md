@@ -175,6 +175,22 @@ Gesperrte Stellen (Wert = 0) zeigen keinen Unterstrich-Cursor und nehmen keine T
 | 020     | 20 dB    | HIGH           | LOW             | HIGH          | HIGH          |
 | 000     | 0 dB     | HIGH           | HIGH            | HIGH          | HIGH          |
 
+
+
+## Implementierungsdetails
+Core 0 wird automatisch von Arduino/ESP-IDF für:
+
+* AsyncTCP / ESPAsyncWebServer verwendet — alle WebSocket-Callbacks (onWsEvent) laufen hier
+* WiFi-Stack
+
+Core 1 ist der Arduino-Hauptcore:
+
+* setup() und loop() (laufen immer auf Core 1)
+* Damit auch webserver_loop(), lv_timer_handler() und alle LVGL-Zugriffe
+
+Die Kommunikation zwischen den Cores lauft über den FreeRTOS-Queue-Dispatcher: xQueueSend/xQueueReceive
+
+
 ## Basiert auf
 
 [ESP32-Cheap-Yellow-Display](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display) – LVGL8 Beispiel
