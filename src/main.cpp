@@ -22,10 +22,17 @@ Preferences prefs;
 // ----------------------------
 LV_FONT_DECLARE(lv_font_digits_72);
 
+/* Gesamtmaximum und Maximalwert je Ziffer (0 = Stelle deaktiviert) */
+#define DIGIT_MAX_VAL  110   /* maximaler Gesamtwert in dB             */
+#define DIGIT_MAX_0      1   /* Hunderter: 0 .. DIGIT_MAX_0           */
+#define DIGIT_MAX_1      9   /* Zehner:    0 .. DIGIT_MAX_1           */
+#define DIGIT_MAX_2      0   /* Einer:     0 = nicht wählbar          */
+
 int32_t config_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */
 static lv_obj_t * digit_cursor;     /* underline indicator */
-int selected_digit = 2;      /* default: ones */
+static const uint8_t digit_max[3] = { DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2 };
+int selected_digit = (DIGIT_MAX_2 > 0) ? 2 : (DIGIT_MAX_1 > 0) ? 1 : 0;
 static lv_obj_t * tabview;
 
 /* Default values for the 6 buttons */
@@ -147,6 +154,7 @@ static void digit_click_cb(lv_event_t * e)
         return;
     }
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
+    if(digit_max[idx] == 0) return;  /* Stelle deaktiviert */
     selected_digit = idx;
     update_cursor();
     ws_broadcast_seldigit(idx);
@@ -200,9 +208,10 @@ void apply_attenuation(void)
 
 static void btn_up_cb(lv_event_t * e)
 {
+    if(digit_max[selected_digit] == 0) return;
     int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : 1;
     config_value += multiplier;
-    if(config_value > 999) config_value -= 1000;
+    if(config_value > DIGIT_MAX_VAL) config_value = DIGIT_MAX_VAL;
     update_digit_labels();
     prefs.putInt("cval", config_value);
     ws_broadcast_val();
@@ -211,6 +220,7 @@ static void btn_up_cb(lv_event_t * e)
 
 static void btn_down_cb(lv_event_t * e)
 {
+    if(digit_max[selected_digit] == 0) return;
     int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : 1;
     config_value -= multiplier;
     if(config_value < 0) config_value = 0;
@@ -262,9 +272,11 @@ static void config_create(lv_obj_t * parent)
         lv_obj_set_style_text_align(digit_labels[i], LV_TEXT_ALIGN_CENTER, 0);
         char d[2] = { (char)('0' + digits[i]), 0 };
         lv_label_set_text(digit_labels[i], d);
-        lv_obj_add_flag(digit_labels[i], LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_event_cb(digit_labels[i], digit_click_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
-        lv_obj_add_event_cb(digit_labels[i], digit_long_press_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
+        if(digit_max[i] > 0) {
+            lv_obj_add_flag(digit_labels[i], LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_add_event_cb(digit_labels[i], digit_click_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+            lv_obj_add_event_cb(digit_labels[i], digit_long_press_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
+        }
     }
 
     /* Cursor line under selected digit */
