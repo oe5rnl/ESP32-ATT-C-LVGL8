@@ -18,6 +18,7 @@ extern int selected_digit;
 extern uint8_t wifi_mode_setting;
 extern lv_obj_t * ip_label;
 void update_config_value(int32_t val);
+void apply_attenuation(void);
 void web_update_defaults(void);
 void web_update_ae(void);
 void web_update_seldigit(void);
@@ -26,7 +27,7 @@ void web_update_seldigit(void);
  * FreeRTOS queue for inter-core LVGL command dispatch
  * Core 0 (WebSocket task) enqueues, Core 1 (loop) dequeues
  * ------------------------------------------------------- */
-enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT };
+enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET };
 struct WsCmdMsg { WsCmdType type; int32_t val; int32_t idx; bool bval; };
 static QueueHandle_t ws_cmd_queue = nullptr;
 
@@ -412,7 +413,7 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             if(v > 999) v = 999;
             config_value = v;
             ws_send_val();
-            WsCmdMsg m = {WS_CMD_VAL, v, 0, false};
+            WsCmdMsg m = {WS_CMD_SET, v, 0, false};
             xQueueSend(ws_cmd_queue, &m, 0);
         }
         else if(strcmp(cmd, "setdef") == 0) {
@@ -564,6 +565,10 @@ static void webserver_loop(void)
             case WS_CMD_SELDIGIT:
                 selected_digit = m.idx;
                 web_update_seldigit();
+                break;
+            case WS_CMD_SET:
+                update_config_value(m.val);
+                apply_attenuation();
                 break;
         }
     }

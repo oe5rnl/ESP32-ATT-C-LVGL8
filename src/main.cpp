@@ -41,6 +41,14 @@ bool autoenter = false;
 static lv_obj_t * btn_set = NULL;
 static lv_obj_t * ae_switch = NULL;
 
+/* Attenuator GPIO mapping (active HIGH)
+ * Pads: 10 dB, 20 dB, 40 dB (A), 40 dB (B)  →  max 110 dB in 10 dB steps */
+#define ATT_GPIO_10DB    4
+#define ATT_GPIO_20DB   16
+#define ATT_GPIO_40DB_A 17
+#define ATT_GPIO_40DB_B 22
+static int32_t last_att_db = -1;
+
 /* WiFi mode: 0=off, 1=AP, 2=Client */
 uint8_t wifi_mode_setting = 2; /* default: Client */
 static lv_obj_t * wifi_radio_btns = NULL;
@@ -167,6 +175,29 @@ static void digit_long_press_cb(lv_event_t * e)
     lv_obj_clear_state(ta, LV_STATE_FOCUS_KEY);
 }
 
+/* Set attenuator GPIOs from config_value (10 dB steps, ones digit ignored) */
+void apply_attenuation(void)
+{
+    int32_t att = (config_value / 10) * 10;
+    if(att > 110) att = 110;
+    if(att == last_att_db) return;   /* ones digit changed only → do nothing */
+    last_att_db = att;
+
+    int32_t rem = att;
+    bool a40a = (rem >= 40); if(a40a) rem -= 40;
+    bool a40b = (rem >= 40); if(a40b) rem -= 40;
+    bool a20  = (rem >= 20); if(a20)  rem -= 20;
+    bool a10  = (rem >= 10);
+
+    digitalWrite(ATT_GPIO_10DB,   a10  ? HIGH : LOW);
+    digitalWrite(ATT_GPIO_20DB,   a20  ? HIGH : LOW);
+    digitalWrite(ATT_GPIO_40DB_A, a40a ? HIGH : LOW);
+    digitalWrite(ATT_GPIO_40DB_B, a40b ? HIGH : LOW);
+
+    Serial.printf("ATT: %d dB  [10=%d 20=%d 40a=%d 40b=%d]\n",
+                  (int)att, a10, a20, a40a, a40b);
+}
+
 static void btn_up_cb(lv_event_t * e)
 {
     int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : 1;
@@ -175,6 +206,7 @@ static void btn_up_cb(lv_event_t * e)
     update_digit_labels();
     prefs.putInt("cval", config_value);
     ws_broadcast_val();
+    if(autoenter) apply_attenuation();
 }
 
 static void btn_down_cb(lv_event_t * e)
@@ -185,6 +217,7 @@ static void btn_down_cb(lv_event_t * e)
     update_digit_labels();
     prefs.putInt("cval", config_value);
     ws_broadcast_val();
+    if(autoenter) apply_attenuation();
 }
 
 static void config_create(lv_obj_t * parent)
@@ -293,7 +326,7 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_width(btn_set, 88);
     lv_obj_add_style(btn_set, &style_btn, 0);
     lv_obj_add_event_cb(btn_set, [](lv_event_t * e) {
-        /* TODO: send config_value to attenuator */
+        apply_attenuation();
     }, LV_EVENT_CLICKED, NULL);
     lv_obj_t * lbl_set = lv_label_create(btn_set);
     lv_label_set_text(lbl_set, "Set");
@@ -307,6 +340,7 @@ void update_config_value(int32_t val)
     update_digit_labels();
     prefs.putInt("cval", config_value);
     lv_tabview_set_act(tabview, 0, LV_ANIM_OFF);
+    if(autoenter) apply_attenuation();
     /* Do NOT call ws_broadcast_val() here – callers handle it */
 }
 
@@ -563,6 +597,16 @@ void setup()
 {
     Serial.begin(115200);
 
+    /* Attenuator GPIO init */
+    pinMode(ATT_GPIO_10DB,   OUTPUT);
+    pinMode(ATT_GPIO_20DB,   OUTPUT);
+    pinMode(ATT_GPIO_40DB_A, OUTPUT);
+    pinMode(ATT_GPIO_40DB_B, OUTPUT);
+    digitalWrite(ATT_GPIO_10DB,   LOW);
+    digitalWrite(ATT_GPIO_20DB,   LOW);
+    digitalWrite(ATT_GPIO_40DB_A, LOW);
+    digitalWrite(ATT_GPIO_40DB_B, LOW);
+
     /* Load saved default values from NVS */
     prefs.begin("att", false);
     for(int i = 0; i < 6; i++) {
@@ -573,6 +617,9 @@ void setup()
     config_value = prefs.getInt("cval", config_value);
     autoenter = prefs.getBool("ae", false);
     wifi_mode_setting = prefs.getUChar("wmode", 2);
+
+    /* Restore last attenuation setting */
+    apply_attenuation();
 
     String info = "LVGL version ";
     info += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();

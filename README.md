@@ -137,6 +137,28 @@ ESP32 Display,2.8" ESP32-Display ESP32-2432S028R Resistiver Touchscreen 240x320 
 ✅Treiber-Chip: ILI9341
 ✅GUI-Entwicklung: Unterstützung für LVGL – Erstellung moderner grafischer Benutzeroberflächen
 ```
+## Attenuator-Steuerung
+
+4 Dämpfungsglieder werden über GPIOs geschaltet (active HIGH, 10 dB Schritte):
+
+| GPIO | Dämpfungsglied |
+|------|----------------|
+| 4    | 10 dB          |
+| 16   | 20 dB          |
+| 17   | 40 dB (A)      |
+| 22   | 40 dB (B)      |
+
+Maximale Dämpfung: 110 dB (10 + 20 + 40 + 40). Die Einer-Stelle der Anzeige wird ignoriert (nur 10er-Schritte).
+
+### Beispiele
+
+| Anzeige | Effektiv | GPIO 4 (10) | GPIO 16 (20) | GPIO 17 (40A) | GPIO 22 (40B) |
+|---------|----------|-------------|--------------|---------------|---------------|
+| 053     | 50 dB    | HIGH        | LOW          | HIGH           | LOW           |
+| 117     | 110 dB   | HIGH        | HIGH         | HIGH           | HIGH          |
+| 029     | 20 dB    | LOW         | HIGH         | LOW            | LOW           |
+| 005     | 0 dB     | LOW         | LOW          | LOW            | LOW           |
+
 ## Basiert auf
 
 [ESP32-Cheap-Yellow-Display](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display) – LVGL8 Beispiel
