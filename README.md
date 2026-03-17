@@ -7,8 +7,10 @@ LVGL 8 Steuerungsoberfläche für einen 26.5 GHz Attenuator auf dem ESP32 CYD (C
 - **3-Tab-Menü** (Main, Defaults, Config) mit Tab-Leiste am unteren Rand
 - **Main-Tab:** 3-stellige Ziffernanzeige (72px Custom Font), einzeln anwählbar per Touch mit Unterstrich-Cursor. UP/Down/Set-Buttons ändern die ausgewählte Stelle
 - **Defaults-Tab:** 6 vordefinierte dB-Werte als Buttons (2 Reihen × 3). Kurzer Klick übernimmt den Wert, langer Klick öffnet ein Nummernfeld zum Editieren
-- **Config-Tab:** Autoenter-Switch (ein/aus)
-- **Persistente Speicherung:** Ziffernwert, Default-Button-Werte und Autoenter-Einstellung werden im ESP32 NVS gespeichert und überleben Stromausfall/Neustart
+- **Config-Tab:** Autoenter-Switch (ein/aus), WLAN-Modus (Aus / AP / Client)
+- **Ziffernbegrenzung:** Maximalwert und aktivierbare Stellen über `#define` konfigurierbar (`DIGIT_MAX_VAL`, `DIGIT_MAX_0/1/2`)
+- **Persistente Speicherung:** Ziffernwert, Default-Button-Werte, Autoenter und WiFi-Modus werden im ESP32 NVS gespeichert und überleben Stromausfall/Neustart
+- **Webinterface:** Steuerung über Browser (WiFi AP oder Client-Modus)
 - **Set-Button:** Wird nur angezeigt wenn Autoenter ausgeschaltet ist
 
 ## Hardware
@@ -97,6 +99,7 @@ Folgende Werte werden im ESP32 Flash (Namespace `att`) gespeichert:
 | `cval` | Int   | Aktueller Ziffernwert  |
 | `def0`–`def5` | Int | Default-Button-Werte |
 | `ae`   | Bool  | Autoenter ein/aus      |
+| `wmode`| UChar | WiFi-Modus (0=Aus, 1=AP, 2=Client) |
 
 ### Touch-Kalibrierung
 
@@ -139,7 +142,7 @@ ESP32 Display,2.8" ESP32-Display ESP32-2432S028R Resistiver Touchscreen 240x320 
 ```
 ## Attenuator-Steuerung
 
-4 Dämpfungsglieder werden über GPIOs geschaltet (active HIGH, 10 dB Schritte):
+4 Dämpfungsglieder werden über GPIOs geschaltet (**active LOW**, 10 dB Schritte):
 
 | GPIO | Dämpfungsglied |
 |------|----------------|
@@ -148,16 +151,29 @@ ESP32 Display,2.8" ESP32-Display ESP32-2432S028R Resistiver Touchscreen 240x320 
 | 17   | 40 dB (A)      |
 | 22   | 40 dB (B)      |
 
-Maximale Dämpfung: 110 dB (10 + 20 + 40 + 40). Die Einer-Stelle der Anzeige wird ignoriert (nur 10er-Schritte).
+Maximale Dämpfung: 110 dB (10 + 20 + 40 + 40). Die Einer-Stelle der Anzeige ist standardmäßig gesperrt (nur 10er-Schritte).
+
+### Ziffernanzeige konfigurieren
+
+In `src/main.cpp` können Maximalwert und aktivierbare Stellen angepasst werden:
+
+```cpp
+#define DIGIT_MAX_VAL  110   // maximaler Gesamtwert in dB
+#define DIGIT_MAX_0      1   // Hunderter: max. Ziffer (0 = Stelle gesperrt)
+#define DIGIT_MAX_1      9   // Zehner:    max. Ziffer
+#define DIGIT_MAX_2      0   // Einer:     0 = nicht wählbar/editierbar
+```
+
+Gesperrte Stellen (Wert = 0) zeigen keinen Unterstrich-Cursor und nehmen keine Touch-Eingaben an. Beim Keyboard-Editor werden eingegebene Werte automatisch auf erlaubte Stellen gerundet (z. B. 33 → 30 bei gesperrtem Einer).
 
 ### Beispiele
 
-| Anzeige | Effektiv | GPIO 4 (10) | GPIO 16 (20) | GPIO 17 (40A) | GPIO 22 (40B) |
-|---------|----------|-------------|--------------|---------------|---------------|
-| 053     | 50 dB    | HIGH        | LOW          | HIGH           | LOW           |
-| 117     | 110 dB   | HIGH        | HIGH         | HIGH           | HIGH          |
-| 029     | 20 dB    | LOW         | HIGH         | LOW            | LOW           |
-| 005     | 0 dB     | LOW         | LOW          | LOW            | LOW           |
+| Anzeige | Effektiv | GPIO 4 (10 dB) | GPIO 16 (20 dB) | GPIO 17 (40A) | GPIO 22 (40B) |
+|---------|----------|----------------|-----------------|---------------|---------------|
+| 050     | 50 dB    | HIGH           | HIGH            | LOW           | HIGH          |
+| 110     | 110 dB   | LOW            | LOW             | LOW           | LOW           |
+| 020     | 20 dB    | HIGH           | LOW             | HIGH          | HIGH          |
+| 000     | 0 dB     | HIGH           | HIGH            | HIGH          | HIGH          |
 
 ## Basiert auf
 
@@ -166,6 +182,5 @@ Maximale Dämpfung: 110 dB (10 + 20 + 40 + 40). Die Einer-Stelle der Anzeige wir
 ## Lizenz
 
 MIT
-
 
 ~/.platformio/penv/bin/pio run -e cyd 2>&1 | tail -12
