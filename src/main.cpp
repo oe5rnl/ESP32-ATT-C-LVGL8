@@ -18,7 +18,6 @@
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
 #include <Preferences.h>
-#include "webserver.h"
 
 Preferences prefs;
 
@@ -32,6 +31,8 @@ LV_FONT_DECLARE(lv_font_digits_72);
 #define DIGIT_MAX_0      1   /* Hunderter: 0 .. DIGIT_MAX_0           */
 #define DIGIT_MAX_1      9   /* Zehner:    0 .. DIGIT_MAX_1           */
 #define DIGIT_MAX_2      0   /* Einer:     0 = nicht wählbar          */
+
+#include "webserver.h"
 
 int32_t config_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */

@@ -124,6 +124,17 @@ let activeDefIdx = -1;
 let lastContact = 0;
 let digitLpTimer = [0,0,0];
 let digitLpFired = false;
+let maxVal = 999;
+let digitMax = [9,9,9];
+
+function applyDigitDisable(){
+  for(let i=0;i<3;i++){
+    const el=document.getElementById('d'+i);
+    if(!el) continue;
+    if(digitMax[i]===0){el.style.cursor='default';el.style.color='#555';el.style.borderBottomColor='transparent';}
+    else{el.style.cursor='pointer';el.style.color='';}
+  }
+}
 
 function connectWS(){
   ws = new WebSocket('ws://' + location.host + '/ws');
@@ -142,6 +153,8 @@ function connectWS(){
       document.getElementById('swAE').checked = msg.ae;
       document.getElementById('btnSet').style.display = msg.ae ? 'none' : 'inline-block';
       if(msg.sel !== undefined) applyDigitSelection(msg.sel);
+      if(msg.maxVal !== undefined) maxVal=msg.maxVal;
+      if(msg.digitMax !== undefined){digitMax=msg.digitMax;applyDigitDisable();}
     }
     if(msg.type === 'val'){
       curVal = msg.val;
@@ -180,15 +193,17 @@ function applyDigitSelection(i){
 
 function selectDigit(i){
   if(digitLpFired){digitLpFired=false;return;}
+  if(digitMax[i]===0) return;
   applyDigitSelection(i);
   ws.send(JSON.stringify({cmd:'seldigit', idx:i}));
 }
 
 function step(dir){
+  if(digitMax[selDigit]===0) return;
   const m = selDigit===0?100:selDigit===1?10:1;
   curVal += dir*m;
   if(curVal<0) curVal=0;
-  if(curVal>999) curVal=999;
+  if(curVal>maxVal) curVal=maxVal;
   renderDigits();
   ws.send(JSON.stringify({cmd:'upd', val:curVal}));
 }
@@ -206,10 +221,13 @@ function renderDefaults(){
     b.classList.toggle('active', v===curVal);
     let lpt,lf=false;
     b.onpointerdown=()=>{lf=false;lpt=setTimeout(()=>{lf=true;lpt=0;
-      const nv=prompt('Neuer Wert (0-999):',v);
+      const nv=prompt('Neuer Wert (0-'+maxVal+'):',v);
       if(nv===null)return;
-      const iv=parseInt(nv);
-      if(isNaN(iv)||iv<0||iv>999)return;
+      let iv=parseInt(nv);
+      if(isNaN(iv)||iv<0) return;
+      if(iv>maxVal) iv=maxVal;
+      if(digitMax[2]===0) iv=Math.floor(iv/10)*10;
+      if(digitMax[1]===0) iv=Math.floor(iv/100)*100;
       defaults[i]=iv;curVal=iv;
       renderDigits();renderDefaults();
       ws.send(JSON.stringify({cmd:'setdef',idx:i,val:iv}));
@@ -233,6 +251,7 @@ function sendAE(){
 }
 
 function digitDown(evt,i){
+  if(digitMax[i]===0) return;
   digitLpFired=false;
   digitLpTimer[i]=setTimeout(()=>{
     digitLpFired=true;
@@ -251,7 +270,9 @@ function digitModalOk(){
   const inp=document.getElementById('digitInput');
   let v=parseInt(inp.value);
   if(isNaN(v)||v<0) v=0;
-  if(v>999) v=999;
+  if(v>maxVal) v=maxVal;
+  if(digitMax[2]===0) v=Math.floor(v/10)*10;
+  if(digitMax[1]===0) v=Math.floor(v/100)*100;
   curVal=v;
   renderDigits();
   ws.send(JSON.stringify({cmd:'upd', val:curVal}));
@@ -292,8 +313,10 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
         (int)default_values[3], (int)default_values[4], (int)default_values[5]);
 
     snprintf(buf, sizeof(buf),
-        "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"sel\":%d}",
-        (int)config_value, defArr, autoenter ? "true" : "false", selected_digit);
+        "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"sel\":%d,"
+        "\"maxVal\":%d,\"digitMax\":[%d,%d,%d]}",
+        (int)config_value, defArr, autoenter ? "true" : "false", selected_digit,
+        DIGIT_MAX_VAL, DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2);
 
     if(client) client->text(buf);
     else        ws.textAll(buf);
@@ -399,7 +422,9 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             int32_t v = config_value;
             if(getInt(msg, "val", v)) {
                 if(v < 0) v = 0;
-                if(v > 999) v = 999;
+                if(v > DIGIT_MAX_VAL) v = DIGIT_MAX_VAL;
+                if(DIGIT_MAX_2 == 0) v = (v / 10) * 10;
+                if(DIGIT_MAX_1 == 0) v = (v / 100) * 100;
                 config_value = v;
                 ws_send_val();
                 WsCmdMsg m = {WS_CMD_VAL, v, 0, false};
@@ -410,7 +435,9 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             int32_t v = config_value;
             getInt(msg, "val", v);
             if(v < 0) v = 0;
-            if(v > 999) v = 999;
+            if(v > DIGIT_MAX_VAL) v = DIGIT_MAX_VAL;
+            if(DIGIT_MAX_2 == 0) v = (v / 10) * 10;
+            if(DIGIT_MAX_1 == 0) v = (v / 100) * 100;
             config_value = v;
             ws_send_val();
             WsCmdMsg m = {WS_CMD_SET, v, 0, false};
@@ -420,7 +447,9 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             int32_t idx = -1, val = 0;
             if(getInt(msg, "idx", idx) && getInt(msg, "val", val) && idx >= 0 && idx < 6) {
                 if(val < 0) val = 0;
-                if(val > 999) val = 999;
+                if(val > DIGIT_MAX_VAL) val = DIGIT_MAX_VAL;
+                if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;
+                if(DIGIT_MAX_1 == 0) val = (val / 100) * 100;
                 default_values[idx] = val;
                 char key[8];
                 snprintf(key, sizeof(key), "def%d", (int)idx);
