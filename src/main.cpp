@@ -48,7 +48,7 @@ bool autoenter = false;
 static lv_obj_t * btn_set = NULL;
 static lv_obj_t * ae_switch = NULL;
 
-/* Attenuator GPIO mapping (active HIGH)
+/* Attenuator GPIO mapping (active LOW)
  * Pads: 10 dB, 20 dB, 40 dB (A), 40 dB (B)  →  max 110 dB in 10 dB steps */
 #define ATT_GPIO_10DB    4
 #define ATT_GPIO_20DB   16
@@ -75,7 +75,10 @@ static void ta_event_cb(lv_event_t * e)
         const char * txt = lv_textarea_get_text(ta);
         int32_t val = atoi(txt);
         if(val < 0) val = 0;
-        if(val > 999) val = 999;
+        if(val > DIGIT_MAX_VAL) val = DIGIT_MAX_VAL;  /* Obergrenze */
+        /* Gesperrte Stellen auf 0 runden (z.B. Einer gesperrt → 33 → 30) */
+        if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;
+        if(DIGIT_MAX_1 == 0) val = (val / 100) * 100;
         if(editing_index >= 0 && editing_index < 6) {
             default_values[editing_index] = val;
             lv_label_set_text_fmt(default_labels[editing_index], "%d dB", val);
@@ -163,6 +166,8 @@ static void digit_click_cb(lv_event_t * e)
 /* Digit long-press: open numeric keyboard for direct value entry */
 static void digit_long_press_cb(lv_event_t * e)
 {
+    int idx = (int)(intptr_t)lv_event_get_user_data(e);
+    if(digit_max[idx] == 0) return;  /* Stelle deaktiviert */
     long_press_active = true;
     editing_index = -1;  /* not editing a default button */
 
@@ -197,13 +202,13 @@ void apply_attenuation(void)
     bool a20  = (rem >= 20); if(a20)  rem -= 20;
     bool a10  = (rem >= 10);
 
-    digitalWrite(ATT_GPIO_10DB,   a10  ? HIGH : LOW);
-    digitalWrite(ATT_GPIO_20DB,   a20  ? HIGH : LOW);
-    digitalWrite(ATT_GPIO_40DB_A, a40a ? HIGH : LOW);
-    digitalWrite(ATT_GPIO_40DB_B, a40b ? HIGH : LOW);
+    digitalWrite(ATT_GPIO_10DB,   a10  ? LOW : HIGH);
+    digitalWrite(ATT_GPIO_20DB,   a20  ? LOW : HIGH);
+    digitalWrite(ATT_GPIO_40DB_A, a40a ? LOW : HIGH);
+    digitalWrite(ATT_GPIO_40DB_B, a40b ? LOW : HIGH);
 
     Serial.printf("ATT: %d dB  [10=%d 20=%d 40a=%d 40b=%d]\n",
-                  (int)att, a10, a20, a40a, a40b);
+                  (int)att, !a10, !a20, !a40a, !a40b);
 }
 
 static void btn_up_cb(lv_event_t * e)
@@ -614,10 +619,10 @@ void setup()
     pinMode(ATT_GPIO_20DB,   OUTPUT);
     pinMode(ATT_GPIO_40DB_A, OUTPUT);
     pinMode(ATT_GPIO_40DB_B, OUTPUT);
-    digitalWrite(ATT_GPIO_10DB,   LOW);
-    digitalWrite(ATT_GPIO_20DB,   LOW);
-    digitalWrite(ATT_GPIO_40DB_A, LOW);
-    digitalWrite(ATT_GPIO_40DB_B, LOW);
+    digitalWrite(ATT_GPIO_10DB,   HIGH);
+    digitalWrite(ATT_GPIO_20DB,   HIGH);
+    digitalWrite(ATT_GPIO_40DB_A, HIGH);
+    digitalWrite(ATT_GPIO_40DB_B, HIGH);
 
     /* Load saved default values from NVS */
     prefs.begin("att", false);

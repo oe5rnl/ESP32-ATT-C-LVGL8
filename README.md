@@ -32,7 +32,7 @@ $ ~/.platformio/penv/bin/pio run -t upload
 $ ~/.platformio/penv/bin/pio run -e cyd2usb -t upload
 
 # Seriellen Monitor öffnen
-$ ~/.platformio/penv/bin/pio device monitor
+$ ~/.platformio/penv/bin/pio run -t upload -t monitor
 ```
 
 ## Projektstruktur
