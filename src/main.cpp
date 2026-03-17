@@ -1,8 +1,13 @@
 /* ESP32-ATT-C-LVGL8
  *
- * LVGL8 Widget Demo for ESP32 Cheap Yellow Display (CYD)
+ * 26.5 GHz Attenuator Controller with LVGL8 UI and WebGui 
+ * on ESP32 Cheap Yellow Display (CYD)
+ * 
+ * Version 0.5 - 2026-03-17 OE5RNL & OE5NVL
+ * 
  * Based on the LVGL8 example from ESP32-Cheap-Yellow-Display
- *
+ * https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display)
+ * 
  * Hardware: ESP32-2432S028 (CYD) with ILI9341 display and XPT2046 touch
  * Display: 320x240 RGB565
  * Touch: XPT2046 on separate VSPI bus
