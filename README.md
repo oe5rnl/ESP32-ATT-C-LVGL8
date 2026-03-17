@@ -1,6 +1,10 @@
 # ESP32-ATT-C-LVGL8
 
-LVGL 8 Steuerungsoberfläche für einen 26.5 GHz Attenuator auf dem ESP32 CYD (Cheap Yellow Display).
+LVGL 8 Steuerungsoberfläche 
+* für einen 26.5 GHz Attenuator auf dem ESP32 CYD (Cheap Yellow Display).
+* TFT und 2.8 Zoll Display
+* WLAN Anbindung mit AP und WLAN-Client
+* WebGui mit gleicher funktion wie am Display
 
 ## Features
 
