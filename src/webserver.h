@@ -27,7 +27,7 @@ void web_update_seldigit(void);
  * FreeRTOS queue for inter-core LVGL command dispatch
  * Core 0 (WebSocket task) enqueues, Core 1 (loop) dequeues
  * ------------------------------------------------------- */
-enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET };
+enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET, WS_CMD_WIFI_APPLY };
 struct WsCmdMsg { WsCmdType type; int32_t val; int32_t idx; bool bval; };
 static QueueHandle_t ws_cmd_queue = nullptr;
 
@@ -100,6 +100,22 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
     <label>Auto-Enter</label>
     <input type="checkbox" id="swAE" onchange="sendAE()">
   </div>
+</div>
+
+<div class="card" id="wifiSetup" style="display:none">
+  <h2>WLAN konfigurieren</h2>
+  <button id="btnScan" onclick="scanWifi()" style="width:100%;margin-bottom:10px">Netzwerke suchen</button>
+  <div id="scanResults"></div>
+  <input type="text" id="wifiSSID" placeholder="SSID" autocomplete="off"
+    style="width:100%;padding:10px;margin-bottom:8px;font-size:1em;background:#1a1a2e;color:#fff;border:2px solid #0f3460;border-radius:6px;box-sizing:border-box">
+  <div style="position:relative;margin-bottom:8px">
+    <input type="password" id="wifiPass" placeholder="Passwort" autocomplete="new-password"
+      style="width:100%;padding:10px;padding-right:52px;font-size:1em;background:#1a1a2e;color:#fff;border:2px solid #0f3460;border-radius:6px;box-sizing:border-box">
+    <button onclick="togglePass()" title="Passwort anzeigen"
+      style="position:absolute;right:6px;top:50%;transform:translateY(-50%);padding:4px 10px;font-size:.9em;background:#0f3460">&#128065;</button>
+  </div>
+  <button onclick="connectWifi()" style="width:100%;background:#0a6640">Verbinden</button>
+  <div id="wifiStatus" style="margin-top:8px;text-align:center;font-size:.85em;min-height:1.2em"></div>
 </div>
 
 <div id="status"><span class="led" id="led"></span><span id="stxt">Verbinde...</span></div>
@@ -280,6 +296,82 @@ function digitModalOk(){
 }
 function digitModalCancel(){
   document.getElementById('digitModal').classList.remove('active');
+}
+
+// --- WiFi-Setup (nur im AP-Modus sichtbar) ---
+let scannedNets=[];
+fetch('/api/mode').then(r=>r.json()).then(d=>{
+  if(d.mode===1) document.getElementById('wifiSetup').style.display='block';
+}).catch(()=>{});
+
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+let scanPollTimer=null;
+function stopScanPoll(){if(scanPollTimer){clearInterval(scanPollTimer);scanPollTimer=null;}}
+
+function renderScanNets(nets){
+  const cont=document.getElementById('scanResults');
+  scannedNets=nets||[];
+  if(!scannedNets.length){cont.textContent='Keine Netzwerke gefunden';return;}
+  cont.innerHTML='';
+  scannedNets.sort((a,b)=>b.rssi-a.rssi).forEach((n,i)=>{
+    const row=document.createElement('div');
+    row.style.cssText='padding:8px 12px;margin:3px 0;background:#0f3460;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center';
+    const nameEl=document.createElement('span'); nameEl.textContent=n.ssid;
+    const infoEl=document.createElement('span');
+    infoEl.style.cssText='color:#aaa;font-size:.85em;white-space:nowrap';
+    infoEl.textContent=(n.enc?'\uD83D\uDD12 ':'')+n.rssi+' dBm';
+    row.appendChild(nameEl); row.appendChild(infoEl);
+    row.onclick=()=>{document.getElementById('wifiSSID').value=scannedNets[i].ssid;};
+    cont.appendChild(row);
+  });
+}
+
+function scanWifi(){
+  const btn=document.getElementById('btnScan');
+  const cont=document.getElementById('scanResults');
+  stopScanPoll();
+  btn.disabled=true; btn.textContent='Suche l\u00e4uft\u2026';
+  cont.innerHTML='';
+  fetch('/api/scan').catch(()=>{
+    btn.disabled=false; btn.textContent='Netzwerke suchen';
+    cont.textContent='Scan fehlgeschlagen';
+  });
+  /* Poll for results every 1.5 s, give up after 20 s */
+  let attempts=0;
+  scanPollTimer=setInterval(()=>{
+    attempts++;
+    if(attempts>13){stopScanPoll();btn.disabled=false;btn.textContent='Netzwerke suchen';cont.textContent='Scan fehlgeschlagen';return;}
+    fetch('/api/scanresult').then(r=>r.json()).then(d=>{
+      if(d.status==='scanning') return;
+      stopScanPoll();
+      btn.disabled=false; btn.textContent='Netzwerke suchen';
+      if(d.status==='failed'){cont.textContent='Scan fehlgeschlagen \u2013 bitte erneut versuchen';return;}
+      renderScanNets(d.nets);
+    }).catch(()=>{});
+  },1500);
+}
+
+function togglePass(){
+  const inp=document.getElementById('wifiPass');
+  inp.type=inp.type==='password'?'text':'password';
+}
+
+function connectWifi(){
+  const ssid=document.getElementById('wifiSSID').value.trim();
+  const pass=document.getElementById('wifiPass').value;
+  const stat=document.getElementById('wifiStatus');
+  if(!ssid){stat.style.color='#e94560';stat.textContent='Bitte SSID eingeben';return;}
+  stat.style.color='#aaa'; stat.textContent='Verbinde\u2026';
+  const body=new URLSearchParams();
+  body.append('ssid',ssid); body.append('pass',pass);
+  fetch('/api/connect',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:body.toString()})
+    .then(r=>r.json()).then(d=>{
+      if(d.ok){stat.style.color='#0a0';stat.textContent='Verbindungsaufbau gestartet \u2013 Ger\u00e4t verbindet mit "'+ssid+'"';}
+      else{stat.style.color='#e94560';stat.textContent='Fehler beim Verbinden';}
+    }).catch(()=>{
+      stat.style.color='#0a0'; stat.textContent='Verbindungsaufbau gestartet\u2026';
+    });
 }
 
 connectWS();
@@ -496,6 +588,22 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
  * ------------------------------------------------------- */
 static bool webserver_running = false;
 
+/* Escape special chars for JSON string values */
+static String jsonEscStr(const String & s)
+{
+    String out;
+    out.reserve(s.length() + 4);
+    for(unsigned i = 0; i < s.length(); i++) {
+        char c = s[i];
+        if     (c == '"') out += "\\\"";
+        else if(c == '\\') out += "\\\\";
+        else if(c == '\n') out += "\\n";
+        else if(c == '\r') out += "\\r";
+        else               out += c;
+    }
+    return out;
+}
+
 static void start_webserver(void)
 {
     if(webserver_running) return;
@@ -505,6 +613,82 @@ static void start_webserver(void)
     webServer.on("/", HTTP_GET, [](AsyncWebServerRequest * req){
         req->send_P(200, "text/html", WEB_PAGE);
     });
+
+    /* Returns current WiFi mode: 0=off, 1=AP, 2=Client */
+    webServer.on("/api/mode", HTTP_GET, [](AsyncWebServerRequest * req){
+        char buf[24];
+        snprintf(buf, sizeof(buf), "{\"mode\":%d}", wifi_mode_setting);
+        req->send(200, "application/json", buf);
+    });
+
+    /* Scan for available networks – starts async scan, returns immediately */
+    webServer.on("/api/scan", HTTP_GET, [](AsyncWebServerRequest * req){
+        int cur = WiFi.scanComplete();
+        if(cur == WIFI_SCAN_RUNNING) {
+            req->send(200, "application/json", "{\"status\":\"scanning\"}");
+            return;
+        }
+        /* Delete old results before starting fresh scan */
+        if(cur >= 0) WiFi.scanDelete();
+        WiFi.scanNetworks(/*async=*/true);
+        req->send(200, "application/json", "{\"status\":\"scanning\"}");
+    });
+
+    /* Poll for scan results */
+    webServer.on("/api/scanresult", HTTP_GET, [](AsyncWebServerRequest * req){
+        static uint8_t scanRetries = 0;
+        int n = WiFi.scanComplete();
+        if(n == WIFI_SCAN_RUNNING) {
+            req->send(200, "application/json", "{\"status\":\"scanning\"}");
+            return;
+        }
+        if(n == WIFI_SCAN_FAILED) {
+            /* Scan failed – retry up to 3 times before giving up */
+            if(scanRetries < 3) {
+                scanRetries++;
+                WiFi.scanNetworks(/*async=*/true);
+                req->send(200, "application/json", "{\"status\":\"scanning\"}");
+            } else {
+                scanRetries = 0;
+                req->send(200, "application/json", "{\"status\":\"failed\"}");
+            }
+            return;
+        }
+        scanRetries = 0;
+        if(n > 20) n = 20;
+        String json = "{\"status\":\"done\",\"nets\":[";
+        for(int i = 0; i < n; i++) {
+            if(i > 0) json += ",";
+            json += "{\"ssid\":\"" + jsonEscStr(WiFi.SSID(i)) + "\",\"rssi\":" + WiFi.RSSI(i);
+            json += ",\"enc\":" + String(WiFi.encryptionType(i) != WIFI_AUTH_OPEN ? 1 : 0) + "}";
+        }
+        json += "]}";
+        WiFi.scanDelete();
+        req->send(200, "application/json", json);
+    });
+
+    /* Connect to a network: POST ssid= & pass= (URL-encoded) */
+    webServer.on("/api/connect", HTTP_POST, [](AsyncWebServerRequest * req){
+        if(req->hasParam("ssid", true)) {
+            String ssid = req->getParam("ssid", true)->value();
+            String pass = req->hasParam("pass", true) ? req->getParam("pass", true)->value() : "";
+            /* Validate: SSID 1-32 bytes, password 0-63 bytes (WPA2) */
+            if(ssid.length() == 0 || ssid.length() > 32 || pass.length() > 63) {
+                req->send(400, "application/json", "{\"ok\":false,\"error\":\"invalid\"}");
+                return;
+            }
+            prefs.putString("wifi_ssid", ssid);
+            prefs.putString("wifi_pass", pass);
+            wifi_mode_setting = 2;
+            prefs.putUChar("wmode", wifi_mode_setting);
+            req->send(200, "application/json", "{\"ok\":true}");
+            WsCmdMsg m = {WS_CMD_WIFI_APPLY, 0, 0, false};
+            xQueueSend(ws_cmd_queue, &m, 0);
+        } else {
+            req->send(400, "application/json", "{\"ok\":false}");
+        }
+    });
+
     webServer.begin();
     webserver_running = true;
     Serial.println("Webserver gestartet");
@@ -522,37 +706,54 @@ static void stop_webserver(void)
 static void apply_wifi_mode(void)
 {
     stop_webserver();
-    WiFi.disconnect(true);
+
+    /* Cleanly shut down all WiFi activity before switching mode */
     WiFi.softAPdisconnect(true);
-    delay(100);
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    delay(500);  /* Give the WiFi stack time to fully shut down */
 
     if(wifi_mode_setting == 0) {
-        WiFi.mode(WIFI_OFF);
         Serial.println("WiFi AUS");
         if(ip_label) lv_label_set_text(ip_label, "");
     }
     else if(wifi_mode_setting == 1) {
-        WiFi.mode(WIFI_AP);
+        WiFi.mode(WIFI_AP_STA);  /* AP_STA erlaubt Netzwerk-Scan im AP-Modus */
+        delay(200);
         WiFi.softAP("ESP32-ATT", "12345678");
-        Serial.printf("AP gestartet, IP: %s\\n", WiFi.softAPIP().toString().c_str());
+        Serial.printf("AP gestartet, IP: %s\n", WiFi.softAPIP().toString().c_str());
         if(ip_label) lv_label_set_text_fmt(ip_label, "IP: %s", WiFi.softAPIP().toString().c_str());
         start_webserver();
     }
     else {
         WiFi.mode(WIFI_STA);
-        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-        Serial.print("WiFi verbinde");
-        for(int i = 0; i < 20 && WiFi.status() != WL_CONNECTED; i++) {
+        delay(200);  /* Wait for STA mode to initialise */
+        /* Gespeicherte Zugangsdaten bevorzugen, Fallback auf wifi_credentials.h */
+        String _ssid = prefs.getString("wifi_ssid", WIFI_SSID);
+        String _pass = prefs.getString("wifi_pass", WIFI_PASSWORD);
+        Serial.printf("WiFi verbinde mit SSID: %s\n", _ssid.c_str());
+        if(ip_label) lv_label_set_text_fmt(ip_label, "Verbinde: %s", _ssid.c_str());
+        WiFi.begin(_ssid.c_str(), _pass.c_str());
+        for(int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) {
             delay(500);
             Serial.print('.');
         }
         if(WiFi.status() == WL_CONNECTED) {
-            Serial.printf("\\nWiFi OK, IP: %s\\n", WiFi.localIP().toString().c_str());
+            Serial.printf("\nWiFi OK, IP: %s\n", WiFi.localIP().toString().c_str());
             if(ip_label) lv_label_set_text_fmt(ip_label, "IP: %s", WiFi.localIP().toString().c_str());
             start_webserver();
         } else {
-            Serial.println("\\nWiFi nicht verbunden");
+            Serial.println("\nWiFi nicht verbunden");
             if(ip_label) lv_label_set_text(ip_label, "Nicht verbunden");
+            /* Fallback: switch back to AP so device remains accessible */
+            wifi_mode_setting = 1;
+            prefs.putUChar("wmode", wifi_mode_setting);
+            WiFi.mode(WIFI_AP_STA);
+            delay(200);
+            WiFi.softAP("ESP32-ATT", "12345678");
+            Serial.printf("Fallback AP, IP: %s\n", WiFi.softAPIP().toString().c_str());
+            if(ip_label) lv_label_set_text_fmt(ip_label, "AP: %s", WiFi.softAPIP().toString().c_str());
+            start_webserver();
         }
     }
 }
@@ -598,6 +799,9 @@ static void webserver_loop(void)
             case WS_CMD_SET:
                 update_config_value(m.val);
                 apply_attenuation();
+                break;
+            case WS_CMD_WIFI_APPLY:
+                apply_wifi_mode();
                 break;
         }
     }
