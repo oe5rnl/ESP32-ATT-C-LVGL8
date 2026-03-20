@@ -422,7 +422,7 @@ static void help_create(lv_obj_t * parent)
     lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
 
     lv_obj_t * label = lv_label_create(parent);
-    lv_label_set_text(label, "Auto-Enter");
+    lv_label_set_text(label, "Auto-Set");
     lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(label, lv_color_white(), 0);
     lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
@@ -682,6 +682,11 @@ void setup()
 
     // Create custom UI
     create_ui();
+
+    // Render initial display before WiFi blocks
+    lv_timer_handler();
+    delay(50);
+    lv_timer_handler();
 
     // Start Webserver
     webserver_setup();

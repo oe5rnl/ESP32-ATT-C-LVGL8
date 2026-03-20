@@ -622,6 +622,11 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
  * ------------------------------------------------------- */
 static bool webserver_running = false;
 
+/* WiFi connection state machine for non-blocking connect */
+static enum { WIFI_IDLE, WIFI_CONNECTING, WIFI_CONNECTED, WIFI_FAILED } wifi_connect_state = WIFI_IDLE;
+static unsigned long wifi_connect_start = 0;
+static const unsigned long WIFI_CONNECT_TIMEOUT = 20000; // 20 seconds
+
 /* Escape special chars for JSON string values */
 static String jsonEscStr(const String & s)
 {
@@ -753,6 +758,9 @@ static void stop_webserver(void)
 
 static void apply_wifi_mode(void)
 {
+    /* Reset connection state */
+    wifi_connect_state = WIFI_IDLE;
+    
     /* Mode 0: WiFi OFF */
     if(wifi_mode_setting == 0) {
         stop_webserver();
@@ -797,39 +805,17 @@ static void apply_wifi_mode(void)
         
         /* Nur neu verbinden wenn noch nicht verbunden oder andere SSID */
         if(WiFi.status() != WL_CONNECTED || WiFi.SSID() != _ssid) {
-            Serial.printf("WiFi verbinde mit SSID: %s\n", _ssid.c_str());
+            Serial.printf("WiFi verbinde mit SSID: %s (non-blocking)\n", _ssid.c_str());
             if(ip_label) lv_label_set_text_fmt(ip_label, "Verbinde: %s | AP: %s", 
                 _ssid.c_str(), WiFi.softAPIP().toString().c_str());
             
+            /* Start non-blocking connection */
             WiFi.begin(_ssid.c_str(), _pass.c_str());
-            
-            /* Nicht-blockierend: versuche 20 Sekunden zu verbinden */
-            for(int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) {
-                delay(500);
-                Serial.print('.');
-            }
-            
-            if(WiFi.status() == WL_CONNECTED) {
-                Serial.printf("\nWiFi OK, Client-IP: %s, AP-IP: %s\n", 
-                    WiFi.localIP().toString().c_str(), 
-                    WiFi.softAPIP().toString().c_str());
-                if(ip_label) lv_label_set_text_fmt(ip_label, "IP: %s | AP: %s", 
-                    WiFi.localIP().toString().c_str(), WiFi.softAPIP().toString().c_str());
-                
-                /* mDNS starten für Erreichbarkeit über esp32-att.local */
-                if(!MDNS.begin("esp32-att")) {
-                    Serial.println("mDNS Start fehlgeschlagen");
-                } else {
-                    MDNS.addService("http", "tcp", 80);
-                    Serial.println("mDNS gestartet: esp32-att.local");
-                }
-            } else {
-                Serial.println("\nWiFi Client-Verbindung fehlgeschlagen");
-                if(ip_label) lv_label_set_text_fmt(ip_label, "AP: %s (Client fehlgeschlagen)",
-                    WiFi.softAPIP().toString().c_str());
-            }
+            wifi_connect_state = WIFI_CONNECTING;
+            wifi_connect_start = millis();
         } else {
             Serial.printf("WiFi bereits verbunden mit %s\n", WiFi.SSID().c_str());
+            wifi_connect_state = WIFI_CONNECTED;
         }
     }
 }
@@ -842,6 +828,39 @@ static void webserver_setup(void)
 static void webserver_loop(void)
 {
     ws.cleanupClients();
+
+    /* Non-blocking WiFi connection state machine */
+    if(wifi_connect_state == WIFI_CONNECTING) {
+        wl_status_t status = WiFi.status();
+        if(status == WL_CONNECTED) {
+            wifi_connect_state = WIFI_CONNECTED;
+            Serial.printf("\nWiFi OK, Client-IP: %s, AP-IP: %s\n", 
+                WiFi.localIP().toString().c_str(), 
+                WiFi.softAPIP().toString().c_str());
+            if(ip_label) lv_label_set_text_fmt(ip_label, "IP: %s | AP: %s", 
+                WiFi.localIP().toString().c_str(), WiFi.softAPIP().toString().c_str());
+            
+            /* mDNS starten für Erreichbarkeit über esp32-att.local */
+            if(!MDNS.begin("esp32-att")) {
+                Serial.println("mDNS Start fehlgeschlagen");
+            } else {
+                MDNS.addService("http", "tcp", 80);
+                Serial.println("mDNS gestartet: esp32-att.local");
+            }
+        }
+        else if(millis() - wifi_connect_start > WIFI_CONNECT_TIMEOUT) {
+            wifi_connect_state = WIFI_FAILED;
+            Serial.println("\nWiFi Client-Verbindung fehlgeschlagen (Timeout)");
+            if(ip_label) lv_label_set_text_fmt(ip_label, "AP: %s (Client Timeout)",
+                WiFi.softAPIP().toString().c_str());
+        }
+        else if(status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
+            wifi_connect_state = WIFI_FAILED;
+            Serial.printf("\nWiFi Client-Verbindung fehlgeschlagen (Status: %d)\n", status);
+            if(ip_label) lv_label_set_text_fmt(ip_label, "AP: %s (Client fehlgeschlagen)",
+                WiFi.softAPIP().toString().c_str());
+        }
+    }
 
     /* Send periodic heartbeat so client LED stays green */
     static unsigned long lastPing = 0;
