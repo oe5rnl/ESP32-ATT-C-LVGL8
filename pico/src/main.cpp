@@ -1,9 +1,9 @@
-/* Raspberry Pi Pico - 26.5 GHz Attenuator Controller
+/* Raspberry Pi Pico - Attenuator Controller
  *
  * Version 0.1 - 2026-03-21
  * 
  * Hardware: Raspberry Pi Pico
- * GPIO Mapping: Attenuator control pins (active LOW)
+ * GPIO Mapping: Attenuator control 
  */
 
 #include <Arduino.h>
@@ -22,12 +22,14 @@ U8G2_SSD1306_128X64_NONAME_F_SW_I2C display(U8G2_R0, /* clock=*/ 19, /* data=*/ 
 #define ATTENUATOR_GPIO_RS_70DB   2    
 
 
-
-
 #define ATT_GPIO_10DB    2
 #define ATT_GPIO_20DB    3
 #define ATT_GPIO_40DB_A  4
 #define ATT_GPIO_40DB_B  5
+
+/* Mode Select Inputs with Pull-up */
+#define MODE_SELECT0     18
+#define MODE_SELECT1     21
 
 static int32_t current_db = 0;
 static unsigned long last_led_toggle = 0;
@@ -35,7 +37,7 @@ static bool led_state = false;
 static bool led_solid_mode = false;  /* true = 2s solid, false = blink */
 static unsigned long led_solid_start = 0;
 
-void apply_attenuation(int32_t db_value)
+void apply_attenuation_26(int32_t db_value)
 {
     // Round to 10 dB steps
     int32_t att = (db_value / 10) * 10;
@@ -76,6 +78,21 @@ void apply_attenuation(int32_t db_value)
     display.setFont(u8g2_font_ncenB10_tr);
     display.drawStr(75, 45, "dB");
     display.sendBuffer();
+}
+
+void apply_attenuation(int32_t db_value)
+{
+    // wenn MODE_SELECT0 und MODE_SELECT1 high -> apply_attenuation_26
+    if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == LOW) {
+        apply_attenuation_26(db_value);
+    }
+    // wenn MODE_SELECT0 == LOW und MODE_SELECT1 == high -> apply_attenuation_26
+    else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
+        // applay_attenuation_rs70db();  // TODO: Implementieren
+    }
+    else {
+        Serial.println("Unsupported mode - no attenuation applied");
+    }
 }
 
 void setup()
@@ -123,6 +140,10 @@ void setup()
     digitalWrite(ATT_GPIO_40DB_A, HIGH);
     digitalWrite(ATT_GPIO_40DB_B, HIGH);
     
+    /* Mode Select Inputs with Pull-up */
+    pinMode(MODE_SELECT0, INPUT_PULLUP);
+    pinMode(MODE_SELECT1, INPUT_PULLUP);
+    
     Serial.println("GPIO initialized");
     Serial.println("\nCommands (USB):");
     Serial.println("  0-110  : Set attenuation (10 dB steps)");
@@ -165,17 +186,16 @@ void loop()
         if(dbPos > 0) {
             String numStr = input.substring(0, dbPos);
             int val = numStr.toInt();
-            if(val >= 0 && val <= 110) {
-                apply_attenuation(val);
-                Serial.print("ESP32 -> ");
-                Serial.print(val);
-                Serial.println(" dB");
-                
-                /* LED solid for 2 seconds */
-                led_solid_mode = true;
-                led_solid_start = now;
-                digitalWrite(LED_BUILTIN, HIGH);
-            }
+            apply_attenuation(val);
+            Serial.print("ESP32 -> ");
+            Serial.print(val);
+            Serial.println(" dB");
+            
+            /* LED solid for 2 seconds */
+            led_solid_mode = true;
+            led_solid_start = now;
+            digitalWrite(LED_BUILTIN, HIGH);
+
         }
     }
 
@@ -191,12 +211,7 @@ void loop()
         }
         else {
             int val = input.toInt();
-            if(val >= 0 && val <= 110) {
-                apply_attenuation(val);
-            }
-            else {
-                Serial.println("ERROR: Value must be 0-110");
-            }
+            apply_attenuation(val);
         }
     }
     
