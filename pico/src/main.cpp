@@ -17,7 +17,7 @@ U8G2_SSD1306_128X64_NONAME_F_SW_I2C display(U8G2_R0, /* clock=*/ 19, /* data=*/ 
 #define ATTENUATOR_GPIO_RS_70DB   2    
 
 
-/* 26.5 GHz Attenuator
+/* 26.5 GHz Attenuator ***********************************************************
 *  Pads: 10 dB, 20 dB, 40 dB (A), 40 dB (B)  →  max 110 dB in 10 dB steps
 *  Der Attenuator verfügt über eine Logik mit H Brücke
 *  daher 1 Bit je Relais - high aktiv 
@@ -27,13 +27,10 @@ U8G2_SSD1306_128X64_NONAME_F_SW_I2C display(U8G2_R0, /* clock=*/ 19, /* data=*/ 
 #define ATT_GPIO_40DB_A  10
 #define ATT_GPIO_40DB_B  16
 
-/* RS 7 Relais Attenuatur 
+
+/* RS 7 Relais Attenuatur   ******************************************************
 * Pads:  ????
 */
-
-// todo: GPIOs definieren
-
-
 // Relais 1: 10 dB ??
 #define GPIO_2_7    // PIN=4  GPIO_2  Relais_1 a
 #define GPIO_3_7    // PIN=5  GPIO_3  Relais_1 b
