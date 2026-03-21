@@ -12,9 +12,9 @@ static AsyncWebSocket ws("/ws");
 
 /* Forward declarations – defined in main.cpp */
 extern Preferences prefs;
-extern int32_t config_value;
+extern int32_t db_value;
 extern int32_t default_values[6];
-extern bool autoenter;
+extern bool autoset;
 extern int selected_digit;
 extern uint8_t wifi_mode_setting;
 extern lv_obj_t * ip_label;
@@ -441,7 +441,7 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
     snprintf(buf, sizeof(buf),
         "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"sel\":%d,"
         "\"maxVal\":%d,\"digitMax\":[%d,%d,%d]}",
-        (int)config_value, defArr, autoenter ? "true" : "false", selected_digit,
+        (int)db_value, defArr, autoset ? "true" : "false", selected_digit,
         DIGIT_MAX_VAL, DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2);
 
     if(client) client->text(buf);
@@ -451,7 +451,7 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
 static void ws_send_val(void)
 {
     char buf[48];
-    snprintf(buf, sizeof(buf), "{\"type\":\"val\",\"val\":%d}", (int)config_value);
+    snprintf(buf, sizeof(buf), "{\"type\":\"val\",\"val\":%d}", (int)db_value);
     ws.textAll(buf);
 }
 
@@ -479,7 +479,7 @@ static void ws_send_seldigit(void)
 static void ws_send_ae(void)
 {
     char buf[32];
-    snprintf(buf, sizeof(buf), "{\"type\":\"ae\",\"val\":%s}", autoenter ? "true" : "false");
+    snprintf(buf, sizeof(buf), "{\"type\":\"ae\",\"val\":%s}", autoset ? "true" : "false");
     ws.textAll(buf);
 }
 
@@ -545,26 +545,26 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
         getStr(msg, "cmd", cmd, sizeof(cmd));
 
         if(strcmp(cmd, "upd") == 0) {
-            int32_t v = config_value;
+            int32_t v = db_value;
             if(getInt(msg, "val", v)) {
                 if(v < 0) v = 0;
                 if(v > DIGIT_MAX_VAL) v = DIGIT_MAX_VAL;
                 if(DIGIT_MAX_2 == 0) v = (v / 10) * 10;
                 if(DIGIT_MAX_1 == 0) v = (v / 100) * 100;
-                config_value = v;
+                db_value = v;
                 ws_send_val();
                 WsCmdMsg m = {WS_CMD_VAL, v, 0, false};
                 xQueueSend(ws_cmd_queue, &m, 0);
             }
         }
         else if(strcmp(cmd, "set") == 0) {
-            int32_t v = config_value;
+            int32_t v = db_value;
             getInt(msg, "val", v);
             if(v < 0) v = 0;
             if(v > DIGIT_MAX_VAL) v = DIGIT_MAX_VAL;
             if(DIGIT_MAX_2 == 0) v = (v / 10) * 10;
             if(DIGIT_MAX_1 == 0) v = (v / 100) * 100;
-            config_value = v;
+            db_value = v;
             ws_send_val();
             WsCmdMsg m = {WS_CMD_SET, v, 0, false};
             xQueueSend(ws_cmd_queue, &m, 0);
@@ -588,7 +588,7 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
         else if(strcmp(cmd, "applydef") == 0) {
             int32_t idx = -1;
             if(getInt(msg, "idx", idx) && idx >= 0 && idx < 6) {
-                config_value = default_values[idx];
+                db_value = default_values[idx];
                 ws_send_val();
                 ws_send_active_def(idx);
                 WsCmdMsg m = {WS_CMD_APPLY_DEF, 0, idx, false};
@@ -596,10 +596,10 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             }
         }
         else if(strcmp(cmd, "ae") == 0) {
-            bool v = autoenter;
+            bool v = autoset;
             if(getBool(msg, "val", v)) {
-                autoenter = v;
-                prefs.putBool("ae", autoenter);
+                autoset = v;
+                prefs.putBool("ae", autoset);
                 ws_send_ae();
                 WsCmdMsg m = {WS_CMD_AE, 0, 0, v};
                 xQueueSend(ws_cmd_queue, &m, 0);
@@ -884,7 +884,7 @@ static void webserver_loop(void)
                 web_update_defaults();
                 break;
             case WS_CMD_AE:
-                autoenter = m.bval;
+                autoset = m.bval;
                 web_update_ae();
                 break;
             case WS_CMD_SELDIGIT:
@@ -902,7 +902,7 @@ static void webserver_loop(void)
     }
 }
 
-/* Called from main.cpp whenever config_value changes from LVGL side */
+/* Called from main.cpp whenever db_value changes from LVGL side */
 static void ws_broadcast_val(void)        { ws_send_val(); }
 static void ws_broadcast_def(int i)       { ws_send_def(i); }
 static void ws_broadcast_ae(void)         { ws_send_ae(); }

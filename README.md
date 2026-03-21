@@ -1,184 +1,86 @@
-# ESP32-ATT-C-LVGL8
+# 26.5 GHz Attenuator Controller
 
-LVGL 8 Steuerungsoberfläche 
-* für einen 26.5 GHz Attenuator auf dem ESP32 CYD (Cheap Yellow Display).
-* TFT und 2.8 Zoll Display
-* WLAN Anbindung mit AP und WLAN-Client
-* WebGui mit gleicher funktion wie am Display
+Multi-Platform Steuerung für einen 26.5 GHz Attenuator mit zwei verfügbaren Implementierungen:
 
-## Features
+## 🆕 Projekte
 
-- **3-Tab-Menü** (Main, Defaults, Config) mit Tab-Leiste am unteren Rand
-- **Main-Tab:** 3-stellige Ziffernanzeige (72px Custom Font), einzeln anwählbar per Touch mit Unterstrich-Cursor. UP/Down/Set-Buttons ändern die ausgewählte Stelle
-- **Defaults-Tab:** 6 vordefinierte dB-Werte als Buttons (2 Reihen × 3). Kurzer Klick übernimmt den Wert, langer Klick öffnet ein Nummernfeld zum Editieren
-- **Config-Tab:** Autoenter-Switch (ein/aus), WLAN-Modus (Aus / AP / Client)
-- **Ziffernbegrenzung:** Maximalwert und aktivierbare Stellen über `#define` konfigurierbar (`DIGIT_MAX_VAL`, `DIGIT_MAX_0/1/2`)
-- **Persistente Speicherung:** Ziffernwert, Default-Button-Werte, Autoenter und WiFi-Modus werden im ESP32 NVS gespeichert und überleben Stromausfall/Neustart
-- **Webinterface:** Steuerung über Browser (WiFi AP oder Client-Modus)
-- **Set-Button:** Wird nur angezeigt wenn Autoenter ausgeschaltet ist
+### [ESP32](esp32/) - Full-Featured Controller
+LVGL 8 Steuerungsoberfläche für ESP32 CYD (Cheap Yellow Display) mit:
+* 2.8" Touch Display (ILI9341/ST7789)
+* WLAN (AP + Client-Modus)
+* WebGUI mit gleicher Funktion wie am Display
+* NVS Persistenz
 
-## Hardware
+### [Pico](pico/) - Minimalist Controller  
+Einfache serielle Steuerung für Raspberry Pi Pico:
+* USB-Serielle Kommunikation
+* GPIO-Steuerung (kompatibel zu ESP32)
+* Geplant: Display, WebServer (Pico W)
 
-- **Board:** ESP32-2432S028 (Cheap Yellow Display / CYD)
-- **Display:** ILI9341, 320×240, RGB565, SPI
-- **Touch:** XPT2046 auf separatem VSPI-Bus
-- **Variante CYD2USB:** ST7789-Treiber (Environment `cyd2usb`)
+## 🚀 Quick Start
 
-## Voraussetzungen
-
-- [PlatformIO](https://platformio.org/) (CLI oder VS Code Extension)
-
-## Build & Flash
-
+### ESP32 flashen
 ```bash
-# Standard CYD (ILI9341)
-$ ~/.platformio/penv/bin/pio run -t upload
-
-# CYD2USB Variante (ST7789)
-$ ~/.platformio/penv/bin/pio run -e cyd2usb -t upload
-
-# Seriellen Monitor öffnen
-$ ~/.platformio/penv/bin/pio run -t upload -t monitor
+cd esp32
+~/.platformio/penv/bin/pio run -t upload
+~/.platformio/penv/bin/pio device monitor
 ```
 
-## Projektstruktur
+### Raspberry Pi Pico flashen
+```bash
+cd pico
+~/.platformio/penv/bin/pio run -t upload
+~/.platformio/penv/bin/pio device monitor
+```
+
+> **Hinweis:** Unter Linux/Mac ist PlatformIO normalerweise unter `~/.platformio/penv/bin/pio` installiert. Falls du es global installiert hast, kannst du auch `platformio` statt des vollen Pfads verwenden.
+
+## 📋 Hardware-Anforderungen
+
+| Komponente | ESP32 | Pico |
+|------------|-------|------|
+| **Mikrocontroller** | ESP32-2432S028 (CYD) | Raspberry Pi Pico |
+| **Display** | ILI9341 (320×240) Touch | Optional (geplant) |
+| **WiFi** | Integriert | Pico W benötigt |
+| **Attenuator GPIOs** | 4, 16, 17, 22 | 2, 3, 4, 5 |
+
+## 📖 Detaillierte Dokumentation
+
+Siehe jeweilige Projekt-READMEs:
+- [ESP32 README](esp32/README.md) - Vollständige Feature-Liste, WebGUI, WiFi-Setup
+- [Pico README](pico/README.md) - Serielle Befehle, GPIO-Konfiguration
+
+## 🏗️ Projektstruktur
 
 ```
 ESP32-ATT-C-LVGL8/
-├── platformio.ini          # PlatformIO Konfiguration mit TFT_eSPI Build-Flags
-├── lv_conf.h               # LVGL 8 Konfiguration (Montserrat 24/48 aktiviert)
-├── src/
-│   ├── main.cpp            # Hauptprogramm: UI, Touch, Display, NVS-Speicherung
-│   └── lv_font_digits_72.c # Custom Font: Montserrat-Medium 72px (Ziffern 0-9)
-├── .gitignore
-└── README.md
+├── esp32/                  # ESP32 CYD Projekt
+│   ├── platformio.ini
+│   ├── lv_conf.h
+│   └── src/
+│       ├── main.cpp
+│       ├── webserver.h
+│       ├── wifi_credentials.h
+│       └── lv_font_digits_72.c
+├── pico/                   # Raspberry Pi Pico Projekt
+│   ├── platformio.ini
+│   └── src/
+│       └── main.cpp
+└── doku/                   # Hardware-Dokumentation
 ```
 
-## Konfiguration
+## 🔧 Attenuator Hardware
 
-### Display & Touch
+Beide Implementierungen steuern 4 Dämpfungsglieder (active LOW, 10 dB Schritte):
+- 10 dB + 20 dB + 40 dB (A) + 40 dB (B) = max. 110 dB
 
-Die Pin-Belegung ist in `platformio.ini` als Build-Flags definiert:
+## 📝 Lizenz
 
-| Funktion       | Pin |
-|----------------|-----|
-| TFT_MISO       | 12  |
-| TFT_MOSI       | 13  |
-| TFT_SCLK       | 14  |
-| TFT_CS         | 15  |
-| TFT_DC         | 2   |
-| TFT_BL         | 21  |
-| XPT2046_IRQ    | 36  |
-| XPT2046_MOSI   | 32  |
-| XPT2046_MISO   | 39  |
-| XPT2046_CLK    | 25  |
-| XPT2046_CS     | 33  |
+Siehe [LICENSE](LICENSE).
 
-### LVGL
+## 👥 Credits
 
-Die LVGL-Konfiguration befindet sich in `lv_conf.h` im Projektstammverzeichnis. Wichtige Einstellungen:
-
-- `LV_COLOR_DEPTH 16` (RGB565)
-- `LV_COLOR_16_SWAP 0`
-- `LV_MEM_SIZE (48U * 1024U)`
-- `LV_FONT_MONTSERRAT_24 1` (für UI-Texte, Buttons, Menü)
-- `LV_FONT_MONTSERRAT_48 1`
-
-### Custom Font
-
-Die 72px Ziffern-Font wurde generiert mit:
-
-```bash
-npx lv_font_conv --bpp 4 --size 72 --font Montserrat-Medium.ttf \
-  --range 0x20,0x30-0x39 --no-compress --format lvgl \
-  -o src/lv_font_digits_72.c
-```
-
-### Persistente Speicherung (NVS)
-
-Folgende Werte werden im ESP32 Flash (Namespace `att`) gespeichert:
-
-| Key    | Typ   | Beschreibung           |
-|--------|-------|------------------------|
-| `cval` | Int   | Aktueller Ziffernwert  |
-| `def0`–`def5` | Int | Default-Button-Werte |
-| `ae`   | Bool  | Autoenter ein/aus      |
-| `wmode`| UChar | WiFi-Modus (0=Aus, 1=AP, 2=Client) |
-
-### Touch-Kalibrierung
-
-Die Touch-Kalibrierungswerte in `src/main.cpp` (Zeilen 32-33) müssen eventuell an das eigene Display angepasst werden:
-
-```cpp
-uint16_t touchScreenMinimumX = 200, touchScreenMaximumX = 3700;
-uint16_t touchScreenMinimumY = 240, touchScreenMaximumY = 3800;
-```
-
-## Abhängigkeiten
-
-Werden automatisch von PlatformIO heruntergeladen (`pio run`):
-
-- [LVGL](https://github.com/lvgl/lvgl) v8.3.x
-- [TFT_eSPI](https://github.com/Bodmer/TFT_eSPI) v2.5.x
-- [XPT2046_Touchscreen](https://github.com/PaulStoffregen/XPT2046_Touchscreen) v1.4
-
-Das `.pio`-Verzeichnis (Build-Artefakte, Libraries) ist in `.gitignore` ausgeschlossen und wird bei `pio run` automatisch wiederhergestellt.
-
-## Verwendetes Board
-
-ESP32 Display,2.8" ESP32-Display ESP32-2432S028R Resistiver Touchscreen 240x320 TFT LCD Display Modul,ESP32 Entwicklungsplatine mit WiFi Bluetooth, für Arduino IDE(2 Stücke)
-
-```
-✅Prozessor: ESP32-D0WDQ6 Dual-Core 32-Bit LX6 CPUTaktfrequenz: einstellbar von 80 MHz bis 240 MHz
-✅Speicher: 520 KB SRAM, erweiterbar mit externem Flash und TF-Karte
-✅Display: 2,8"" TFT-LCD mit 240×320 Auflösung, Touch-Funktion, inklusive Stylus
-✅Schnittstelle: USB Type-C für Stromversorgung & Programmierung
-✅Konnektivität: WLAN 802.11 b/g/n + Bluetooth Classic + BLE
-✅Audio: Unterstützung für externe Lautsprecher, integrierter Audioausgang
-✅LED: RGB-Dreifarb-LED zur Statusanzeige
-✅Batterie: Unterstützung externer Lithium-Batterien mit integriertem Lade-Management
-✅Kamera-Kompatibilität: OV2640 / OV7670
-✅Speichererweiterung: Micro-TF-Kartenslot (bis 32 GB empfohlen)
-✅Betriebssystem-Unterstützung: LwIP, FreeRTOS
-✅Entwicklungsumgebungen: für Arduino IDE, für MicroPython,PlatformIO, Scratch 3.0
-✅Treiber-Chip: ILI9341
-✅GUI-Entwicklung: Unterstützung für LVGL – Erstellung moderner grafischer Benutzeroberflächen
-```
-## Attenuator-Steuerung
-
-4 Dämpfungsglieder werden über GPIOs geschaltet (**active LOW**, 10 dB Schritte):
-
-| GPIO | Dämpfungsglied |
-|------|----------------|
-| 4    | 10 dB          |
-| 16   | 20 dB          |
-| 17   | 40 dB (A)      |
-| 22   | 40 dB (B)      |
-
-Maximale Dämpfung: 110 dB (10 + 20 + 40 + 40). Die Einer-Stelle der Anzeige ist standardmäßig gesperrt (nur 10er-Schritte).
-
-### Ziffernanzeige konfigurieren
-
-In `src/main.cpp` können Maximalwert und aktivierbare Stellen angepasst werden:
-
-```cpp
-#define DIGIT_MAX_VAL  110   // maximaler Gesamtwert in dB
-#define DIGIT_MAX_0      1   // Hunderter: max. Ziffer (0 = Stelle gesperrt)
-#define DIGIT_MAX_1      9   // Zehner:    max. Ziffer
-#define DIGIT_MAX_2      0   // Einer:     0 = nicht wählbar/editierbar
-```
-
-Gesperrte Stellen (Wert = 0) zeigen keinen Unterstrich-Cursor und nehmen keine Touch-Eingaben an. Beim Keyboard-Editor werden eingegebene Werte automatisch auf erlaubte Stellen gerundet (z. B. 33 → 30 bei gesperrtem Einer).
-
-### Beispiele
-
-| Anzeige | Effektiv | GPIO 4 (10 dB) | GPIO 16 (20 dB) | GPIO 17 (40A) | GPIO 22 (40B) |
-|---------|----------|----------------|-----------------|---------------|---------------|
-| 050     | 50 dB    | HIGH           | HIGH            | LOW           | HIGH          |
-| 110     | 110 dB   | LOW            | LOW             | LOW           | LOW           |
-| 020     | 20 dB    | HIGH           | LOW             | HIGH          | HIGH          |
-| 000     | 0 dB     | HIGH           | HIGH            | HIGH          | HIGH          |
-
+ESP32-Version basiert auf dem LVGL8 Beispiel von [ESP32-Cheap-Yellow-Display](https://github.com/witnessmenow/ESP32-Cheap-Yellow-Display).
 
 
 ## Implementierungsdetails

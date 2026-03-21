@@ -34,7 +34,7 @@ LV_FONT_DECLARE(lv_font_digits_72);
 
 #include "webserver.h"
 
-int32_t config_value = 0;
+int32_t db_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */
 static lv_obj_t * digit_cursor;     /* underline indicator */
 static const uint8_t digit_max[3] = { DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2 };
@@ -50,7 +50,7 @@ static lv_obj_t * kb = NULL;
 static lv_obj_t * ta = NULL;
 static int editing_index = -1;
 static bool long_press_active = false;
-bool autoenter = false;
+bool autoset = false;
 static lv_obj_t * btn_set = NULL;
 static lv_obj_t * ae_switch = NULL;
 
@@ -133,10 +133,10 @@ static void btn_long_press_cb(lv_event_t * e)
     lv_obj_clear_state(ta, LV_STATE_FOCUS_KEY);
 }
 
-/* Update the 3 digit labels from config_value */
+/* Update the 3 digit labels from db_value */
 static void update_digit_labels(void)
 {
-    int v = config_value;
+    int v = db_value;
     char d[2] = {0, 0};
     d[0] = '0' + (v / 100) % 10;
     lv_label_set_text(digit_labels[0], d);
@@ -194,10 +194,10 @@ static void digit_long_press_cb(lv_event_t * e)
     lv_obj_clear_state(ta, LV_STATE_FOCUS_KEY);
 }
 
-/* Set attenuator GPIOs from config_value (10 dB steps, ones digit ignored) */
+/* Set attenuator GPIOs from db_value (10 dB steps, ones digit ignored) */
 void apply_attenuation(void)
 {
-    int32_t att = (config_value / 10) * 10;
+    int32_t att = (db_value / 10) * 10;
     if(att > 110) att = 110;
     if(att == last_att_db) return;   /* ones digit changed only → do nothing */
     last_att_db = att;
@@ -221,24 +221,24 @@ static void btn_up_cb(lv_event_t * e)
 {
     if(digit_max[selected_digit] == 0) return;
     int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : 1;
-    config_value += multiplier;
-    if(config_value > DIGIT_MAX_VAL) config_value = DIGIT_MAX_VAL;
+    db_value += multiplier;
+    if(db_value > DIGIT_MAX_VAL) db_value = DIGIT_MAX_VAL;
     update_digit_labels();
-    prefs.putInt("cval", config_value);
+    prefs.putInt("cval", db_value);
     ws_broadcast_val();
-    if(autoenter) apply_attenuation();
+    if(autoset) apply_attenuation();
 }
 
 static void btn_down_cb(lv_event_t * e)
 {
     if(digit_max[selected_digit] == 0) return;
     int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : 1;
-    config_value -= multiplier;
-    if(config_value < 0) config_value = 0;
+    db_value -= multiplier;
+    if(db_value < 0) db_value = 0;
     update_digit_labels();
-    prefs.putInt("cval", config_value);
+    prefs.putInt("cval", db_value);
     ws_broadcast_val();
-    if(autoenter) apply_attenuation();
+    if(autoset) apply_attenuation();
 }
 
 static void config_create(lv_obj_t * parent)
@@ -275,7 +275,7 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_style_bg_opa(digit_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(digit_cont, LV_OPA_TRANSP, 0);
 
-    int digits[3] = { (config_value / 100) % 10, (config_value / 10) % 10, config_value % 10 };
+    int digits[3] = { (db_value / 100) % 10, (db_value / 10) % 10, db_value % 10 };
     for(int i = 0; i < 3; i++) {
         digit_labels[i] = lv_label_create(digit_cont);
         lv_obj_add_style(digit_labels[i], &style_big, 0);
@@ -354,16 +354,16 @@ static void config_create(lv_obj_t * parent)
     lv_obj_t * lbl_set = lv_label_create(btn_set);
     lv_label_set_text(lbl_set, "Set");
     lv_obj_center(lbl_set);
-    if(autoenter) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+    if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
 }
 
 void update_config_value(int32_t val)
 {
-    config_value = val;
+    db_value = val;
     update_digit_labels();
-    prefs.putInt("cval", config_value);
+    prefs.putInt("cval", db_value);
     lv_tabview_set_act(tabview, 0, LV_ANIM_OFF);
-    if(autoenter) apply_attenuation();
+    if(autoset) apply_attenuation();
     /* Do NOT call ws_broadcast_val() here – callers handle it */
 }
 
@@ -432,12 +432,12 @@ static void help_create(lv_obj_t * parent)
     lv_obj_align_to(sw, label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
     lv_obj_set_style_bg_color(sw, lv_color_hex(0x1a5090), 0);
     lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
-    if(autoenter) lv_obj_add_state(sw, LV_STATE_CHECKED);
+    if(autoset) lv_obj_add_state(sw, LV_STATE_CHECKED);
     lv_obj_add_event_cb(sw, [](lv_event_t * e) {
-        autoenter = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-        prefs.putBool("ae", autoenter);
+        autoset = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+        prefs.putBool("ae", autoset);
         if(btn_set) {
-            if(autoenter) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+            if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
             else lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
         }
         ws_broadcast_ae();
@@ -494,15 +494,15 @@ void web_update_defaults(void)
     }
 }
 
-/* Called from webserver.h when web client changes autoenter */
+/* Called from webserver.h when web client changes autoset */
 void web_update_ae(void)
 {
     if(ae_switch) {
-        if(autoenter) lv_obj_add_state(ae_switch, LV_STATE_CHECKED);
+        if(autoset) lv_obj_add_state(ae_switch, LV_STATE_CHECKED);
         else          lv_obj_clear_state(ae_switch, LV_STATE_CHECKED);
     }
     if(btn_set) {
-        if(autoenter) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+        if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
         else          lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
     }
 }
@@ -637,8 +637,8 @@ void setup()
         snprintf(key, sizeof(key), "def%d", i);
         default_values[i] = prefs.getInt(key, default_values[i]);
     }
-    config_value = prefs.getInt("cval", config_value);
-    autoenter = prefs.getBool("ae", false);
+    db_value = prefs.getInt("cval", db_value);
+    autoset = prefs.getBool("ae", false);
     wifi_mode_setting = prefs.getUChar("wmode", 2);
 
     /* Restore last attenuation setting */
