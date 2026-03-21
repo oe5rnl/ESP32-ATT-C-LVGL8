@@ -10,10 +10,15 @@ Einfache Implementierung des 26.5 GHz Attenuator Controllers für den Raspberry 
   - GP3: 20 dB Pad (active LOW)
   - GP4: 40 dB Pad A (active LOW)
   - GP5: 40 dB Pad B (active LOW)
+- **UART1 für ESP32-Kommunikation**:
+  - GP0: TX → ESP32 GPIO22 (Serial1 = UART0)
+  - GP1: RX ← ESP32 GPIO21
 
 ## Funktionen
 
-Aktuell: Serielle Steuerung über USB
+Aktuell: 
+- Serielle Steuerung über USB (CDC)
+- Serial1-Kommunikation mit ESP32 auf GP0/GP1 (empfängt "xxdB" Format)
 
 - Sende `0-110` für Dämpfung in 10 dB Schritten
 - Sende `?` für aktuellen Wert

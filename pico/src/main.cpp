@@ -13,6 +13,13 @@
  * 
  * TODO: Pico GPIO-Pins definieren
  */
+
+#define ATTENUATOR_26_5GHz    1
+#define ATTENUATOR_GPIO_RS_70DB   2    
+
+
+
+
 #define ATT_GPIO_10DB    2
 #define ATT_GPIO_20DB    3
 #define ATT_GPIO_40DB_A  4
@@ -21,6 +28,8 @@
 static int32_t current_db = 0;
 static unsigned long last_led_toggle = 0;
 static bool led_state = false;
+static bool led_solid_mode = false;  /* true = 2s solid, false = blink */
+static unsigned long led_solid_start = 0;
 
 void apply_attenuation(int32_t db_value)
 {
@@ -60,10 +69,17 @@ void setup()
     Serial.begin(115200);
     delay(2000);  // Wait for USB serial
     
+    Serial.println("Attenuator PICO started");
+    
+    /* Serial1 for ESP32 communication: GP0 (TX), GP1 (RX) = UART0 */
+    Serial1.begin(115200);
+    Serial1.setTimeout(100);
+    
     Serial.println("\n=================================");
     Serial.println("Raspberry Pi Pico Attenuator");
     Serial.println("Version 0.1");
     Serial.println("=================================\n");
+    Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32");
 
     /* Onboard LED init */
     pinMode(LED_BUILTIN, OUTPUT);
@@ -82,23 +98,62 @@ void setup()
     digitalWrite(ATT_GPIO_40DB_B, HIGH);
     
     Serial.println("GPIO initialized");
-    Serial.println("\nCommands:");
+    Serial.println("\nCommands (USB):");
     Serial.println("  0-110  : Set attenuation (10 dB steps)");
-    Serial.println("  ?      : Show current value\n");
+    Serial.println("  ?      : Show current value");
+    Serial.println("\nWaiting for ESP32 on Serial1 (GP0/GP1)...\n");
     
     apply_attenuation(0);
 }
 
 void loop()
 {
-    /* Toggle LED every 300ms */
     unsigned long now = millis();
-    if(now - last_led_toggle >= 300) {
-        last_led_toggle = now;
-        led_state = !led_state;
-        digitalWrite(LED_BUILTIN, led_state ? HIGH : LOW);
+    
+    /* LED control: solid for 2s after receiving dB string, then blink */
+    if(led_solid_mode) {
+        if(now - led_solid_start >= 2000) {
+            /* 2 seconds elapsed, switch back to blink mode */
+            led_solid_mode = false;
+            last_led_toggle = now;
+        }
+    }
+    else {
+        /* Blink mode: toggle LED every 300ms */
+        if(now - last_led_toggle >= 300) {
+            last_led_toggle = now;
+            led_state = !led_state;
+            digitalWrite(LED_BUILTIN, led_state ? HIGH : LOW);
+            Serial.println("PICO");
+        }
     }
 
+    /* Check Serial1 (from ESP32) */
+    if(Serial1.available()) {
+        String input = Serial1.readStringUntil('\n');
+        input.trim();
+        input.toLowerCase();  /* Case-insensitive */
+        
+        /* Parse format: "xxdb" (case-insensitive, e.g., "50dB", "110DB") */
+        int dbPos = input.indexOf("db");
+        if(dbPos > 0) {
+            String numStr = input.substring(0, dbPos);
+            int val = numStr.toInt();
+            if(val >= 0 && val <= 110) {
+                apply_attenuation(val);
+                Serial.print("ESP32 -> ");
+                Serial.print(val);
+                Serial.println(" dB");
+                
+                /* LED solid for 2 seconds */
+                led_solid_mode = true;
+                led_solid_start = now;
+                digitalWrite(LED_BUILTIN, HIGH);
+            }
+        }
+    }
+
+    /* Check USB Serial (manual control) */
     if(Serial.available()) {
         String input = Serial.readStringUntil('\n');
         input.trim();

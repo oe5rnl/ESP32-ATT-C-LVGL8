@@ -23,7 +23,10 @@ LVGL 8 Steuerungsoberfläche für ESP32 CYD (Cheap Yellow Display) mit Touch-Dis
   - GPIO 4: 10 dB Pad
   - GPIO 16: 20 dB Pad
   - GPIO 17: 40 dB Pad A
-  - GPIO 22: 40 dB Pad B
+  - GPIO 35: 40 dB Pad B
+- **UART für Pico** (am P3 Stecker):
+  - GPIO 21: TX → Pico GP1 (Serial1 RX)
+  - GPIO 22: RX ← Pico GP0 (Serial1 TX)
 
 ## Voraussetzungen
 

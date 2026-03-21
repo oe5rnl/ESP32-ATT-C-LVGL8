@@ -42,7 +42,8 @@ cd pico
 | **Mikrocontroller** | ESP32-2432S028 (CYD) | Raspberry Pi Pico |
 | **Display** | ILI9341 (320×240) Touch | Optional (geplant) |
 | **WiFi** | Integriert | Pico W benötigt |
-| **Attenuator GPIOs** | 4, 16, 17, 22 | 2, 3, 4, 5 |
+| **Attenuator GPIOs** | 4, 16, 17, 35 | 2, 3, 4, 5 |
+| **UART (Pico)** | 21 (TX), 22 (RX) am P3 | GP0 (TX), GP1 (RX) - Serial1 |
 
 ## 📖 Detaillierte Dokumentation
 
@@ -113,3 +114,32 @@ MIT
 ~/.platformio/penv/bin/pio run -t upload --upload-port /dev/ttyACM0
 
 ~/.platformio/penv/bin/pio run -e cyd 2>&1 | tail -12
+
+
+
+ESP32 GPIO 21 (TX) ──→ Pico GP1 (RX)   [P3 Stecker → UART0]
+ESP32 GPIO 22 (RX) ←── Pico GP0 (TX)   [P3 Stecker → UART0]
+ESP32 GND ───────────── Pico GND
+
+
+# ESP32
+cd esp32 && ~/.platformio/penv/bin/pio run -t upload --upload-port /dev/ttyUSB0
+
+# Pico (BOOTSEL-Taste beim Einstecken drücken)
+cd pico && ~/.platformio/penv/bin/pio run
+cp .pio/build/pico/firmware.uf2 /media/oe5rnl/RPI-RP2/
+
+# Pico Serial Monitor öffnen
+~/.platformio/penv/bin/pio device monitor --port /dev/ttyACM0
+
+-----------------------
+# ESP32
+cd esp32 && ~/.platformio/penv/bin/pio run -t upload --upload-port /dev/ttyUSB0
+
+# Pico (BOOTSEL-Taste beim Einstecken drücken)
+cd pico && ~/.platformio/penv/bin/pio run
+cp .pio/build/pico/firmware.uf2 /media/oe5rnl/RPI-RP2/
+------------------------
+
+# Pico Serial Monitor öffnen
+~/.platformio/penv/bin/pio device monitor --port /dev/ttyACM0

@@ -59,7 +59,7 @@ static lv_obj_t * ae_switch = NULL;
 #define ATT_GPIO_10DB    4
 #define ATT_GPIO_20DB   16
 #define ATT_GPIO_40DB_A 17
-#define ATT_GPIO_40DB_B 22
+#define ATT_GPIO_40DB_B 35
 static int32_t last_att_db = -1;
 
 /* WiFi mode: 0=off, 1=AP, 2=Client */
@@ -215,6 +215,9 @@ void apply_attenuation(void)
 
     Serial.printf("ATT: %d dB  [10=%d 20=%d 40a=%d 40b=%d]\n",
                   (int)att, !a10, !a20, !a40a, !a40b);
+    
+    /* Send to Pico via Serial2 */
+    Serial2.printf("%ddB\n", (int)att);
 }
 
 static void btn_up_cb(lv_event_t * e)
@@ -619,6 +622,9 @@ void my_touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 void setup()
 {
     Serial.begin(115200);
+    
+    /* Serial2 for Pico communication: GPIO1 (TX), GPIO3 (RX) - via serial connector */
+    Serial2.begin(115200, SERIAL_8N1, 3, 1);  // RX=3, TX=1
 
     /* Attenuator GPIO init */
     pinMode(ATT_GPIO_10DB,   OUTPUT);
@@ -699,4 +705,11 @@ void loop()
     lv_timer_handler();
     webserver_loop();
     delay(5);
+    
+    // /* Test: Send * to Pico every 100ms */
+    // static unsigned long last_test_send = 0;
+    // if(millis() - last_test_send >= 100) {
+    //     last_test_send = millis();
+    //     Serial2.print("*");
+    // }
 }
