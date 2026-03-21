@@ -12,20 +12,67 @@
 /* I2C Display SSD1306 (128x64) using Software I2C on GP19/GP20 */
 U8G2_SSD1306_128X64_NONAME_F_SW_I2C display(U8G2_R0, /* clock=*/ 19, /* data=*/ 20, /* reset=*/ U8X8_PIN_NONE);
 
-/* Attenuator GPIO mapping (active LOW)
- * Pads: 10 dB, 20 dB, 40 dB (A), 40 dB (B)  →  max 110 dB in 10 dB steps
- * 
- * TODO: Pico GPIO-Pins definieren
- */
 
-#define ATTENUATOR_26_5GHz    1
+#define ATTENUATOR_26_5GHz    1       // 2,6,10,16
 #define ATTENUATOR_GPIO_RS_70DB   2    
 
 
+/* 26.5 GHz Attenuator
+*  Pads: 10 dB, 20 dB, 40 dB (A), 40 dB (B)  →  max 110 dB in 10 dB steps
+*  Der Attenuator verfügt über eine Logik mit H Brücke
+*  daher 1 Bit je Relais - high aktiv 
+*/
 #define ATT_GPIO_10DB    2
-#define ATT_GPIO_20DB    3
-#define ATT_GPIO_40DB_A  4
-#define ATT_GPIO_40DB_B  5
+#define ATT_GPIO_20DB    6
+#define ATT_GPIO_40DB_A  10
+#define ATT_GPIO_40DB_B  16
+
+/* RS 7 Relais Attenuatur 
+* Pads:  ????
+*/
+
+// todo: GPIOs definieren
+
+
+// Relais 1: 10 dB ??
+#define GPIO_2_7    // PIN=4  GPIO_2  Relais_1 a
+#define GPIO_3_7    // PIN=5  GPIO_3  Relais_1 b
+
+// Relais 2: 20 dB ??
+#define GPIO_4_7    // PIN=6  GPIO_4  Relais_2 a
+#define GPIO_5_7    // PIN=7  GPIO_5  Relais_2 b
+
+// Relais 3: 40 dB ??
+#define GPIO_6_7    // PIN=9  GPIO_6  Relais_3 a
+#define GPIO_7_7    // PIN=10 GPIO_7  Relais_3 b
+
+// Relais 4: 70 dB ??
+#define GPIO_8_7    // PIN=11 GPIO_8   Relais_4 a
+#define GPIO_9_7    // PIN=12 GPIO_9   Relais_4 b
+
+// Relais  5
+#define GPIO_10_7  // PIN=14 GPIO_10  Relais_5 a 
+#define GPIO_11_7  // PIN=15 GPIO_11  Relais_5 b
+
+// Relais 6
+// 16 GPIO_12  Relais_6 a
+#define GPIO_12_7  // PIN=16 GPIO_12  Relais_6 b
+#define GPIO_13_7  // PIN=17 GPIO_13  Relais_6 b
+
+// Relais 7
+// 19 GPIO_14  Relais_7 a
+#define GPIO_14_7  // PIN=19 GPIO_14  Relais_7 b
+#define GPIO_15_7  // PIN=20 GPIO_15  Relais_7 a
+
+// Relais 8
+#define GPIO_16_7  // PIN=21 GPIO_16  Relais_8 a
+#define GPIO_17_7  // PIN=22 GPIO_17  Relais_8 b
+
+
+
+
+
+// Relais 
 
 /* Mode Select Inputs with Pull-up */
 #define MODE_SELECT0     18

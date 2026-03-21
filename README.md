@@ -2,7 +2,7 @@
 
 Multi-Platform Steuerung für  Attenuator mit bistabilen Relais
 
-## 🆕 Projekte
+## 🆕 Projekt
 Das System besteht aus zwei Modulen die zusammen oder unabhängig betrieben werden können.
 
 ### [ESP32](esp32/) - Touch Controller
@@ -21,8 +21,8 @@ Einfache Steuerung mit Raspberry Pi Pico für Attenuator:
 * oder/und eine serielle Schnittstelle 
 
 ### Touchdisplay und Pico
-* die beiden Module können über eine 3,3v erielle Schnittstelle gekoppelt werden
-* Damit erfolgt die Ansteuerung von  Attenuator mit bis to 8 bistabile Relais
+* die beiden Module können über eine 3,3V serielle Schnittstelle gekoppelt werden
+* Damit erfolgt die Ansteuerung der Attenuator mit bis to 8 bistabile Relais ( zwei Pin je Relais)
 
 
 ## 🚀 Quick Start
