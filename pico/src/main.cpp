@@ -7,6 +7,10 @@
  */
 
 #include <Arduino.h>
+#include <U8g2lib.h>
+
+/* I2C Display SSD1306 (128x64) using Software I2C on GP19/GP20 */
+U8G2_SSD1306_128X64_NONAME_F_SW_I2C display(U8G2_R0, /* clock=*/ 19, /* data=*/ 20, /* reset=*/ U8X8_PIN_NONE);
 
 /* Attenuator GPIO mapping (active LOW)
  * Pads: 10 dB, 20 dB, 40 dB (A), 40 dB (B)  →  max 110 dB in 10 dB steps
@@ -62,6 +66,16 @@ void apply_attenuation(int32_t db_value)
     Serial.print(" 40b=");
     Serial.print(a40b);
     Serial.println("]");
+    
+    /* Update I2C Display */
+    display.clearBuffer();
+    display.setFont(u8g2_font_ncenB24_tn);  /* Large numbers */
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d", (int)att);
+    display.drawStr(15, 45, buf);
+    display.setFont(u8g2_font_ncenB10_tr);
+    display.drawStr(75, 45, "dB");
+    display.sendBuffer();
 }
 
 void setup()
@@ -70,6 +84,18 @@ void setup()
     delay(2000);  // Wait for USB serial
     
     Serial.println("Attenuator PICO started");
+    
+    /* Initialize SSD1306 Display (Software I2C on GP19/GP20) */
+    display.begin();
+    Serial.println("SSD1306 Display initialized");
+    
+    /* Startup screen */
+    display.clearBuffer();
+    display.setFont(u8g2_font_ncenB10_tr);
+    display.drawStr(5, 20, "26.5 GHz");
+    display.drawStr(0, 45, "Attenuator");
+    display.sendBuffer();
+    delay(1000);
     
     /* Serial1 for ESP32 communication: GP0 (TX), GP1 (RX) = UART0 */
     Serial1.begin(115200);

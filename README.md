@@ -1,21 +1,29 @@
 # 26.5 GHz Attenuator Controller
 
-Multi-Platform Steuerung für einen 26.5 GHz Attenuator mit zwei verfügbaren Implementierungen:
+Multi-Platform Steuerung für  Attenuator mit bistabilen Relais
 
 ## 🆕 Projekte
+Das System besteht aus zwei Modulen die zusammen oder unabhängig betrieben werden können.
 
-### [ESP32](esp32/) - Full-Featured Controller
+### [ESP32](esp32/) - Touch Controller
 LVGL 8 Steuerungsoberfläche für ESP32 CYD (Cheap Yellow Display) mit:
 * 2.8" Touch Display (ILI9341/ST7789)
 * WLAN (AP + Client-Modus)
 * WebGUI mit gleicher Funktion wie am Display
 * NVS Persistenz
+* Ausgabepins zur Steuerung des Attenuator über:
+  * 4 Pins am ESP Board (welche?)
+  * oder über den Pico Portextender
 
-### [Pico](pico/) - Minimalist Controller  
-Einfache serielle Steuerung für Raspberry Pi Pico:
-* USB-Serielle Kommunikation
-* GPIO-Steuerung (kompatibel zu ESP32)
-* Geplant: Display, WebServer (Pico W)
+### [Pico](pico/) - Portextender/Drehgeber Controller  
+Einfache Steuerung mit Raspberry Pi Pico für Attenuator:
+* Einstellen und aktivieren der Attenuator Werte über einen Drehgeber
+* oder/und eine serielle Schnittstelle 
+
+### Touchdisplay und Pico
+* die beiden Module können über eine 3,3v erielle Schnittstelle gekoppelt werden
+* Damit erfolgt die Ansteuerung von  Attenuator mit bis to 8 bistabile Relais
+
 
 ## 🚀 Quick Start
 
@@ -40,8 +48,8 @@ cd pico
 | Komponente | ESP32 | Pico |
 |------------|-------|------|
 | **Mikrocontroller** | ESP32-2432S028 (CYD) | Raspberry Pi Pico |
-| **Display** | ILI9341 (320×240) Touch | Optional (geplant) |
-| **WiFi** | Integriert | Pico W benötigt |
+| **Display** | ILI9341 (320×240) Touch | Optional SSD1306 |
+| **WiFi** | Integriert |   |
 | **Attenuator GPIOs** | 4, 16, 17, 35 | 2, 3, 4, 5 |
 | **UART (Pico)** | 21 (TX), 22 (RX) am P3 | GP0 (TX), GP1 (RX) - Serial1 |
 
