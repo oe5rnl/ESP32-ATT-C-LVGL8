@@ -105,4 +105,11 @@ Die Kommunikation zwischen den Cores lauft über den FreeRTOS-Queue-Dispatcher: 
 
 MIT
 
+
+# ESP32 flashen (z.B. /dev/ttyUSB0)
+~/.platformio/penv/bin/pio run -t upload --upload-port /dev/ttyUSB0
+
+# Pico flashen (z.B. /dev/ttyACM0)
+~/.platformio/penv/bin/pio run -t upload --upload-port /dev/ttyACM0
+
 ~/.platformio/penv/bin/pio run -e cyd 2>&1 | tail -12

@@ -19,6 +19,8 @@
 #define ATT_GPIO_40DB_B  5
 
 static int32_t current_db = 0;
+static unsigned long last_led_toggle = 0;
+static bool led_state = false;
 
 void apply_attenuation(int32_t db_value)
 {
@@ -40,8 +42,17 @@ void apply_attenuation(int32_t db_value)
     digitalWrite(ATT_GPIO_40DB_A, a40a ? LOW : HIGH);
     digitalWrite(ATT_GPIO_40DB_B, a40b ? LOW : HIGH);
 
-    Serial.printf("ATT: %d dB  [10=%d 20=%d 40a=%d 40b=%d]\n",
-                  (int)att, a10, a20, a40a, a40b);
+    Serial.print("ATT: ");
+    Serial.print(att);
+    Serial.print(" dB  [10=");
+    Serial.print(a10);
+    Serial.print(" 20=");
+    Serial.print(a20);
+    Serial.print(" 40a=");
+    Serial.print(a40a);
+    Serial.print(" 40b=");
+    Serial.print(a40b);
+    Serial.println("]");
 }
 
 void setup()
@@ -53,6 +64,10 @@ void setup()
     Serial.println("Raspberry Pi Pico Attenuator");
     Serial.println("Version 0.1");
     Serial.println("=================================\n");
+
+    /* Onboard LED init */
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
 
     /* Attenuator GPIO init */
     pinMode(ATT_GPIO_10DB,   OUTPUT);
@@ -76,12 +91,22 @@ void setup()
 
 void loop()
 {
+    /* Toggle LED every 300ms */
+    unsigned long now = millis();
+    if(now - last_led_toggle >= 300) {
+        last_led_toggle = now;
+        led_state = !led_state;
+        digitalWrite(LED_BUILTIN, led_state ? HIGH : LOW);
+    }
+
     if(Serial.available()) {
         String input = Serial.readStringUntil('\n');
         input.trim();
         
         if(input == "?") {
-            Serial.printf("Current: %d dB\n", (int)current_db);
+            Serial.print("Current: ");
+            Serial.print(current_db);
+            Serial.println(" dB");
         }
         else {
             int val = input.toInt();
