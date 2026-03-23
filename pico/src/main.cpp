@@ -81,6 +81,7 @@ static unsigned long last_led_toggle = 0;
 static bool led_state = false;
 static bool led_solid_mode = false;  /* true = 2s solid, false = blink */
 static unsigned long led_solid_start = 0;
+static String serial_buffer = "";  /* Buffer for USB serial input */
 
 void apply_attenuation_26(int32_t db_value)
 {
@@ -201,9 +202,9 @@ void setup()
     pinMode(MODE_SELECT1, INPUT_PULLUP);
     
     Serial.println("GPIO initialized");
-    Serial.println("\nCommands (USB):");
-    Serial.println("  0-110  : Set attenuation (10 dB steps)");
-    Serial.println("  ?      : Show current value");
+    Serial.println("\nCommands (USB + ENTER):");
+    Serial.println("  0-110 + ENTER : Set attenuation (10 dB steps)");
+    Serial.println("  ? + ENTER     : Show current value");
     Serial.println("\nWaiting for ESP32 on Serial1 (GP0/GP1)...\n");
     
     apply_attenuation(0);
@@ -227,7 +228,7 @@ void loop()
             last_led_toggle = now;
             led_state = !led_state;
             digitalWrite(LED_BUILTIN, led_state ? HIGH : LOW);
-            Serial.println("PICO");
+            // Serial.println("PICO");
         }
     }
 
@@ -235,39 +236,64 @@ void loop()
     if(Serial1.available()) {
         String input = Serial1.readStringUntil('\n');
         input.trim();
-        input.toLowerCase();  /* Case-insensitive */
         
-        /* Parse format: "xxdb" (case-insensitive, e.g., "50dB", "110DB") */
-        int dbPos = input.indexOf("db");
-        if(dbPos > 0) {
-            String numStr = input.substring(0, dbPos);
-            int val = numStr.toInt();
-            apply_attenuation(val);
-            Serial.print("ESP32 -> ");
-            Serial.print(val);
-            Serial.println(" dB");
-            
-            /* LED solid for 2 seconds */
-            led_solid_mode = true;
-            led_solid_start = now;
-            digitalWrite(LED_BUILTIN, HIGH);
-
+        if(input == "?") {
+            Serial1.print("Current: ");
+            Serial1.print(current_db);
+            Serial1.println(" dB");
+        }
+        else {
+            /* Parse number: accept plain number or "xxdB" format */
+            input.toLowerCase();
+            int dbPos = input.indexOf("db");
+            if(dbPos > 0) {
+                input = input.substring(0, dbPos);  /* Remove "db" suffix */
+            }
+            int val = input.toInt();
+            if(val > 0 || input == "0") {  /* Valid number */
+                apply_attenuation(val);
+                /* LED solid for 2 seconds */
+                led_solid_mode = true;
+                led_solid_start = now;
+                digitalWrite(LED_BUILTIN, HIGH);
+            }
         }
     }
 
-    /* Check USB Serial (manual control) */
-    if(Serial.available()) {
-        String input = Serial.readStringUntil('\n');
-        input.trim();
-        
-        if(input == "?") {
-            Serial.print("Current: ");
-            Serial.print(current_db);
-            Serial.println(" dB");
+    /* Check USB Serial (manual control) - character-by-character collection */
+    while(Serial.available()) {
+        char c = Serial.read();
+        if(c == '\n' || c == '\r') {
+            if(serial_buffer.length() > 0) {
+                String input = serial_buffer;
+                serial_buffer = "";  /* Clear buffer */
+                input.trim();
+                
+                if(input == "?") {
+                    Serial.print("Current: ");
+                    Serial.print(current_db);
+                    Serial.println(" dB");
+                }
+                else {
+                    /* Parse number: accept plain number or "xxdB" format */
+                    input.toLowerCase();
+                    int dbPos = input.indexOf("db");
+                    if(dbPos > 0) {
+                        input = input.substring(0, dbPos);  /* Remove "db" suffix */
+                    }
+                    int val = input.toInt();
+                    if(val > 0 || input == "0") {  /* Valid number */
+                        apply_attenuation(val);
+                        /* LED solid for 2 seconds */
+                        led_solid_mode = true;
+                        led_solid_start = now;
+                        digitalWrite(LED_BUILTIN, HIGH);
+                    }
+                }
+            }
         }
-        else {
-            int val = input.toInt();
-            apply_attenuation(val);
+        else if(c >= 32 && c < 127) {  /* Printable ASCII */
+            serial_buffer += c;
         }
     }
     
