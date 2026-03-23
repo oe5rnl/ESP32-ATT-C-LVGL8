@@ -53,6 +53,16 @@ cd pico
 | **Attenuator GPIOs** | 4, 16, 17, 35 | 2, 3, 4, 5 |
 | **UART (Pico)** | 21 (TX), 22 (RX) am P3 | GP0 (TX), GP1 (RX) - Serial1 |
 
+## Kopplung ESP Touch mit Pico
+Die Kopplung erfolgt über die serielle Schnittstelle
+
+| Serielle | ESP 32 Board | Pico            |
+|----------|--------------|-----------------|
+| GND      | P5 Schwarz   | GND       Pin 3 |          
+| TX-ESP   | P5 gelb      | RX GPIO 1 Pin 2 |
+| RX-ESP   | P5 blau      | TX GPIO 0 Pin 1 |
+
+
 ## 📖 Detaillierte Dokumentation
 
 Siehe jeweilige Projekt-READMEs:

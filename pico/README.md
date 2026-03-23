@@ -1,5 +1,18 @@
 
 
+## Display am Pico
+Die Anbindung erfolgt 12C
+
+| I2C | Display | Pico       |
+|-----|---------|------------|
+| GND | GND     | GND Pin 18 | 
+| 3V3 | VCC     | 3V3 Pin 36 |           
+| SDA | SDA     | SDA Pin 19 |
+| SCL | SCL     | SCL Pin 20 |
+
+
+
+## GPIO Belegung
 
 1  GPIO-0   Tx zum ESP
 2  GPIO-1   Rx zum ESP
