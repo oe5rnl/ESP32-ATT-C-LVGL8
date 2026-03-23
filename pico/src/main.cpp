@@ -7,10 +7,11 @@
  */
 
 #include <Arduino.h>
-#include <U8g2lib.h>
+#include <Wire.h>
+#include "SSD1306.h"
 
-/* I2C Display SSD1306 (128x64) using Software I2C on GP19/GP20 */
-U8G2_SSD1306_128X64_NONAME_F_SW_I2C display(U8G2_R0, /* clock=*/ 19, /* data=*/ 20, /* reset=*/ U8X8_PIN_NONE);
+/* I2C Display SSD1306 (128x64) using I2C0 on GP4 (SDA) / GP5 (SCL) */
+SSD1306 display(&Wire);
 
 
 #define ATTENUATOR_26_5GHz    1       // 2,6,10,16
@@ -113,15 +114,11 @@ void apply_attenuation_26(int32_t db_value)
     Serial.print(a40b);
     Serial.println("]");
     
-    /* Update I2C Display */
-    display.clearBuffer();
-    display.setFont(u8g2_font_ncenB24_tn);  /* Large numbers */
-    char buf[16];
-    snprintf(buf, sizeof(buf), "%d", (int)att);
-    display.drawStr(15, 45, buf);
-    display.setFont(u8g2_font_ncenB10_tr);
-    display.drawStr(75, 45, "dB");
-    display.sendBuffer();
+    /* Update I2C Display with large digits */
+    display.clear();
+    display.drawBigNumber(10, 16, (uint16_t)att);  /* 3-digit number at (10, 16) */
+    display.drawString(90, 28, "dB");              /* "dB" label */
+    display.display();
 }
 
 void apply_attenuation(int32_t db_value)
@@ -146,16 +143,19 @@ void setup()
     
     Serial.println("Attenuator PICO started");
     
-    /* Initialize SSD1306 Display (Software I2C on GP19/GP20) */
-    display.begin();
+    /* Initialize I2C on standard pins: GP4 (SDA), GP5 (SCL) */
+    Wire.begin();
+    Serial.println("I2C initialized on GP4 (SDA) and GP5 (SCL)");
+    
+    /* Initialize SSD1306 Display */
+    display.init();
     Serial.println("SSD1306 Display initialized");
     
     /* Startup screen */
-    display.clearBuffer();
-    display.setFont(u8g2_font_ncenB10_tr);
-    display.drawStr(5, 20, "26.5 GHz");
-    display.drawStr(0, 45, "Attenuator");
-    display.sendBuffer();
+    display.clear();
+    display.drawString(10, 10, "26.5 GHz");
+    display.drawString(5, 30, "Attenuator");
+    display.display();
     delay(1000);
     
     /* Serial1 for ESP32 communication: GP0 (TX), GP1 (RX) = UART0 */

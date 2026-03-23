@@ -55,3 +55,9 @@ cd pico
 ## Entwicklung
 
 Das Pico-Projekt ist komplett eigenständig und unabhängig vom ESP32-Projekt im Hauptordner.
+
+```
+
+
+```
+
