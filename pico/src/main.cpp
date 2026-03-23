@@ -113,16 +113,23 @@ void apply_attenuation_26(int32_t db_value)
     Serial.print(" 40b=");
     Serial.print(a40b);
     Serial.println("]");
-    
-    /* Update I2C Display with large digits */
-    display.clear();
-    display.drawBigNumber(10, 16, (uint16_t)att);  /* 3-digit number at (10, 16) */
-    display.drawString(90, 28, "dB");              /* "dB" label */
-    display.display();
 }
 
 void apply_attenuation(int32_t db_value)
 {
+    // Round to 10 dB steps
+    int32_t att = (db_value / 10) * 10;
+    if(att > 110) att = 110;
+    if(att < 0) att = 0;
+    
+    current_db = att;
+    
+    /* Update I2C Display ALWAYS with large digits */
+    display.clear();
+    display.drawBigNumber(10, 16, (uint16_t)att);  /* 3-digit number at (10, 16) */
+    display.drawString(90, 28, "dB");              /* "dB" label */
+    display.display();
+    
     // wenn MODE_SELECT0 und MODE_SELECT1 high -> apply_attenuation_26
     if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == LOW) {
         apply_attenuation_26(db_value);
@@ -130,9 +137,14 @@ void apply_attenuation(int32_t db_value)
     // wenn MODE_SELECT0 == LOW und MODE_SELECT1 == high -> apply_attenuation_26
     else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
         // applay_attenuation_rs70db();  // TODO: Implementieren
+        Serial.print("ATT RS-7: ");
+        Serial.print(att);
+        Serial.println(" dB (TODO)");
     }
     else {
-        Serial.println("Unsupported mode - no attenuation applied");
+        Serial.print("Display: ");
+        Serial.print(att);
+        Serial.println(" dB (no mode)");
     }
 }
 
@@ -143,7 +155,7 @@ void setup()
     
     Serial.println("Attenuator PICO started");
     
-    /* Initialize I2C on standard pins: GP4 (SDA), GP5 (SCL) */
+    /* Initialize I2C on standard pins: GP4 (SDA), GP5 (SCL) for display output */
     Wire.begin();
     Serial.println("I2C initialized on GP4 (SDA) and GP5 (SCL)");
     
