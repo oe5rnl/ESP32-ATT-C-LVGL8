@@ -28,6 +28,11 @@ SSD1306 display(&Wire);
 #define ATT_GPIO_40DB_A  12
 #define ATT_GPIO_40DB_B  13
 
+/* Mode Select Inputs with Pull-up */
+#define MODE_SELECT0     2
+#define MODE_SELECT1     3
+
+
 
 /* RS 7 Relais Attenuatur   ******************************************************
 * Pads:  ????
@@ -72,9 +77,6 @@ SSD1306 display(&Wire);
 
 // Relais 
 
-/* Mode Select Inputs with Pull-up */
-#define MODE_SELECT0     18
-#define MODE_SELECT1     21
 
 static int32_t current_db = 0;
 static unsigned long last_led_toggle = 0;
