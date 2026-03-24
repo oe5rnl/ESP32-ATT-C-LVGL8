@@ -95,9 +95,14 @@ static int attenuator = 0;
 static int encoder_last_clk = HIGH;
 static int encoder_last_sw = HIGH;
 static int encoder_position = 0;
+static unsigned long button_press_start = 0;  /* Zeit des Button-Drucks */
+static bool button_was_pressed = false;       /* Flag für Button-Press-Erkennung */
 
 /* Display Cursor State */
 static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner (Start bei Zehner wie ESP32) */
+
+/* AUTO-Set Mode */
+static bool auto_set_mode = false;  /* AUTO-Set on/off */
 
 
 int getAttenuator()
@@ -204,6 +209,14 @@ void apply_attenuation(int32_t db_value)
     display.drawBigNumber(10, 16, (uint16_t)att);  /* 3-digit number at (10, 16) */
     display.drawString(90, 28, "dB");              /* "dB" label */
     drawCursor();  /* Unterstrich unter ausgewählter Stelle */
+    
+    /* AUTO-Set Status anzeigen (kleine Schrift unten) */
+    if(auto_set_mode) {
+        display.drawString(0, 56, "AUTO: ON");
+    } else {
+        display.drawString(0, 56, "AUTO: OFF");
+    }
+    
     display.display();
     
     // wenn MODE_SELECT0 und MODE_SELECT1 high -> apply_attenuation_26
@@ -364,26 +377,52 @@ void loop()
     }
     encoder_last_clk = clk_state;
     
-    /* Read Encoder Button/Switch - Toggle Digit Selection auf ESP32 Display */
+    /* Read Encoder Button/Switch mit Langdruck-Erkennung */
     int sw_state = digitalRead(ENCODER_SW);
+    
+    /* Fallende Flanke: Button wurde gedrückt */
     if(sw_state == LOW && encoder_last_sw == HIGH) {
-        /* Button wurde gedrückt (fallende Flanke) - Toggle zwischen 100er und 10er Stelle */
-        Serial.println("Encoder Button PRESSED -> Toggle Digit Selection");
+        button_press_start = now;
+        button_was_pressed = true;
+    }
+    
+    /* Steigende Flanke: Button wurde losgelassen */
+    if(sw_state == HIGH && encoder_last_sw == LOW && button_was_pressed) {
+        unsigned long press_duration = now - button_press_start;
+        button_was_pressed = false;
         
-        /* Toggle lokale selected_digit Variable (0=Hunderter, 1=Zehner) */
-        selected_digit = (selected_digit == 0) ? 1 : 0;
-        
-        /* Update Display mit neuem Cursor */
-        apply_attenuation(current_db);
-        
-        /* Sende DIGIT-Befehl an ESP32 über Serial1 */
-        Serial1.println("DIGIT");
-        
-        /* LED solid für 2 Sekunden */
-        led_solid_mode = true;
-        led_solid_start = now;
-        digitalWrite(LED_BUILTIN, HIGH);
-        delay(50);  /* Debounce */
+        if(press_duration >= 1000) {
+            /* Langer Druck (>= 1s): Toggle AUTO-Set Modus */
+            auto_set_mode = !auto_set_mode;
+            Serial.print("Encoder Button LONG PRESS -> AUTO-Set: ");
+            Serial.println(auto_set_mode ? "ON" : "OFF");
+            
+            /* Update Display */
+            apply_attenuation(current_db);
+            
+            /* LED solid für 2 Sekunden */
+            led_solid_mode = true;
+            led_solid_start = now;
+            digitalWrite(LED_BUILTIN, HIGH);
+        }
+        else {
+            /* Kurzer Druck (< 1s): Toggle Digit Selection */
+            Serial.println("Encoder Button SHORT PRESS -> Toggle Digit Selection");
+            
+            /* Toggle lokale selected_digit Variable (0=Hunderter, 1=Zehner) */
+            selected_digit = (selected_digit == 0) ? 1 : 0;
+            
+            /* Update Display mit neuem Cursor */
+            apply_attenuation(current_db);
+            
+            /* Sende DIGIT-Befehl an ESP32 über Serial1 */
+            Serial1.println("DIGIT");
+            
+            /* LED solid für 2 Sekunden */
+            led_solid_mode = true;
+            led_solid_start = now;
+            digitalWrite(LED_BUILTIN, HIGH);
+        }
     }
     encoder_last_sw = sw_state;
 
@@ -396,6 +435,17 @@ void loop()
             Serial1.print("Current: ");
             Serial1.print(current_db);
             Serial1.println(" dB");
+        }
+        else if(input.startsWith("SEL")) {
+            /* Digit-Auswahl vom ESP32: SEL0, SEL1 */
+            int digit = input.substring(3).toInt();
+            if(digit == 0 || digit == 1) {
+                selected_digit = digit;
+                Serial.print("ESP32 selected digit: ");
+                Serial.println(digit);
+                /* Update Display mit neuem Cursor */
+                apply_attenuation(current_db);
+            }
         }
         else {
             /* Parse number: accept plain number or "xxdB" format */

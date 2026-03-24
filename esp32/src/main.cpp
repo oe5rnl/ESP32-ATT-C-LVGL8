@@ -167,6 +167,9 @@ static void digit_click_cb(lv_event_t * e)
     selected_digit = idx;
     update_cursor();
     ws_broadcast_seldigit(idx);
+    
+    /* Sende Digit-Auswahl an Pico über Serial */
+    Serial.printf("SEL%d\n", idx);
 }
 
 /* Digit long-press: open numeric keyboard for direct value entry */
@@ -727,6 +730,9 @@ void loop()
                     update_cursor();
                     ws_broadcast_seldigit(selected_digit);
                     Serial.println("DIGIT command received - toggled digit selection");
+                    
+                    /* Sende neue Auswahl zurück an Pico */
+                    Serial.printf("SEL%d\n", selected_digit);
                 }
                 else {
                     /* Parse number: accept plain number or "xxdB" format */
