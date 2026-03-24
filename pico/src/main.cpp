@@ -328,6 +328,11 @@ void loop()
             apply_attenuation(new_db);
             Serial.print(new_db);
             Serial.println(" dB");
+            
+            /* Sende neuen Wert an ESP32 über Serial1 */
+            Serial1.print(new_db);
+            Serial1.println("dB");
+            
             /* LED solid für 2 Sekunden */
             led_solid_mode = true;
             led_solid_start = now;
@@ -342,6 +347,10 @@ void loop()
         /* Button wurde gedrückt (fallende Flanke) - Reset auf 0 dB */
         Serial.println("Encoder Button PRESSED -> Reset to 0 dB");
         apply_attenuation(0);
+        
+        /* Sende Reset-Wert an ESP32 über Serial1 */
+        Serial1.println("0dB");
+        
         /* LED solid für 2 Sekunden */
         led_solid_mode = true;
         led_solid_start = now;
