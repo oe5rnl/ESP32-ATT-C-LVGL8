@@ -66,6 +66,7 @@ static int32_t last_att_db = -1;
 uint8_t wifi_mode_setting = 2; /* default: Client */
 static lv_obj_t * wifi_radio_btns = NULL;
 lv_obj_t * ip_label = NULL;
+lv_obj_t * auto_set_label = NULL;  /* Label für AUTO-Set Status */
 
 static void kb_close(void)
 {
@@ -315,6 +316,13 @@ static void config_create(lv_obj_t * parent)
     lv_style_set_text_color(&style_unit, lv_color_hex(0xcccccc));
     lv_obj_add_style(unit_label, &style_unit, 0);
     lv_obj_align_to(unit_label, digit_cont, LV_ALIGN_OUT_RIGHT_BOTTOM, 2, 8);
+    
+    /* AUTO-Set Status Label (kleine Schrift unter den Digits) */
+    auto_set_label = lv_label_create(parent);
+    lv_label_set_text(auto_set_label, "AUTO: OFF");
+    lv_obj_set_style_text_font(auto_set_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(auto_set_label, lv_color_hex(0xffa500), 0);
+    lv_obj_align_to(auto_set_label, digit_cont, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
 
     /* Container for buttons, right-aligned */
     lv_obj_t * btn_cont = lv_obj_create(parent);
@@ -442,10 +450,22 @@ static void help_create(lv_obj_t * parent)
     lv_obj_add_event_cb(sw, [](lv_event_t * e) {
         autoset = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
         prefs.putBool("ae", autoset);
+        
+        /* Update Label im Main-Tab */
+        if(auto_set_label) {
+            lv_label_set_text(auto_set_label, autoset ? "AUTO: ON" : "AUTO: OFF");
+        }
+        
+        /* Update SET-Button Sichtbarkeit */
         if(btn_set) {
             if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
             else lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
         }
+        
+        /* Sende Status an Pico über Serial */
+        Serial.print("AUTO:");
+        Serial.println(autoset ? "ON" : "OFF");
+        
         ws_broadcast_ae();
     }, LV_EVENT_VALUE_CHANGED, NULL);
 
@@ -507,10 +527,16 @@ void web_update_ae(void)
         if(autoset) lv_obj_add_state(ae_switch, LV_STATE_CHECKED);
         else          lv_obj_clear_state(ae_switch, LV_STATE_CHECKED);
     }
+    if(auto_set_label) {
+        lv_label_set_text(auto_set_label, autoset ? "AUTO: ON" : "AUTO: OFF");
+    }
     if(btn_set) {
         if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
         else          lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
     }
+    /* Sende Status an Pico über Serial */
+    Serial.print("AUTO:");
+    Serial.println(autoset ? "ON" : "OFF");
 }
 
 /* Called from webserver.h when web client changes selected digit */
@@ -733,6 +759,33 @@ void loop()
                     
                     /* Sende neue Auswahl zurück an Pico */
                     Serial.printf("SEL%d\n", selected_digit);
+                }
+                /* Check für AUTO-Set Status vom Pico */
+                else if(input.startsWith("AUTO:")) {
+                    /* Format: "AUTO:ON" oder "AUTO:OFF" */
+                    bool new_autoset = input.endsWith("ON");
+                    autoset = new_autoset;
+                    prefs.putBool("ae", autoset);
+                    
+                    /* Update Label im Main-Tab */
+                    if(auto_set_label) {
+                        lv_label_set_text(auto_set_label, input.c_str());
+                    }
+                    
+                    /* Update Switch im Config-Tab */
+                    if(ae_switch) {
+                        if(autoset) lv_obj_add_state(ae_switch, LV_STATE_CHECKED);
+                        else lv_obj_clear_state(ae_switch, LV_STATE_CHECKED);
+                    }
+                    
+                    /* Update SET-Button Sichtbarkeit */
+                    if(btn_set) {
+                        if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+                        else lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+                    }
+                    
+                    ws_broadcast_ae();
+                    Serial.println("AUTO-Set status received: " + input);
                 }
                 else {
                     /* Parse number: accept plain number or "xxdB" format */

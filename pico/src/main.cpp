@@ -97,6 +97,7 @@ static int encoder_last_sw = HIGH;
 static int encoder_position = 0;
 static unsigned long button_press_start = 0;  /* Zeit des Button-Drucks */
 static bool button_was_pressed = false;       /* Flag für Button-Press-Erkennung */
+static bool long_press_executed = false;      /* Flag: Langdruck bereits ausgeführt */
 
 /* Display Cursor State */
 static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner (Start bei Zehner wie ESP32) */
@@ -212,12 +213,20 @@ void apply_attenuation(int32_t db_value)
     
     /* AUTO-Set Status anzeigen (kleine Schrift unten) */
     if(auto_set_mode) {
-        display.drawString(0, 56, "AUTO: ON");
+        display.drawString(0, 56, "AUTO-SET: ON");
     } else {
-        display.drawString(0, 56, "AUTO: OFF");
+        display.drawString(0, 56, "AUTO-SET: OFF");
     }
     
     display.display();
+    
+    /* Relais nur schalten wenn AUTO-Set aktiviert ist */
+    if(!auto_set_mode) {
+        Serial.print("Display only (AUTO-Set OFF): ");
+        Serial.print(att);
+        Serial.println(" dB");
+        return;  /* Keine Relais-Schaltung */
+    }
     
     // wenn MODE_SELECT0 und MODE_SELECT1 high -> apply_attenuation_26
     if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) {
@@ -384,18 +393,21 @@ void loop()
     if(sw_state == LOW && encoder_last_sw == HIGH) {
         button_press_start = now;
         button_was_pressed = true;
+        long_press_executed = false;
     }
     
-    /* Steigende Flanke: Button wurde losgelassen */
-    if(sw_state == HIGH && encoder_last_sw == LOW && button_was_pressed) {
+    /* Button ist gedrückt: Prüfe auf Langdruck (1 Sekunde) */
+    if(sw_state == LOW && button_was_pressed && !long_press_executed) {
         unsigned long press_duration = now - button_press_start;
-        button_was_pressed = false;
-        
         if(press_duration >= 1000) {
-            /* Langer Druck (>= 1s): Toggle AUTO-Set Modus */
+            /* Langer Druck (>= 1s): Toggle AUTO-Set Modus SOFORT */
             auto_set_mode = !auto_set_mode;
             Serial.print("Encoder Button LONG PRESS -> AUTO-Set: ");
             Serial.println(auto_set_mode ? "ON" : "OFF");
+            
+            /* Sende AUTO-Set Status an ESP32 über Serial1 */
+            Serial1.print("AUTO:");
+            Serial1.println(auto_set_mode ? "ON" : "OFF");
             
             /* Update Display */
             apply_attenuation(current_db);
@@ -404,8 +416,17 @@ void loop()
             led_solid_mode = true;
             led_solid_start = now;
             digitalWrite(LED_BUILTIN, HIGH);
+            
+            long_press_executed = true;  /* Markiere als ausgeführt */
         }
-        else {
+    }
+    
+    /* Steigende Flanke: Button wurde losgelassen */
+    if(sw_state == HIGH && encoder_last_sw == LOW && button_was_pressed) {
+        button_was_pressed = false;
+        
+        /* Nur Digit Toggle wenn KEIN Langdruck ausgeführt wurde */
+        if(!long_press_executed) {
             /* Kurzer Druck (< 1s): Toggle Digit Selection */
             Serial.println("Encoder Button SHORT PRESS -> Toggle Digit Selection");
             
@@ -446,6 +467,14 @@ void loop()
                 /* Update Display mit neuem Cursor */
                 apply_attenuation(current_db);
             }
+        }
+        else if(input.startsWith("AUTO:")) {
+            /* AUTO-Set Status vom ESP32: AUTO:ON oder AUTO:OFF */
+            auto_set_mode = input.endsWith("ON");
+            Serial.print("ESP32 AUTO-Set: ");
+            Serial.println(auto_set_mode ? "ON" : "OFF");
+            /* Update Display */
+            apply_attenuation(current_db);
         }
         else {
             /* Parse number: accept plain number or "xxdB" format */
