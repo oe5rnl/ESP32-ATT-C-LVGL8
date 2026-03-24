@@ -84,10 +84,35 @@ static unsigned long led_solid_start = 0;
 static String serial_buffer = "";  /* Buffer for USB serial input */
 static int attenuator = 0;
 
-void setup_attenuation_r26(int32_t db_value)
+
+int getAttenuator()
 {
+    if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) {
+        return ATTENUATOR_26_5GHz;
+    }
+    else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
+        return ATTENUATOR_GPIO_RS_70DB;
+    }
+    else {
+        return 0;  // Unknown
+    }    
 }
 
+void setup_attenuation_26()
+{
+    /* Attenuator GPIO init */
+    pinMode(ATT_GPIO_10DB,   OUTPUT);
+    pinMode(ATT_GPIO_20DB,   OUTPUT);
+    pinMode(ATT_GPIO_40DB_A, OUTPUT);
+    pinMode(ATT_GPIO_40DB_B, OUTPUT);
+    
+    // All OFF (LOW = inactive, HIGH = active)
+    digitalWrite(ATT_GPIO_10DB,   LOW);
+    digitalWrite(ATT_GPIO_20DB,   LOW);
+    digitalWrite(ATT_GPIO_40DB_A, LOW);
+    digitalWrite(ATT_GPIO_40DB_B, LOW);
+        
+}
 
 void apply_attenuation_26(int32_t db_value)
 {
@@ -121,6 +146,16 @@ void apply_attenuation_26(int32_t db_value)
     Serial.print(a40b);
     Serial.println("]");
 }
+
+
+void setup_attenuation_70db()
+{
+}
+
+void apply_attenuation_70db(int32_t db_value)
+{
+}
+
 
 void apply_attenuation(int32_t db_value)
 {
@@ -160,12 +195,15 @@ void setup()
     Serial.begin(115200);
     delay(2000);  // Wait for USB serial
     
-    
     Serial.println("\n\n=================================");
     Serial.println("Raspberry Pi Pico Attenuator");
-    Serial.println("Version 0.1");
+    Serial.println("Version 0.2");
     Serial.println("=================================\n");
     Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
+
+    /* Onboard LED init */
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
 
 
     /* Initialize I2C on standard pins: GP4 (SDA), GP5 (SCL) for display output */
@@ -176,30 +214,35 @@ void setup()
     display.init();
     Serial.println("SSD1306 Display initialized");
     
+    /* Mode Select Inputs with Pull-up - MUSS VOR dem Lesen konfiguriert werden! */
+    pinMode(MODE_SELECT0, INPUT_PULLUP);
+    pinMode(MODE_SELECT1, INPUT_PULLUP);   
+    delay(10);  // Kurze Verzögerung, damit sich die Pullups stabilisieren
+    
     Serial.println("Reading Mode Select pins...");
     Serial.println("  MODE_SELECT0 (GP18): " + String(digitalRead(MODE_SELECT0) == HIGH ? "HIGH" : "LOW"));
     Serial.println("  MODE_SELECT1 (GP21): " + String(digitalRead(MODE_SELECT1) == HIGH ? "HIGH" : "LOW"));
-
-    /* Mode Select Inputs with Pull-up */
-    pinMode(MODE_SELECT0, INPUT_PULLUP);
-    pinMode(MODE_SELECT1, INPUT_PULLUP);
-    
+    Serial.print("Attenuator: ");
 
     display.clear();    
     
-    // wenn MODE_SELECT0 und MODE_SELECT1 high -> apply_attenuation_26
-    if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) {
+    // R&S 26 Ghz Attenuator
+    if(getAttenuator() == ATTENUATOR_26_5GHz) {
         attenuator = ATTENUATOR_26_5GHz;
+        Serial.println("R&S 26_5GHz");
         display.drawString(10, 10, "26.5 GHz");
+        setup_attenuation_26();  // Initialisierung mit 0 dB
     }
-    // wenn MODE_SELECT0 == LOW und MODE_SELECT1 == high -> apply_attenuation_26
-    else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
+    // R&S 70 dB Attenuator
+    else if(getAttenuator() == ATTENUATOR_GPIO_RS_70DB) {
         attenuator = ATTENUATOR_GPIO_RS_70DB;
+        Serial.println("R&S 70 dB");
         display.drawString(10, 10, "RS-70 dB");
+        setup_attenuation_70db();  // TODO: Implementieren
     }
     else {
-        Serial.print("Display: ");
-        Serial.println("unknown Attenuator");
+        display.drawString(10, 10, "Unknown");
+        Serial.println("Unknown ");
     }
 
     display.display();
@@ -208,23 +251,6 @@ void setup()
     /* Serial1 for ESP32 communication: GP0 (TX), GP1 (RX) = UART0 */
     Serial1.begin(115200);
     Serial1.setTimeout(100);
-
-    /* Onboard LED init */
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LOW);
-
-    /* Attenuator GPIO init */
-    pinMode(ATT_GPIO_10DB,   OUTPUT);
-    pinMode(ATT_GPIO_20DB,   OUTPUT);
-    pinMode(ATT_GPIO_40DB_A, OUTPUT);
-    pinMode(ATT_GPIO_40DB_B, OUTPUT);
-    
-    // All OFF (LOW = inactive, HIGH = active)
-    digitalWrite(ATT_GPIO_10DB,   LOW);
-    digitalWrite(ATT_GPIO_20DB,   LOW);
-    digitalWrite(ATT_GPIO_40DB_A, LOW);
-    digitalWrite(ATT_GPIO_40DB_B, LOW);
-    
 
     Serial.println("GPIO initialized");
     Serial.println("\nCommands (USB + ENTER):");
