@@ -32,6 +32,11 @@ SSD1306 display(&Wire);
 #define MODE_SELECT0     2
 #define MODE_SELECT1     3
 
+/* KY-040 Rotary Encoder */
+#define ENCODER_CLK      19    // A
+#define ENCODER_DT       20    // B
+#define ENCODER_SW       21    // Switch/Button
+
 
 
 /* RS 7 Relais Attenuatur   ******************************************************
@@ -85,6 +90,11 @@ static bool led_solid_mode = false;  /* true = 2s solid, false = blink */
 static unsigned long led_solid_start = 0;
 static String serial_buffer = "";  /* Buffer for USB serial input */
 static int attenuator = 0;
+
+/* Rotary Encoder State */
+static int encoder_last_clk = HIGH;
+static int encoder_last_sw = HIGH;
+static int encoder_position = 0;
 
 
 int getAttenuator()
@@ -250,6 +260,14 @@ void setup()
     display.display();
     delay(1000);
     
+    /* KY-040 Rotary Encoder init */
+    pinMode(ENCODER_CLK, INPUT_PULLUP);
+    pinMode(ENCODER_DT, INPUT_PULLUP);
+    pinMode(ENCODER_SW, INPUT_PULLUP);
+    encoder_last_clk = digitalRead(ENCODER_CLK);
+    encoder_last_sw = digitalRead(ENCODER_SW);
+    Serial.println("KY-040 Rotary Encoder initialized (GP19/20/21)");
+    
     /* Serial1 for ESP32 communication: GP0 (TX), GP1 (RX) = UART0 */
     Serial1.begin(115200);
     Serial1.setTimeout(100);
@@ -284,6 +302,53 @@ void loop()
             // Serial.println("PICO");
         }
     }
+
+    /* Read KY-040 Rotary Encoder - steuert Attenuator in 10 dB Schritten */
+    int clk_state = digitalRead(ENCODER_CLK);
+    if(clk_state != encoder_last_clk && clk_state == LOW) {
+        /* CLK hat eine fallende Flanke */
+        int new_db = current_db;
+        if(digitalRead(ENCODER_DT) != clk_state) {
+            /* DT ist anders als CLK -> Drehung im Uhrzeigersinn (CW) = Erhöhen */
+            new_db += 10;
+            if(new_db > 110) new_db = 110;
+            encoder_position++;
+            Serial.print("Encoder CW  -> ");
+        }
+        else {
+            /* DT ist gleich wie CLK -> Drehung gegen Uhrzeigersinn (CCW) = Verringern */
+            new_db -= 10;
+            if(new_db < 0) new_db = 0;
+            encoder_position--;
+            Serial.print("Encoder CCW -> ");
+        }
+        
+        /* Anwendung der neuen Dämpfung */
+        if(new_db != current_db) {
+            apply_attenuation(new_db);
+            Serial.print(new_db);
+            Serial.println(" dB");
+            /* LED solid für 2 Sekunden */
+            led_solid_mode = true;
+            led_solid_start = now;
+            digitalWrite(LED_BUILTIN, HIGH);
+        }
+    }
+    encoder_last_clk = clk_state;
+    
+    /* Read Encoder Button/Switch - Reset auf 0 dB */
+    int sw_state = digitalRead(ENCODER_SW);
+    if(sw_state == LOW && encoder_last_sw == HIGH) {
+        /* Button wurde gedrückt (fallende Flanke) - Reset auf 0 dB */
+        Serial.println("Encoder Button PRESSED -> Reset to 0 dB");
+        apply_attenuation(0);
+        /* LED solid für 2 Sekunden */
+        led_solid_mode = true;
+        led_solid_start = now;
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(50);  /* Debounce */
+    }
+    encoder_last_sw = sw_state;
 
     /* Check Serial1 (from ESP32) */
     if(Serial1.available()) {
