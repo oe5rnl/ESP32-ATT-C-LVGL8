@@ -411,6 +411,11 @@ void loop()
                     int val = input.toInt();
                     if(val > 0 || input == "0") {  /* Valid number */
                         apply_attenuation(val);
+                        
+                        /* Sende Wert auch an ESP32 über Serial1 */
+                        Serial1.print(val);
+                        Serial1.println("dB");
+                        
                         /* LED solid for 2 seconds */
                         led_solid_mode = true;
                         led_solid_start = now;
