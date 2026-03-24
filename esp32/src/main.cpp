@@ -213,11 +213,11 @@ void apply_attenuation(void)
     digitalWrite(ATT_GPIO_40DB_A, a40a ? LOW : HIGH);
     digitalWrite(ATT_GPIO_40DB_B, a40b ? LOW : HIGH);
 
-    Serial.printf("ATT: %d dB  [10=%d 20=%d 40a=%d 40b=%d]\n",
-                  (int)att, !a10, !a20, !a40a, !a40b);
+    // Serial.printf("ATT: %d dB  [10=%d 20=%d 40a=%d 40b=%d]\n",
+    //               (int)att, !a10, !a20, !a40a, !a40b);
     
-    /* Send to Pico via Serial2 */
-    Serial2.printf("%ddB\n", (int)att);
+    /* Send to Pico via Serial */
+    Serial.printf("%ddB\n", (int)att);
 }
 
 static void btn_up_cb(lv_event_t * e)
@@ -621,10 +621,15 @@ void my_touchpad_read(lv_indev_drv_t *indev_drv, lv_indev_data_t *data)
 
 void setup()
 {
+    /* Serial for Pico communication on GPIO3 (RX) / GPIO1 (TX) - Hardware UART0 */
     Serial.begin(115200);
+    delay(200);
     
-    /* Serial2 for Pico communication: GPIO1 (TX), GPIO3 (RX) - via serial connector */
-    Serial2.begin(115200, SERIAL_8N1, 3, 1);  // RX=3, TX=1
+    // Serial2 nicht mehr verwenden - wir nutzen Serial direkt
+    // Serial2.begin(115200, SERIAL_8N1, 3, 1);  // RX=3, TX=1
+    // Serial2.setRxBufferSize(256);
+    
+    // Serial.println("Serial initialized on GPIO3 (RX) and GPIO1 (TX)");  // Kein Debug mehr über USB
 
     /* Attenuator GPIO init */
     pinMode(ATT_GPIO_10DB,   OUTPUT);
@@ -650,9 +655,9 @@ void setup()
     /* Restore last attenuation setting */
     apply_attenuation();
 
-    String info = "LVGL version ";
-    info += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
-    Serial.println(info);
+    // String info = "LVGL version ";
+    // info += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
+    // Serial.println(info);
 
     lv_init();
 
@@ -697,19 +702,65 @@ void setup()
     // Start Webserver
     webserver_setup();
 
-    Serial.println("Setup done");
+    // Serial.println("Setup done");
 }
 
 void loop()
 {
     lv_timer_handler();
     webserver_loop();
-    delay(5);
     
-    // /* Test: Send * to Pico every 100ms */
-    // static unsigned long last_test_send = 0;
-    // if(millis() - last_test_send >= 100) {
-    //     last_test_send = millis();
-    //     Serial2.print("*");
-    // }
+    /* Empfange Werte vom Pico über Serial (UART0) */
+    static String serial_buffer = "";
+    while(Serial.available()) {
+        char c = Serial.read();
+        if(c == '\n' || c == '\r') {
+            if(serial_buffer.length() > 0) {
+                String input = serial_buffer;
+                serial_buffer = "";  /* Clear buffer */
+                input.trim();
+                
+                /* Check für DIGIT-Befehl (Toggle selected_digit) */
+                if(input.equalsIgnoreCase("DIGIT")) {
+                    /* Toggle zwischen Hunderter (0) und Zehner (1) Stelle */
+                    selected_digit = (selected_digit == 0) ? 1 : 0;
+                    update_cursor();
+                    ws_broadcast_seldigit(selected_digit);
+                    Serial.println("DIGIT command received - toggled digit selection");
+                }
+                else {
+                    /* Parse number: accept plain number or "xxdB" format */
+                    input.toLowerCase();
+                    int dbPos = input.indexOf("db");
+                    if(dbPos > 0) {
+                        input = input.substring(0, dbPos);  /* Remove "db" suffix */
+                    }
+                    int val = input.toInt();
+                
+                    /* Validiere und aktualisiere Wert */
+                    if((val >= 0 && val <= DIGIT_MAX_VAL) || input == "0") {
+                        /* Runde auf erlaubte Schritte */
+                        if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;  /* 10 dB Schritte */
+                        if(DIGIT_MAX_1 == 0) val = (val / 100) * 100;  /* 100 dB Schritte */
+                        
+                        /* Aktualisiere nur Display, NICHT Relais (Pico hat bereits gesetzt) */
+                        db_value = val;
+                        update_digit_labels();
+                        last_att_db = (val / 10) * 10;  /* Synchronisiere last_att_db */
+                        prefs.putInt("cval", db_value);
+                        
+                        /* Display sofort rendern */
+                        lv_timer_handler();
+                        
+                        ws_broadcast_val();  /* Informiere WebGUI */
+                    }
+                }
+            }
+        }
+        else if(c >= 32 && c < 127) {  /* Printable ASCII */
+            serial_buffer += c;
+        }
+    }
+    
+    delay(5);
 }

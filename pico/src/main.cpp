@@ -96,6 +96,9 @@ static int encoder_last_clk = HIGH;
 static int encoder_last_sw = HIGH;
 static int encoder_position = 0;
 
+/* Display Cursor State */
+static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner (Start bei Zehner wie ESP32) */
+
 
 int getAttenuator()
 {
@@ -168,6 +171,24 @@ void apply_attenuation_70db(int32_t db_value)
 {
 }
 
+/* Zeichne Cursor (Unterstrich) unter der ausgewählten Ziffer */
+void drawCursor()
+{
+    /* Digit-Positionen: Breite=24px, Abstand=2px, Start bei x=10, y=16 */
+    /* Unterstrich bei y = 16 + 32 + 1 = 49 */
+    uint8_t cursor_y = 49;
+    uint8_t cursor_x = 10;
+    
+    if(selected_digit == 1) {
+        cursor_x = 10 + 24 + 2;  /* Zehnerstelle */
+    }
+    /* Digit 2 (Einerstelle) wird nicht verwendet für 10dB-Schritte */
+    
+    /* Zeichne Unterstrich (24 Pixel breit) */
+    for(uint8_t i = 0; i < 24; i++) {
+        display.setPixel(cursor_x + i, cursor_y, true);
+    }
+}
 
 void apply_attenuation(int32_t db_value)
 {
@@ -182,6 +203,7 @@ void apply_attenuation(int32_t db_value)
     display.clear();
     display.drawBigNumber(10, 16, (uint16_t)att);  /* 3-digit number at (10, 16) */
     display.drawString(90, 28, "dB");              /* "dB" label */
+    drawCursor();  /* Unterstrich unter ausgewählter Stelle */
     display.display();
     
     // wenn MODE_SELECT0 und MODE_SELECT1 high -> apply_attenuation_26
@@ -303,21 +325,22 @@ void loop()
         }
     }
 
-    /* Read KY-040 Rotary Encoder - steuert Attenuator in 10 dB Schritten */
+    /* Read KY-040 Rotary Encoder - steuert ausgewählte Stelle */
     int clk_state = digitalRead(ENCODER_CLK);
     if(clk_state != encoder_last_clk && clk_state == LOW) {
         /* CLK hat eine fallende Flanke */
+        int step = (selected_digit == 0) ? 100 : 10;  /* 100dB für Hunderter, 10dB für Zehner */
         int new_db = current_db;
         if(digitalRead(ENCODER_DT) != clk_state) {
             /* DT ist anders als CLK -> Drehung im Uhrzeigersinn (CW) = Erhöhen */
-            new_db += 10;
+            new_db += step;
             if(new_db > 110) new_db = 110;
             encoder_position++;
             Serial.print("Encoder CW  -> ");
         }
         else {
             /* DT ist gleich wie CLK -> Drehung gegen Uhrzeigersinn (CCW) = Verringern */
-            new_db -= 10;
+            new_db -= step;
             if(new_db < 0) new_db = 0;
             encoder_position--;
             Serial.print("Encoder CCW -> ");
@@ -341,15 +364,20 @@ void loop()
     }
     encoder_last_clk = clk_state;
     
-    /* Read Encoder Button/Switch - Reset auf 0 dB */
+    /* Read Encoder Button/Switch - Toggle Digit Selection auf ESP32 Display */
     int sw_state = digitalRead(ENCODER_SW);
     if(sw_state == LOW && encoder_last_sw == HIGH) {
-        /* Button wurde gedrückt (fallende Flanke) - Reset auf 0 dB */
-        Serial.println("Encoder Button PRESSED -> Reset to 0 dB");
-        apply_attenuation(0);
+        /* Button wurde gedrückt (fallende Flanke) - Toggle zwischen 100er und 10er Stelle */
+        Serial.println("Encoder Button PRESSED -> Toggle Digit Selection");
         
-        /* Sende Reset-Wert an ESP32 über Serial1 */
-        Serial1.println("0dB");
+        /* Toggle lokale selected_digit Variable (0=Hunderter, 1=Zehner) */
+        selected_digit = (selected_digit == 0) ? 1 : 0;
+        
+        /* Update Display mit neuem Cursor */
+        apply_attenuation(current_db);
+        
+        /* Sende DIGIT-Befehl an ESP32 über Serial1 */
+        Serial1.println("DIGIT");
         
         /* LED solid für 2 Sekunden */
         led_solid_mode = true;

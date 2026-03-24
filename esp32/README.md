@@ -43,7 +43,7 @@ LVGL 8 Steuerungsoberfläche für ESP32 CYD (Cheap Yellow Display) mit Touch-Dis
 ~/.platformio/penv/bin/pio run -e cyd2usb -t upload
 
 # Seriellen Monitor öffnen
-~/.platformio/penv/bin/pio device monitor
+~/.platformio/penv/bin/pio device monitor  -p /dev/ttyUSB0
 ```
 
 > **Tipp:** Falls `pio: command not found` erscheint, verwende den vollen Pfad `~/.platformio/penv/bin/pio` oder installiere PlatformIO global.
