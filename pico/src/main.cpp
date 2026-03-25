@@ -99,11 +99,22 @@ static unsigned long button_press_start = 0;  /* Zeit des Button-Drucks */
 static bool button_was_pressed = false;       /* Flag für Button-Press-Erkennung */
 static bool long_press_executed = false;      /* Flag: Langdruck bereits ausgeführt */
 
+/* Doppelklick-Erkennung */
+static unsigned long last_click_time = 0;     /* Zeit des letzten Klicks */
+static bool waiting_for_double_click = false; /* Warte auf zweiten Klick */
+static const unsigned long DOUBLE_CLICK_TIME = 1000;  /* Max Zeit zwischen Klicks (ms) */
+
 /* Display Cursor State */
 static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner (Start bei Zehner wie ESP32) */
 
 /* AUTO-Set Mode */
 static bool auto_set_mode = false;  /* AUTO-Set on/off */
+
+/* Test Mode für manuelle Relais-Prüfung */
+static bool test_mode = false;          /* Test-Modus on/off */
+static int selected_relay = 0;          /* 0-3: 10dB, 20dB, 40A, 40B */
+static bool relay_states[4] = {false, false, false, false};  /* Zustand jedes Relais */
+static const char* relay_names[4] = {"10dB", "20dB", "40A", "40B"};
 
 
 int getAttenuator()
@@ -177,6 +188,20 @@ void apply_attenuation_70db(int32_t db_value)
 {
 }
 
+/* Update Display für Test-Modus */
+void update_test_display()
+{
+    display.clear();
+    display.drawString(0, 0, "TEST MODE");
+    display.drawString(0, 16, "Relay:");
+    display.drawString(40, 16, relay_names[selected_relay]);
+    display.drawString(0, 32, "State:");
+    display.drawString(40, 32, relay_states[selected_relay] ? "ON" : "OFF");
+    display.drawString(0, 48, "Turn: Select");
+    display.drawString(0, 56, "Press: Toggle");
+    display.display();
+}
+
 /* Zeichne Cursor (Unterstrich) unter der ausgewählten Ziffer */
 void drawCursor()
 {
@@ -204,6 +229,12 @@ void apply_attenuation(int32_t db_value)
     if(att < 0) att = 0;
     
     current_db = att;
+    
+    /* Im Test-Modus: Spezielle Anzeige */
+    if(test_mode) {
+        update_test_display();
+        return;  /* Keine normale Dämpfungs-Anzeige/Schaltung */
+    }
     
     /* Update I2C Display ALWAYS with large digits */
     display.clear();
@@ -249,8 +280,9 @@ void apply_attenuation(int32_t db_value)
 void setup()
 {
     Serial.begin(115200);
-    delay(2000);  // Wait for USB serial
-    
+    //delay(2000);  // Wait for USB serial
+    delay(100);
+
     Serial.println("\n\n=================================");
     Serial.println("Raspberry Pi Pico Attenuator");
     Serial.println("Version 0.2");
@@ -286,7 +318,10 @@ void setup()
     if(getAttenuator() == ATTENUATOR_26_5GHz) {
         attenuator = ATTENUATOR_26_5GHz;
         Serial.println("R&S 26_5GHz");
-        display.drawString(10, 10, "26.5 GHz");
+        display.drawString(3, 10, "26.5 GHz");
+        display.drawString(3, 20, "Att  : 110dB");
+        display.drawString(3, 30, "Steps:  10dB");
+            
         setup_attenuation_26();  // Initialisierung mit 0 dB
     }
     // R&S 70 dB Attenuator
@@ -294,6 +329,7 @@ void setup()
         attenuator = ATTENUATOR_GPIO_RS_70DB;
         Serial.println("R&S 70 dB");
         display.drawString(10, 10, "RS-70 dB");
+        display.drawString(10, 20, "Att: 70dB Steps 10dB");
         setup_attenuation_70db();  // TODO: Implementieren
     }
     else {
@@ -302,7 +338,7 @@ void setup()
     }
 
     display.display();
-    delay(1000);
+    delay(5000);
     
     /* KY-040 Rotary Encoder init */
     pinMode(ENCODER_CLK, INPUT_PULLUP);
@@ -347,41 +383,63 @@ void loop()
         }
     }
 
-    /* Read KY-040 Rotary Encoder - steuert ausgewählte Stelle */
+    /* Read KY-040 Rotary Encoder */
     int clk_state = digitalRead(ENCODER_CLK);
     if(clk_state != encoder_last_clk && clk_state == LOW) {
         /* CLK hat eine fallende Flanke */
-        int step = (selected_digit == 0) ? 100 : 10;  /* 100dB für Hunderter, 10dB für Zehner */
-        int new_db = current_db;
-        if(digitalRead(ENCODER_DT) != clk_state) {
-            /* DT ist anders als CLK -> Drehung im Uhrzeigersinn (CW) = Erhöhen */
-            new_db += step;
-            if(new_db > 110) new_db = 110;
-            encoder_position++;
-            Serial.print("Encoder CW  -> ");
+        
+        if(test_mode) {
+            /* Test-Modus: Wähle Relais aus (0-3) */
+            if(digitalRead(ENCODER_DT) != clk_state) {
+                /* CW: Nächstes Relais */
+                selected_relay++;
+                if(selected_relay > 3) selected_relay = 0;
+                Serial.print("Test Mode: Select Relay -> ");
+                Serial.println(relay_names[selected_relay]);
+            }
+            else {
+                /* CCW: Vorheriges Relais */
+                selected_relay--;
+                if(selected_relay < 0) selected_relay = 3;
+                Serial.print("Test Mode: Select Relay -> ");
+                Serial.println(relay_names[selected_relay]);
+            }
+            update_test_display();
         }
         else {
-            /* DT ist gleich wie CLK -> Drehung gegen Uhrzeigersinn (CCW) = Verringern */
-            new_db -= step;
-            if(new_db < 0) new_db = 0;
-            encoder_position--;
-            Serial.print("Encoder CCW -> ");
-        }
-        
-        /* Anwendung der neuen Dämpfung */
-        if(new_db != current_db) {
-            apply_attenuation(new_db);
-            Serial.print(new_db);
-            Serial.println(" dB");
+            /* Normal-Modus: Steuert ausgewählte Stelle */
+            int step = (selected_digit == 0) ? 100 : 10;  /* 100dB für Hunderter, 10dB für Zehner */
+            int new_db = current_db;
+            if(digitalRead(ENCODER_DT) != clk_state) {
+                /* DT ist anders als CLK -> Drehung im Uhrzeigersinn (CW) = Erhöhen */
+                new_db += step;
+                if(new_db > 110) new_db = 110;
+                encoder_position++;
+                Serial.print("Encoder CW  -> ");
+            }
+            else {
+                /* DT ist gleich wie CLK -> Drehung gegen Uhrzeigersinn (CCW) = Verringern */
+                new_db -= step;
+                if(new_db < 0) new_db = 0;
+                encoder_position--;
+                Serial.print("Encoder CCW -> ");
+            }
             
-            /* Sende neuen Wert an ESP32 über Serial1 */
-            Serial1.print(new_db);
-            Serial1.println("dB");
-            
-            /* LED solid für 2 Sekunden */
-            led_solid_mode = true;
-            led_solid_start = now;
-            digitalWrite(LED_BUILTIN, HIGH);
+            /* Anwendung der neuen Dämpfung */
+            if(new_db != current_db) {
+                apply_attenuation(new_db);
+                Serial.print(new_db);
+                Serial.println(" dB");
+                
+                /* Sende neuen Wert an ESP32 über Serial1 */
+                Serial1.print(new_db);
+                Serial1.println("dB");
+                
+                /* LED solid für 2 Sekunden */
+                led_solid_mode = true;
+                led_solid_start = now;
+                digitalWrite(LED_BUILTIN, HIGH);
+            }
         }
     }
     encoder_last_clk = clk_state;
@@ -394,30 +452,37 @@ void loop()
         button_press_start = now;
         button_was_pressed = true;
         long_press_executed = false;
+        waiting_for_double_click = false;  /* Reset Doppelklick-Timer bei neuem Druck */
     }
     
-    /* Button ist gedrückt: Prüfe auf Langdruck (1 Sekunde) */
+    /* Button ist gedrückt: Prüfe auf sehr langen Druck für Test-Modus */
     if(sw_state == LOW && button_was_pressed && !long_press_executed) {
         unsigned long press_duration = now - button_press_start;
-        if(press_duration >= 1000) {
-            /* Langer Druck (>= 1s): Toggle AUTO-Set Modus SOFORT */
-            auto_set_mode = !auto_set_mode;
-            Serial.print("Encoder Button LONG PRESS -> AUTO-Set: ");
-            Serial.println(auto_set_mode ? "ON" : "OFF");
+        
+        if(press_duration >= 5000) {
+            /* Sehr langer Druck (>= 5s): Aktiviere Test-Modus SOFORT */
+            test_mode = true;
+            selected_relay = 0;
+            /* Alle Relais initial ausschalten */
+            for(int i = 0; i < 4; i++) relay_states[i] = false;
+            digitalWrite(ATT_GPIO_10DB, LOW);
+            digitalWrite(ATT_GPIO_20DB, LOW);
+            digitalWrite(ATT_GPIO_40DB_A, LOW);
+            digitalWrite(ATT_GPIO_40DB_B, LOW);
             
-            /* Sende AUTO-Set Status an ESP32 über Serial1 */
-            Serial1.print("AUTO:");
-            Serial1.println(auto_set_mode ? "ON" : "OFF");
+            Serial.println("\n*** TEST MODE ACTIVATED ***");
+            Serial.println("Turn: Select relay (10dB/20dB/40A/40B)");
+            Serial.println("Press: Toggle selected relay");
+            Serial.println("Exit: Power cycle\n");
             
-            /* Update Display */
-            apply_attenuation(current_db);
+            update_test_display();
             
-            /* LED solid für 2 Sekunden */
+            /* LED dauerhaft an im Test-Modus */
+            digitalWrite(LED_BUILTIN, HIGH);
             led_solid_mode = true;
             led_solid_start = now;
-            digitalWrite(LED_BUILTIN, HIGH);
             
-            long_press_executed = true;  /* Markiere als ausgeführt */
+            long_press_executed = true;
         }
     }
     
@@ -425,27 +490,79 @@ void loop()
     if(sw_state == HIGH && encoder_last_sw == LOW && button_was_pressed) {
         button_was_pressed = false;
         
-        /* Nur Digit Toggle wenn KEIN Langdruck ausgeführt wurde */
-        if(!long_press_executed) {
-            /* Kurzer Druck (< 1s): Toggle Digit Selection */
-            Serial.println("Encoder Button SHORT PRESS -> Toggle Digit Selection");
+        if(test_mode) {
+            /* Test-Modus: Toggle ausgewähltes Relais */
+            relay_states[selected_relay] = !relay_states[selected_relay];
+            Serial.print("Test Mode: Toggle Relay ");
+            Serial.print(relay_names[selected_relay]);
+            Serial.print(" -> ");
+            Serial.println(relay_states[selected_relay] ? "ON" : "OFF");
             
-            /* Toggle lokale selected_digit Variable (0=Hunderter, 1=Zehner) */
-            selected_digit = (selected_digit == 0) ? 1 : 0;
+            /* Schalte Relais direkt */
+            const int relay_gpios[4] = {ATT_GPIO_10DB, ATT_GPIO_20DB, ATT_GPIO_40DB_A, ATT_GPIO_40DB_B};
+            digitalWrite(relay_gpios[selected_relay], relay_states[selected_relay] ? HIGH : LOW);
             
-            /* Update Display mit neuem Cursor */
-            apply_attenuation(current_db);
-            
-            /* Sende DIGIT-Befehl an ESP32 über Serial1 */
-            Serial1.println("DIGIT");
-            
-            /* LED solid für 2 Sekunden */
-            led_solid_mode = true;
-            led_solid_start = now;
-            digitalWrite(LED_BUILTIN, HIGH);
+            update_test_display();
+        }
+        /* Nur wenn KEIN Langdruck ausgeführt wurde */
+        else if(!long_press_executed) {
+            /* Kurzer Klick: Doppelklick-Erkennung oder Einzelklick-Aktion */
+            if(waiting_for_double_click && (now - last_click_time) < DOUBLE_CLICK_TIME) {
+                /* DOPPELKLICK erkannt: Toggle Digit Selection */
+                Serial.println("DOUBLE CLICK -> Toggle Digit Selection");
+                waiting_for_double_click = false;
+                
+                /* Toggle lokale selected_digit Variable (0=Hunderter, 1=Zehner) */
+                selected_digit = (selected_digit == 0) ? 1 : 0;
+                
+                /* Update Display mit neuem Cursor */
+                apply_attenuation(current_db);
+                
+                /* Sende DIGIT-Befehl an ESP32 über Serial1 */
+                Serial1.println("DIGIT");
+                
+                /* LED solid für 2 Sekunden */
+                led_solid_mode = true;
+                led_solid_start = now;
+                digitalWrite(LED_BUILTIN, HIGH);
+            }
+            else {
+                /* Erster Klick: Starte Doppelklick-Timer */
+                waiting_for_double_click = true;
+                last_click_time = now;
+            }
         }
     }
     encoder_last_sw = sw_state;
+    
+    /* Prüfe Timeout für Doppelklick -> Einzelklick-Aktion */
+    if(waiting_for_double_click && (now - last_click_time) >= DOUBLE_CLICK_TIME) {
+        waiting_for_double_click = false;
+        
+        if(!test_mode) {
+            /* EINZELKLICK im AUTO-Set=OFF: Wert übernehmen und Relais schalten */
+            if(!auto_set_mode) {
+                Serial.print("SINGLE CLICK -> Apply value: ");
+                Serial.print(current_db);
+                Serial.println(" dB (AUTO-Set was OFF)");
+                
+                /* Schalte Relais mit aktuellem Wert */
+                if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) {
+                    apply_attenuation_26(current_db);
+                }
+                
+                /* Sende Wert auch an ESP32 */
+                Serial1.print(current_db);
+                Serial1.println("dB");
+                
+                /* LED Feedback */
+                led_solid_mode = true;
+                led_solid_start = now;
+                digitalWrite(LED_BUILTIN, HIGH);
+            }
+            /* Im AUTO-Set=ON Modus: Einzelklick macht nichts (Werte werden automatisch übernommen) */
+        }
+    }
 
     /* Check Serial1 (from ESP32) */
     if(Serial1.available()) {
