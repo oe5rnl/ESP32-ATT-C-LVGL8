@@ -114,7 +114,7 @@ static bool auto_set_mode = false;  /* AUTO-Set on/off */
 static int32_t pending_relay_db = -1;        /* Wert der geschaltet werden soll */
 static unsigned long relay_change_time = 0;  /* Zeitpunkt der letzten Wertänderung */
 static bool relay_update_pending = false;    /* Flag: Update steht aus */
-static const unsigned long RELAY_DEBOUNCE_TIME = 100;  /* 100ms Verzögerung */
+static const unsigned long RELAY_DEBOUNCE_TIME = 200;  /* 200ms Verzögerung */
 
 /* Test Mode für manuelle Relais-Prüfung */
 static bool test_mode = false;          /* Test-Modus on/off */
