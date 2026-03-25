@@ -110,6 +110,12 @@ static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner (Start bei Zehner w
 /* AUTO-Set Mode */
 static bool auto_set_mode = false;  /* AUTO-Set on/off */
 
+/* Relais-Schalt-Verzögerung (Debounce) */
+static int32_t pending_relay_db = -1;        /* Wert der geschaltet werden soll */
+static unsigned long relay_change_time = 0;  /* Zeitpunkt der letzten Wertänderung */
+static bool relay_update_pending = false;    /* Flag: Update steht aus */
+static const unsigned long RELAY_DEBOUNCE_TIME = 100;  /* 100ms Verzögerung */
+
 /* Test Mode für manuelle Relais-Prüfung */
 static bool test_mode = false;          /* Test-Modus on/off */
 static int selected_relay = 0;          /* 0-3: 10dB, 20dB, 40A, 40B */
@@ -154,6 +160,23 @@ void apply_attenuation_26(int32_t db_value)
     if(att < 0) att = 0;
     
     current_db = att;
+
+    /* Setze pending Wert und starte Verzögerung */
+    pending_relay_db = att;
+    relay_change_time = millis();
+    relay_update_pending = true;
+    
+    Serial.print("Relay update scheduled: ");
+    Serial.print(att);
+    Serial.println(" dB (will apply in 100ms)");
+}
+
+/* Tatsächliches Schalten der Relais (wird nach Verzögerung aufgerufen) */
+void apply_relays_26(int32_t db_value)
+{
+    int32_t att = (db_value / 10) * 10;
+    if(att > 110) att = 110;
+    if(att < 0) att = 0;
 
     int32_t rem = att;
     bool a40a = (rem >= 40); if(a40a) rem -= 40;
@@ -364,6 +387,13 @@ void setup()
 void loop()
 {
     unsigned long now = millis();
+    
+    /* Prüfe ob Relais-Update fällig ist (nach 100ms Verzögerung) */
+    if(relay_update_pending && (now - relay_change_time) >= RELAY_DEBOUNCE_TIME) {
+        relay_update_pending = false;
+        /* Schalte Relais mit dem pending Wert */
+        apply_relays_26(pending_relay_db);
+    }
     
     /* LED control: solid for 2s after receiving dB string, then blink */
     if(led_solid_mode) {
