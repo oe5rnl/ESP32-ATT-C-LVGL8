@@ -108,7 +108,7 @@ static const unsigned long DOUBLE_CLICK_TIME = 1000;  /* Max Zeit zwischen Klick
 static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner (Start bei Zehner wie ESP32) */
 
 /* AUTO-Set Mode */
-static bool auto_set_mode = false;  /* AUTO-Set on/off */
+static bool auto_set_mode = true;  /* AUTO-Set on/off (Standard: ON) */
 
 /* Relais-Schalt-Verzögerung (Debounce) */
 static int32_t pending_relay_db = -1;        /* Wert der geschaltet werden soll */
@@ -168,7 +168,7 @@ void apply_attenuation_26(int32_t db_value)
     
     Serial.print("Relay update scheduled: ");
     Serial.print(att);
-    Serial.println(" dB (will apply in 100ms)");
+    Serial.println(" dB (will apply in 200ms)");
 }
 
 /* Tatsächliches Schalten der Relais (wird nach Verzögerung aufgerufen) */
@@ -274,17 +274,20 @@ void apply_attenuation(int32_t db_value)
     
     display.display();
     
-    /* Relais nur schalten wenn AUTO-Set aktiviert ist */
-    if(!auto_set_mode) {
-        Serial.print("Display only (AUTO-Set OFF): ");
-        Serial.print(att);
-        Serial.println(" dB");
-        return;  /* Keine Relais-Schaltung */
-    }
+    /* Relais schalten:
+     * - AUTO-Set ON:  Mit 200ms Verzögerung (Debounce)
+     * - AUTO-Set OFF: Sofort ohne Verzögerung
+     */
     
     // wenn MODE_SELECT0 und MODE_SELECT1 high -> apply_attenuation_26
     if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) {
-        apply_attenuation_26(db_value);
+        if(auto_set_mode) {
+            /* Mit Verzögerung */
+            apply_attenuation_26(db_value);
+        } else {
+            /* Sofort ohne Verzögerung */
+            apply_relays_26(db_value);
+        }
     }
     // wenn MODE_SELECT0 == LOW und MODE_SELECT1 == high -> apply_attenuation_26
     else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
