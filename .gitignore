@@ -12,6 +12,9 @@ build/
 .DS_Store
 Thumbs.db
 
+# KiCad/Schaltungs-Backups
+Schaltung/att/att-backups/
+
 # WiFi credentials (ESP32)
 esp32/src/wifi_credentials.h
 

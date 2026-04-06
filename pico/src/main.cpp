@@ -33,9 +33,9 @@ SSD1306 display(&Wire);
 #define MODE_SELECT1     3
 
 /* KY-040 Rotary Encoder */
-#define ENCODER_CLK      19    // A
-#define ENCODER_DT       20    // B
-#define ENCODER_SW       21    // Switch/Button
+#define ENCODER_SW     19   // Switch/Button
+#define ENCODER_DT     20   // Data (Direction)
+#define ENCODER_CLK    21   // Clock (Pulse)
 
 
 
@@ -115,6 +115,8 @@ static bool test_mode = false;          /* Test-Modus on/off */
 static int selected_relay = 0;          /* 0-3: 10dB, 20dB, 40A, 40B */
 static bool relay_states[4] = {false, false, false, false};  /* Zustand jedes Relais */
 static const char* relay_names[4] = {"10dB", "20dB", "40A", "40B"};
+
+static const int32_t STARTUP_DB = 0;
 
 
 int getAttenuator()
@@ -338,7 +340,6 @@ void setup()
     }
 
     display.display();
-    delay(5000);
     
     /* KY-040 Rotary Encoder init */
     pinMode(ENCODER_CLK, INPUT_PULLUP);
@@ -358,7 +359,8 @@ void setup()
     Serial.println("  ? + ENTER     : Show current value");
     Serial.println("\nWaiting for ESP32 on Serial1 (GP0/GP1)...\n");
     
-    apply_attenuation(0);
+    /* Sofort beim Start den Startwert groß anzeigen */
+    apply_attenuation(STARTUP_DB);
 }
 
 void loop()
