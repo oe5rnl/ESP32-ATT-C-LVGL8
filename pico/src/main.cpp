@@ -95,9 +95,14 @@ static int attenuator = 0;
 static int encoder_last_clk = HIGH;
 static int encoder_last_sw = HIGH;
 static int encoder_position = 0;
+static unsigned long last_encoder_change = 0;  /* Zeit des letzten Encoder-Schritts */
+static bool encoder_apply_pending = false;     /* Relais-Schalten nach Drehstopp ausstehend */
 static unsigned long button_press_start = 0;  /* Zeit des Button-Drucks */
 static bool button_was_pressed = false;       /* Flag für Button-Press-Erkennung */
 static bool long_press_executed = false;      /* Flag: Langdruck bereits ausgeführt */
+static bool suppress_relay_update = false;    /* Nur Display aktualisieren, Relais später anwenden */
+
+static const unsigned long ENCODER_SETTLE_TIME = 300;  /* ms nach letztem Drehschritt */
 
 /* Doppelklick-Erkennung */
 static unsigned long last_click_time = 0;     /* Zeit des letzten Klicks */
@@ -117,6 +122,8 @@ static bool relay_states[4] = {false, false, false, false};  /* Zustand jedes Re
 static const char* relay_names[4] = {"10dB", "20dB", "40A", "40B"};
 
 static const int32_t STARTUP_DB = 0;
+
+void apply_attenuation_70db(int32_t db_value);
 
 
 int getAttenuator()
@@ -179,6 +186,21 @@ void apply_attenuation_26(int32_t db_value)
     Serial.print(" 40b=");
     Serial.print(a40b);
     Serial.println("]");
+}
+
+void apply_relays(int32_t db_value)
+{
+    if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) {
+        apply_attenuation_26(db_value);
+    }
+    else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
+        apply_attenuation_70db(db_value);
+    }
+    else {
+        Serial.print("Display: ");
+        Serial.print(current_db);
+        Serial.println(" dB (no mode)");
+    }
 }
 
 
@@ -260,23 +282,12 @@ void apply_attenuation(int32_t db_value)
         Serial.println(" dB");
         return;  /* Keine Relais-Schaltung */
     }
+
+    if(suppress_relay_update) {
+        return;  /* Relais werden nach Drehstopp angewendet */
+    }
     
-    // wenn MODE_SELECT0 und MODE_SELECT1 high -> apply_attenuation_26
-    if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) {
-        apply_attenuation_26(db_value);
-    }
-    // wenn MODE_SELECT0 == LOW und MODE_SELECT1 == high -> apply_attenuation_26
-    else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
-        // applay_attenuation_rs70db();  // TODO: Implementieren
-        Serial.print("ATT RS-7: ");
-        Serial.print(att);
-        Serial.println(" dB (TODO)");
-    }
-    else {
-        Serial.print("Display: ");
-        Serial.print(att);
-        Serial.println(" dB (no mode)");
-    }
+    apply_relays(db_value);
 }
 
 void setup()
@@ -417,21 +428,26 @@ void loop()
                 new_db += step;
                 if(new_db > 110) new_db = 110;
                 encoder_position++;
-                Serial.print("Encoder CW  -> ");
             }
             else {
                 /* DT ist gleich wie CLK -> Drehung gegen Uhrzeigersinn (CCW) = Verringern */
                 new_db -= step;
                 if(new_db < 0) new_db = 0;
                 encoder_position--;
-                Serial.print("Encoder CCW -> ");
             }
             
             /* Anwendung der neuen Dämpfung */
             if(new_db != current_db) {
-                apply_attenuation(new_db);
-                Serial.print(new_db);
-                Serial.println(" dB");
+                if(auto_set_mode) {
+                    suppress_relay_update = true;
+                    apply_attenuation(new_db);
+                    suppress_relay_update = false;
+                    encoder_apply_pending = true;
+                    last_encoder_change = now;
+                }
+                else {
+                    apply_attenuation(new_db);
+                }
                 
                 /* Sende neuen Wert an ESP32 über Serial1 */
                 Serial1.print(new_db);
@@ -445,6 +461,14 @@ void loop()
         }
     }
     encoder_last_clk = clk_state;
+
+    if(encoder_apply_pending && auto_set_mode && !test_mode && (now - last_encoder_change) >= ENCODER_SETTLE_TIME) {
+        encoder_apply_pending = false;
+        Serial.print("Encoder settled -> apply ");
+        Serial.print(current_db);
+        Serial.println(" dB");
+        apply_relays(current_db);
+    }
     
     /* Read Encoder Button/Switch mit Langdruck-Erkennung */
     int sw_state = digitalRead(ENCODER_SW);
@@ -590,6 +614,7 @@ void loop()
         else if(input.startsWith("AUTO:")) {
             /* AUTO-Set Status vom ESP32: AUTO:ON oder AUTO:OFF */
             auto_set_mode = input.endsWith("ON");
+            if(!auto_set_mode) encoder_apply_pending = false;
             Serial.print("ESP32 AUTO-Set: ");
             Serial.println(auto_set_mode ? "ON" : "OFF");
             /* Update Display */
