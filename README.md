@@ -93,6 +93,35 @@ ESP32-ATT-C-LVGL8/
 Beide Implementierungen steuern 4 Dämpfungsglieder (active LOW, 10 dB Schritte):
 - 10 dB + 20 dB + 40 dB (A) + 40 dB (B) = max. 110 dB
 
+### GPIO-Aktivierung pro dB-Wert (26.5 GHz)
+
+Pico-Zuordnung der 4 Dämpfungsglieder:
+
+| Dämpfungsglied | Pico GPIO | Pico physikalischer Pin |
+|----------------|-----------|-------------------------|
+| 10 dB          | GP6       | Pin 9                   |
+| 20 dB          | GP7       | Pin 10                  |
+| 40 dB (A)      | GP8       | Pin 11                  |
+| 40 dB (B)      | GP9       | Pin 12                  |
+
+Hinweis zur aktiven Logik:
+- Pico: aktiv = HIGH
+
+| dB-Wert | aktive Dämpfungsglieder | aktive Pico GPIOs | aktive Pico Pins |
+|---------|--------------------------|-------------------|------------------|
+| 0       | -                        | -                 | -                |
+| 10      | 10                       | GP6               | 9                |
+| 20      | 20                       | GP7               | 10               |
+| 30      | 20 + 10                  | GP7, GP6          | 10, 9            |
+| 40      | 40A                      | GP8               | 11               |
+| 50      | 40A + 10                 | GP8, GP6          | 11, 9            |
+| 60      | 40A + 20                 | GP8, GP7          | 11, 10           |
+| 70      | 40A + 20 + 10            | GP8, GP7, GP6     | 11, 10, 9        |
+| 80      | 40A + 40B                | GP8, GP9          | 11, 12           |
+| 90      | 40A + 40B + 10           | GP8, GP9, GP6     | 11, 12, 9        |
+| 100     | 40A + 40B + 20           | GP8, GP9, GP7     | 11, 12, 10       |
+| 110     | 40A + 40B + 20 + 10      | GP8, GP9, GP7, GP6 | 11, 12, 10, 9    |
+
 ## 📝 Lizenz
 
 Siehe [LICENSE](LICENSE).

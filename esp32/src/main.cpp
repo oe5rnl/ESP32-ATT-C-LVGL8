@@ -50,7 +50,7 @@ static lv_obj_t * kb = NULL;
 static lv_obj_t * ta = NULL;
 static int editing_index = -1;
 static bool long_press_active = false;
-bool autoset = false;
+bool autoset = true;
 static lv_obj_t * btn_set = NULL;
 static lv_obj_t * ae_switch = NULL;
 
@@ -678,7 +678,7 @@ void setup()
         default_values[i] = prefs.getInt(key, default_values[i]);
     }
     db_value = prefs.getInt("cval", db_value);
-    autoset = prefs.getBool("ae", false);
+    autoset = prefs.getBool("ae", true);
     wifi_mode_setting = prefs.getUChar("wmode", 2);
 
     /* Restore last attenuation setting */

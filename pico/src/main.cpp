@@ -23,10 +23,10 @@ SSD1306 display(&Wire);
 *  Der Attenuator verfügt über eine Logik mit H Brücke
 *  daher 1 Bit je Relais - high aktiv 
 */
-#define ATT_GPIO_10DB    10
-#define ATT_GPIO_20DB    11
-#define ATT_GPIO_40DB_A  12
-#define ATT_GPIO_40DB_B  13
+#define ATT_GPIO_10DB    6
+#define ATT_GPIO_20DB    7
+#define ATT_GPIO_40DB_A  8
+#define ATT_GPIO_40DB_B  9
 
 /* Mode Select Inputs with Pull-up */
 #define MODE_SELECT0     2
@@ -108,7 +108,7 @@ static const unsigned long DOUBLE_CLICK_TIME = 1000;  /* Max Zeit zwischen Klick
 static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner (Start bei Zehner wie ESP32) */
 
 /* AUTO-Set Mode */
-static bool auto_set_mode = false;  /* AUTO-Set on/off */
+static bool auto_set_mode = true;  /* AUTO-Set on/off */
 
 /* Test Mode für manuelle Relais-Prüfung */
 static bool test_mode = false;          /* Test-Modus on/off */
