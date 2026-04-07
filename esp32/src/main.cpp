@@ -697,10 +697,10 @@ void setup()
     // Start second SPI bus for touchscreen
     mySpi.begin(XPT2046_CLK, XPT2046_MISO, XPT2046_MOSI, XPT2046_CS);
     ts.begin(mySpi);
-    ts.setRotation(1); // Landscape orientation
+    ts.setRotation(3); // Landscape, 180° gedreht
 
     tft.begin();
-    tft.setRotation(1); // Landscape orientation
+    tft.setRotation(3); // Landscape, 180° gedreht
 
     lv_disp_draw_buf_init(&draw_buf, buf, NULL, screenWidth * screenHeight / 10);
 

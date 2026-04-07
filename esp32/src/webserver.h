@@ -5,7 +5,13 @@
 #include <ESPmDNS.h>
 #include <Preferences.h>
 #include <lvgl.h>
+
+#if __has_include("wifi_credentials.h")
 #include "wifi_credentials.h"
+#else
+#define WIFI_SSID ""
+#define WIFI_PASSWORD ""
+#endif
 
 static AsyncWebServer webServer(80);
 static AsyncWebSocket ws("/ws");
