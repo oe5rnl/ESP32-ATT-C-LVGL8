@@ -54,13 +54,7 @@ bool autoset = true;
 static lv_obj_t * btn_set = NULL;
 static lv_obj_t * ae_switch = NULL;
 
-/* Attenuator GPIO mapping (active LOW)
- * Pads: 10 dB, 20 dB, 40 dB (A), 40 dB (B)  →  max 110 dB in 10 dB steps */
-#define ATT_GPIO_10DB    4
-#define ATT_GPIO_20DB   16
-#define ATT_GPIO_40DB_A 17
-#define ATT_GPIO_40DB_B 35
-static int32_t last_att_db = -1;
+
 
 /* WiFi mode: 0=off, 1=AP, 2=Client */
 uint8_t wifi_mode_setting = 2; /* default: Client */
@@ -201,29 +195,11 @@ static void digit_long_press_cb(lv_event_t * e)
     lv_obj_clear_state(ta, LV_STATE_FOCUS_KEY);
 }
 
-/* Set attenuator GPIOs from db_value (10 dB steps, ones digit ignored) */
+/* Send current attenuation value to Pico via Serial */
 void apply_attenuation(void)
 {
     int32_t att = (db_value / 10) * 10;
     if(att > 110) att = 110;
-    if(att == last_att_db) return;   /* ones digit changed only → do nothing */
-    last_att_db = att;
-
-    int32_t rem = att;
-    bool a40a = (rem >= 40); if(a40a) rem -= 40;
-    bool a40b = (rem >= 40); if(a40b) rem -= 40;
-    bool a20  = (rem >= 20); if(a20)  rem -= 20;
-    bool a10  = (rem >= 10);
-
-    digitalWrite(ATT_GPIO_10DB,   a10  ? LOW : HIGH);
-    digitalWrite(ATT_GPIO_20DB,   a20  ? LOW : HIGH);
-    digitalWrite(ATT_GPIO_40DB_A, a40a ? LOW : HIGH);
-    digitalWrite(ATT_GPIO_40DB_B, a40b ? LOW : HIGH);
-
-    // Serial.printf("ATT: %d dB  [10=%d 20=%d 40a=%d 40b=%d]\n",
-    //               (int)att, !a10, !a20, !a40a, !a40b);
-    
-    /* Send to Pico via Serial */
     Serial.printf("%ddB\n", (int)att);
 }
 
@@ -667,16 +643,6 @@ void setup()
     
     // Serial.println("Serial initialized on GPIO3 (RX) and GPIO1 (TX)");  // Kein Debug mehr über USB
 
-    /* Attenuator GPIO init */
-    pinMode(ATT_GPIO_10DB,   OUTPUT);
-    pinMode(ATT_GPIO_20DB,   OUTPUT);
-    pinMode(ATT_GPIO_40DB_A, OUTPUT);
-    pinMode(ATT_GPIO_40DB_B, OUTPUT);
-    digitalWrite(ATT_GPIO_10DB,   HIGH);
-    digitalWrite(ATT_GPIO_20DB,   HIGH);
-    digitalWrite(ATT_GPIO_40DB_A, HIGH);
-    digitalWrite(ATT_GPIO_40DB_B, HIGH);
-
     /* Load saved default values from NVS */
     prefs.begin("att", false);
     for(int i = 0; i < DEFAULT_BUTTON_COUNT; i++) {
@@ -825,7 +791,6 @@ void loop()
                         /* Aktualisiere nur Display, NICHT Relais (Pico hat bereits gesetzt) */
                         db_value = val;
                         update_digit_labels();
-                        last_att_db = (val / 10) * 10;  /* Synchronisiere last_att_db */
                         prefs.putInt("cval", db_value);
                         
                         /* Display sofort rendern */
