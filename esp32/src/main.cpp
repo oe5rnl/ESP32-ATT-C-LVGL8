@@ -41,9 +41,9 @@ static const uint8_t digit_max[3] = { DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2 };
 int selected_digit = (DIGIT_MAX_2 > 0) ? 2 : (DIGIT_MAX_1 > 0) ? 1 : 0;
 static lv_obj_t * tabview;
 
-/* Default values for the 6 buttons */
-int32_t default_values[6] = {20, 40, 60, 10, 30, 50};
-static lv_obj_t * default_labels[6];
+/* Default values for the preset buttons (3 x 3) */
+int32_t default_values[DEFAULT_BUTTON_COUNT] = {20, 40, 60, 10, 30, 50, 70, 80, 90};
+static lv_obj_t * default_labels[DEFAULT_BUTTON_COUNT];
 
 /* Keyboard edit state */
 static lv_obj_t * kb = NULL;
@@ -86,7 +86,7 @@ static void ta_event_cb(lv_event_t * e)
         /* Gesperrte Stellen auf 0 runden (z.B. Einer gesperrt → 33 → 30) */
         if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;
         if(DIGIT_MAX_1 == 0) val = (val / 100) * 100;
-        if(editing_index >= 0 && editing_index < 6) {
+        if(editing_index >= 0 && editing_index < DEFAULT_BUTTON_COUNT) {
             default_values[editing_index] = val;
             lv_label_set_text_fmt(default_labels[editing_index], "%d dB", val);
             char key[8];
@@ -417,7 +417,7 @@ static void defaults_create(lv_obj_t * parent)
     lv_style_set_text_color(&style_def, lv_color_white());
     lv_style_set_radius(&style_def, 6);
 
-    for(int i = 0; i < 6; i++) {
+    for(int i = 0; i < DEFAULT_BUTTON_COUNT; i++) {
         lv_obj_t * btn = lv_btn_create(parent);
         lv_obj_set_width(btn, 85);
         lv_obj_add_style(btn, &style_def, 0);
@@ -513,7 +513,7 @@ static void help_create(lv_obj_t * parent)
 /* Called from webserver.h when web client changes default_values */
 void web_update_defaults(void)
 {
-    for(int i = 0; i < 6; i++) {
+    for(int i = 0; i < DEFAULT_BUTTON_COUNT; i++) {
         if(default_labels[i]) {
             lv_label_set_text_fmt(default_labels[i], "%d dB", default_values[i]);
         }
@@ -672,7 +672,7 @@ void setup()
 
     /* Load saved default values from NVS */
     prefs.begin("att", false);
-    for(int i = 0; i < 6; i++) {
+    for(int i = 0; i < DEFAULT_BUTTON_COUNT; i++) {
         char key[8];
         snprintf(key, sizeof(key), "def%d", i);
         default_values[i] = prefs.getInt(key, default_values[i]);

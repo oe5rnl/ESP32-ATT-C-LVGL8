@@ -13,13 +13,17 @@
 #define WIFI_PASSWORD ""
 #endif
 
+#ifndef DEFAULT_BUTTON_COUNT
+#define DEFAULT_BUTTON_COUNT 9
+#endif
+
 static AsyncWebServer webServer(80);
 static AsyncWebSocket ws("/ws");
 
 /* Forward declarations – defined in main.cpp */
 extern Preferences prefs;
 extern int32_t db_value;
-extern int32_t default_values[6];
+extern int32_t default_values[DEFAULT_BUTTON_COUNT];
 extern bool autoset;
 extern int selected_digit;
 extern uint8_t wifi_mode_setting;
@@ -141,10 +145,11 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
 </div>
 
 <script>
+const DEFAULT_BUTTON_COUNT = 9;
 let ws;
 let selDigit = 2;
 let curVal = 0;
-const defaults = [0,0,0,0,0,0];
+const defaults = Array(DEFAULT_BUTTON_COUNT).fill(0);
 let activeDefIdx = -1;
 let lastContact = 0;
 let digitLpTimer = [0,0,0];
@@ -180,7 +185,7 @@ function connectWS(){
       curVal = msg.val;
       renderDigits();
       document.querySelector('.digits').classList.add('visible');
-      for(let i=0;i<6;i++) defaults[i]=msg.def[i];
+      for(let i=0;i<DEFAULT_BUTTON_COUNT;i++) defaults[i]=msg.def[i];
       renderDefaults();
       document.getElementById('swAE').checked = msg.ae;
       document.getElementById('btnSet').style.display = msg.ae ? 'none' : 'inline-block';
@@ -436,13 +441,14 @@ setInterval(()=>{
  * ------------------------------------------------------- */
 static void ws_send_state(AsyncWebSocketClient * client = nullptr)
 {
-    char buf[256];
+  char buf[320];
     // Build the def array part
-    char defArr[64];
-    snprintf(defArr, sizeof(defArr),
-        "[%d,%d,%d,%d,%d,%d]",
-        (int)default_values[0], (int)default_values[1], (int)default_values[2],
-        (int)default_values[3], (int)default_values[4], (int)default_values[5]);
+  char defArr[128];
+  snprintf(defArr, sizeof(defArr),
+    "[%d,%d,%d,%d,%d,%d,%d,%d,%d]",
+    (int)default_values[0], (int)default_values[1], (int)default_values[2],
+    (int)default_values[3], (int)default_values[4], (int)default_values[5],
+    (int)default_values[6], (int)default_values[7], (int)default_values[8]);
 
     snprintf(buf, sizeof(buf),
         "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"sel\":%d,"
@@ -577,7 +583,7 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
         }
         else if(strcmp(cmd, "setdef") == 0) {
             int32_t idx = -1, val = 0;
-            if(getInt(msg, "idx", idx) && getInt(msg, "val", val) && idx >= 0 && idx < 6) {
+          if(getInt(msg, "idx", idx) && getInt(msg, "val", val) && idx >= 0 && idx < DEFAULT_BUTTON_COUNT) {
                 if(val < 0) val = 0;
                 if(val > DIGIT_MAX_VAL) val = DIGIT_MAX_VAL;
                 if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;
@@ -593,7 +599,7 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
         }
         else if(strcmp(cmd, "applydef") == 0) {
             int32_t idx = -1;
-            if(getInt(msg, "idx", idx) && idx >= 0 && idx < 6) {
+          if(getInt(msg, "idx", idx) && idx >= 0 && idx < DEFAULT_BUTTON_COUNT) {
                 db_value = default_values[idx];
                 ws_send_val();
                 ws_send_active_def(idx);
