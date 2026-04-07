@@ -110,25 +110,28 @@ static void btn_long_press_cb(lv_event_t * e)
     editing_index = idx;
 
     lv_obj_t * btn = lv_event_get_target(e);
-    lv_obj_t * parent = lv_obj_get_parent(btn);
+    lv_area_t btn_area;
+    lv_obj_get_coords(btn, &btn_area);
 
     ta = lv_textarea_create(lv_scr_act());
     lv_textarea_set_one_line(ta, true);
     lv_textarea_set_max_length(ta, 3);
     lv_obj_set_width(ta, lv_obj_get_width(btn));
     lv_obj_set_height(ta, lv_obj_get_height(btn));
-
-    /* Get absolute screen coordinates of the pressed button */
-    lv_area_t btn_area;
-    lv_obj_get_coords(btn, &btn_area);
     lv_obj_set_pos(ta, btn_area.x1, btn_area.y1);
-    lv_textarea_set_text(ta, "");
+    char val_buf[8];
+    snprintf(val_buf, sizeof(val_buf), "%d", (int)default_values[idx]);
+    lv_textarea_set_text(ta, val_buf);
     lv_obj_add_event_cb(ta, ta_event_cb, LV_EVENT_READY, NULL);
     lv_obj_add_event_cb(ta, ta_event_cb, LV_EVENT_CANCEL, NULL);
 
     kb = lv_keyboard_create(lv_scr_act());
     lv_keyboard_set_mode(kb, LV_KEYBOARD_MODE_NUMBER);
     lv_keyboard_set_textarea(kb, ta);
+    if(idx >= 6) {
+        lv_obj_set_size(kb, lv_pct(100), 120);
+        lv_obj_align(kb, LV_ALIGN_TOP_MID, 0, 0);
+    }
 
     lv_obj_add_state(ta, LV_STATE_FOCUSED);
     lv_obj_clear_state(ta, LV_STATE_FOCUS_KEY);
@@ -398,6 +401,7 @@ static void defaults_create(lv_obj_t * parent)
     /* Dark background */
     lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_set_flex_flow(parent, LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(parent, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
@@ -420,6 +424,7 @@ static void defaults_create(lv_obj_t * parent)
     for(int i = 0; i < DEFAULT_BUTTON_COUNT; i++) {
         lv_obj_t * btn = lv_btn_create(parent);
         lv_obj_set_width(btn, 85);
+        lv_obj_add_flag(btn, LV_OBJ_FLAG_PRESS_LOCK);
         lv_obj_add_style(btn, &style_def, 0);
         lv_obj_add_event_cb(btn, btn_default_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
         lv_obj_add_event_cb(btn, btn_long_press_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
@@ -431,6 +436,8 @@ static void defaults_create(lv_obj_t * parent)
 
 static void help_create(lv_obj_t * parent)
 {
+    lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+
     /* Dark background */
     lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
@@ -566,7 +573,7 @@ static void create_ui(void)
     lv_obj_set_style_text_color(tab_btns, lv_color_white(), LV_PART_ITEMS | LV_STATE_CHECKED);
 
     lv_obj_t * t1 = lv_tabview_add_tab(tabview, "Main");
-    lv_obj_t * t2 = lv_tabview_add_tab(tabview, "Default");
+    lv_obj_t * t2 = lv_tabview_add_tab(tabview, "Presets");
     lv_obj_t * t3 = lv_tabview_add_tab(tabview, "Config");
 
     config_create(t1);
@@ -794,10 +801,23 @@ void loop()
                     if(dbPos > 0) {
                         input = input.substring(0, dbPos);  /* Remove "db" suffix */
                     }
+                    input.trim();
+
+                    bool numeric = input.length() > 0;
+                    for(uint32_t i = 0; i < input.length(); i++) {
+                        if(!isDigit(input[i])) {
+                            numeric = false;
+                            break;
+                        }
+                    }
+                    if(!numeric) {
+                        continue;  /* Ignore non-numeric serial frames */
+                    }
+
                     int val = input.toInt();
                 
                     /* Validiere und aktualisiere Wert */
-                    if((val >= 0 && val <= DIGIT_MAX_VAL) || input == "0") {
+                    if(val >= 0 && val <= DIGIT_MAX_VAL) {
                         /* Runde auf erlaubte Schritte */
                         if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;  /* 10 dB Schritte */
                         if(DIGIT_MAX_1 == 0) val = (val / 100) * 100;  /* 100 dB Schritte */

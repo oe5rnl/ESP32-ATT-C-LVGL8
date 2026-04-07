@@ -8,6 +8,9 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <cstdio>
+#include <BlockDevice.h>
+#include <LittleFileSystem.h>
 #include "SSD1306.h"
 
 /* I2C Display SSD1306 (128x64) using I2C0 on GP4 (SDA) / GP5 (SCL) */
@@ -122,8 +125,75 @@ static bool relay_states[4] = {false, false, false, false};  /* Zustand jedes Re
 static const char* relay_names[4] = {"10dB", "20dB", "40A", "40B"};
 
 static const int32_t STARTUP_DB = 0;
+static int32_t persisted_db_cache = -1000;
+static mbed::BlockDevice * storage_bd = nullptr;
+static mbed::LittleFileSystem storage_fs("fs");
+static bool storage_ready = false;
+static bool has_persisted_db = false;
+static const char * DB_STORE_FILE = "/fs/att_db.txt";
 
 void apply_attenuation_70db(int32_t db_value);
+
+static void init_persistent_storage()
+{
+    storage_bd = mbed::BlockDevice::get_default_instance();
+    if(!storage_bd) return;
+
+    int err = storage_fs.mount(storage_bd);
+    if(err) {
+        err = storage_fs.reformat(storage_bd);
+        if(err) return;
+        err = storage_fs.mount(storage_bd);
+        if(err) return;
+    }
+    storage_ready = true;
+}
+
+static void load_persisted_db()
+{
+    current_db = STARTUP_DB;
+    has_persisted_db = false;
+    if(storage_ready) {
+        FILE * f = fopen(DB_STORE_FILE, "r");
+        if(f) {
+            int stored = STARTUP_DB;
+            if(fscanf(f, "%d", &stored) == 1 && stored >= 0 && stored <= 110) {
+                current_db = (stored / 10) * 10;
+                has_persisted_db = true;
+            }
+            fclose(f);
+        }
+    }
+    persisted_db_cache = current_db;
+}
+
+static void save_persisted_db_if_changed(int32_t db_value)
+{
+    int32_t att = (db_value / 10) * 10;
+    if(att > 110) att = 110;
+    if(att < 0) att = 0;
+    if(att == persisted_db_cache) return;
+    if(!storage_ready) return;
+
+    FILE * f = fopen(DB_STORE_FILE, "w");
+    if(!f) return;
+    fprintf(f, "%d\n", (int)att);
+    fclose(f);
+    has_persisted_db = true;
+    persisted_db_cache = att;
+}
+
+static void sync_state_to_esp32()
+{
+    if(has_persisted_db) {
+        Serial1.print(current_db);
+        Serial1.println("dB");
+    }
+    Serial1.print("AUTO:");
+    Serial1.println(auto_set_mode ? "ON" : "OFF");
+    Serial1.print("SEL");
+    Serial1.println(selected_digit);
+}
 
 
 int getAttenuator()
@@ -251,8 +321,12 @@ void apply_attenuation(int32_t db_value)
     int32_t att = (db_value / 10) * 10;
     if(att > 110) att = 110;
     if(att < 0) att = 0;
-    
+
+    int32_t prev_db = current_db;
     current_db = att;
+    if(current_db != prev_db) {
+        save_persisted_db_if_changed(current_db);
+    }
     
     /* Im Test-Modus: Spezielle Anzeige */
     if(test_mode) {
@@ -301,6 +375,9 @@ void setup()
     Serial.println("Version 0.2");
     Serial.println("=================================\n");
     Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
+
+    init_persistent_storage();
+    load_persisted_db();
 
     /* Onboard LED init */
     pinMode(LED_BUILTIN, OUTPUT);
@@ -370,8 +447,14 @@ void setup()
     Serial.println("  ? + ENTER     : Show current value");
     Serial.println("\nWaiting for ESP32 on Serial1 (GP0/GP1)...\n");
     
-    /* Sofort beim Start den Startwert groß anzeigen */
-    apply_attenuation(STARTUP_DB);
+    /* Sofort beim Start den gespeicherten Wert anwenden und anzeigen */
+    apply_attenuation(current_db);
+
+    /* Mehrfach senden, damit ESP32 den Startwert sicher übernimmt */
+    for(int i = 0; i < 3; i++) {
+        sync_state_to_esp32();
+        delay(80);
+    }
 }
 
 void loop()
