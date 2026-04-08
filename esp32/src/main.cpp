@@ -554,6 +554,8 @@ static void help_create(lv_obj_t * parent)
     lv_label_set_text(ip_label, "");
     lv_obj_set_style_text_font(ip_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(ip_label, lv_color_hex(0x60d0ff), 0);
+    lv_label_set_long_mode(ip_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(ip_label, 300);
     lv_obj_align(ip_label, LV_ALIGN_TOP_LEFT, 10, 145);
 }
 

@@ -19,6 +19,8 @@
 
 static AsyncWebServer webServer(80);
 static AsyncWebSocket ws("/ws");
+static const char * WIFI_AP_SSID = "ESP32-ATT";
+static const char * WIFI_AP_PASSWORD = "12345678";
 
 /* Forward declarations – defined in main.cpp */
 extern Preferences prefs;
@@ -659,6 +661,13 @@ static String jsonEscStr(const String & s)
     return out;
 }
 
+  static void update_ip_label_text(const String & statusLine)
+  {
+    if(!ip_label) return;
+    lv_label_set_text_fmt(ip_label, "%s\nAP SSID: %s  PW: %s",
+      statusLine.c_str(), WIFI_AP_SSID, WIFI_AP_PASSWORD);
+  }
+
 static void start_webserver(void)
 {
     if(webserver_running) return;
@@ -796,9 +805,9 @@ static void apply_wifi_mode(void)
         stop_webserver();
         WiFi.mode(WIFI_AP_STA);
         delay(200);
-        WiFi.softAP("ESP32-ATT", "12345678");
+      WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD);
         Serial.printf("AP gestartet, IP: %s\n", WiFi.softAPIP().toString().c_str());
-        if(ip_label) lv_label_set_text_fmt(ip_label, "IP: %s", WiFi.softAPIP().toString().c_str());
+      update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
         start_webserver();
     }
     
@@ -808,8 +817,11 @@ static void apply_wifi_mode(void)
         if(WiFi.status() == WL_CONNECTED) {
             WiFi.disconnect();
             Serial.println("Client-Verbindung getrennt, AP läuft weiter");
-            if(ip_label) lv_label_set_text_fmt(ip_label, "AP: %s", WiFi.softAPIP().toString().c_str());
+        update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
         }
+      else {
+        update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
+      }
         return;
     }
     
@@ -822,8 +834,7 @@ static void apply_wifi_mode(void)
         /* Nur neu verbinden wenn noch nicht verbunden oder andere SSID */
         if(WiFi.status() != WL_CONNECTED || WiFi.SSID() != _ssid) {
             Serial.printf("WiFi verbinde mit SSID: %s (non-blocking)\n", _ssid.c_str());
-            if(ip_label) lv_label_set_text_fmt(ip_label, "Verbinde: %s | AP: %s", 
-                _ssid.c_str(), WiFi.softAPIP().toString().c_str());
+          update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
             
             /* Start non-blocking connection */
             WiFi.begin(_ssid.c_str(), _pass.c_str());
@@ -853,8 +864,7 @@ static void webserver_loop(void)
             Serial.printf("\nWiFi OK, Client-IP: %s, AP-IP: %s\n", 
                 WiFi.localIP().toString().c_str(), 
                 WiFi.softAPIP().toString().c_str());
-            if(ip_label) lv_label_set_text_fmt(ip_label, "IP: %s | AP: %s", 
-                WiFi.localIP().toString().c_str(), WiFi.softAPIP().toString().c_str());
+          update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
             
             /* mDNS starten für Erreichbarkeit über esp32-att.local */
             if(!MDNS.begin("esp32-att")) {
@@ -867,14 +877,12 @@ static void webserver_loop(void)
         else if(millis() - wifi_connect_start > WIFI_CONNECT_TIMEOUT) {
             wifi_connect_state = WIFI_FAILED;
             Serial.println("\nWiFi Client-Verbindung fehlgeschlagen (Timeout)");
-            if(ip_label) lv_label_set_text_fmt(ip_label, "AP: %s (Client Timeout)",
-                WiFi.softAPIP().toString().c_str());
+          update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
         }
         else if(status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
             wifi_connect_state = WIFI_FAILED;
             Serial.printf("\nWiFi Client-Verbindung fehlgeschlagen (Status: %d)\n", status);
-            if(ip_label) lv_label_set_text_fmt(ip_label, "AP: %s (Client fehlgeschlagen)",
-                WiFi.softAPIP().toString().c_str());
+          update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
         }
     }
 
