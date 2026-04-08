@@ -32,6 +32,7 @@ void update_config_value(int32_t val);
 void apply_attenuation(void);
 void apply_attenuation_set(void);
 void apply_preset_value(int32_t val);
+void apply_web_preset_value(int32_t val);
 void web_update_defaults(void);
 void web_update_ae(void);
 void web_update_seldigit(void);
@@ -892,7 +893,7 @@ static void webserver_loop(void)
                 update_config_value(m.val);
                 break;
             case WS_CMD_APPLY_DEF:
-                apply_preset_value(default_values[m.idx]);
+              apply_web_preset_value(default_values[m.idx]);
                 break;
             case WS_CMD_DEF_SET:
                 update_config_value(default_values[m.idx]);

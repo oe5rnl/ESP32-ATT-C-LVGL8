@@ -239,6 +239,15 @@ void apply_attenuation_set(void)
     send_attenuation_command(true);
 }
 
+static void set_config_value(int32_t val, bool apply_auto_command)
+{
+    db_value = val;
+    update_digit_labels();
+    prefs.putInt("cval", db_value);
+    lv_tabview_set_act(tabview, 0, LV_ANIM_OFF);
+    if(apply_auto_command) apply_attenuation();
+}
+
 static void btn_up_cb(lv_event_t * e)
 {
     if(digit_max[selected_digit] == 0) return;
@@ -397,18 +406,20 @@ static void config_create(lv_obj_t * parent)
 
 void update_config_value(int32_t val)
 {
-    db_value = val;
-    update_digit_labels();
-    prefs.putInt("cval", db_value);
-    lv_tabview_set_act(tabview, 0, LV_ANIM_OFF);
-    if(autoset) apply_attenuation();
+    set_config_value(val, autoset);
     /* Do NOT call ws_broadcast_val() here – callers handle it */
 }
 
 void apply_preset_value(int32_t val)
 {
-    update_config_value(val);
+    set_config_value(val, autoset);
     if(!autoset) apply_attenuation_set();
+}
+
+void apply_web_preset_value(int32_t val)
+{
+    set_config_value(val, false);
+    apply_attenuation_set();
 }
 
 static void btn_default_cb(lv_event_t * e)
