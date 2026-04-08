@@ -13,6 +13,8 @@
 #include <LittleFileSystem.h>
 #include "SSD1306.h"
 
+#define RAW_UART_TEST_MODE 0  /* 1 = einfacher ESP32->Pico Rohdaten-Test, 0 = Normalbetrieb */
+
 /* I2C Display SSD1306 (128x64) using I2C0 on GP4 (SDA) / GP5 (SCL) */
 SSD1306 display(&Wire);
 
@@ -104,6 +106,10 @@ static unsigned long button_press_start = 0;  /* Zeit des Button-Drucks */
 static bool button_was_pressed = false;       /* Flag für Button-Press-Erkennung */
 static bool long_press_executed = false;      /* Flag: Langdruck bereits ausgeführt */
 static bool suppress_relay_update = false;    /* Nur Display aktualisieren, Relais später anwenden */
+#if RAW_UART_TEST_MODE
+static uint32_t raw_uart_rx_count = 0;
+static int raw_uart_last_value = -1;
+#endif
 
 static const unsigned long ENCODER_SETTLE_TIME = 300;  /* ms nach letztem Drehschritt */
 
@@ -131,6 +137,30 @@ static mbed::LittleFileSystem storage_fs("fs");
 static bool storage_ready = false;
 static bool has_persisted_db = false;
 static const char * DB_STORE_FILE = "/fs/att_db.txt";
+
+#if RAW_UART_TEST_MODE
+static void update_raw_uart_test_display()
+{
+    char line[32];
+
+    display.clear();
+    display.drawString(0, 0, "UART TEST ESP->PICO");
+
+    snprintf(line, sizeof(line), "RX COUNT: %lu", (unsigned long)raw_uart_rx_count);
+    display.drawString(0, 18, line);
+
+    if(raw_uart_last_value >= 0) {
+        snprintf(line, sizeof(line), "LAST RAW: %d", raw_uart_last_value);
+        display.drawString(0, 34, line);
+    }
+    else {
+        display.drawString(0, 34, "LAST RAW: ---");
+    }
+
+    display.drawString(0, 50, "UP/DOWN am ESP druecken");
+    display.display();
+}
+#endif
 
 void apply_attenuation_70db(int32_t db_value);
 
@@ -455,6 +485,10 @@ void setup()
         sync_state_to_esp32();
         delay(80);
     }
+
+#if RAW_UART_TEST_MODE
+    update_raw_uart_test_display();
+#endif
 }
 
 void loop()
@@ -674,6 +708,22 @@ void loop()
     }
 
     /* Check Serial1 (from ESP32) */
+#if RAW_UART_TEST_MODE
+    while(Serial1.available()) {
+        raw_uart_last_value = Serial1.read();
+        raw_uart_rx_count++;
+
+        Serial.print("RAW RX #");
+        Serial.print(raw_uart_rx_count);
+        Serial.print(": ");
+        Serial.println(raw_uart_last_value);
+
+        update_raw_uart_test_display();
+        led_solid_mode = true;
+        led_solid_start = now;
+        digitalWrite(LED_BUILTIN, HIGH);
+    }
+#else
     if(Serial1.available()) {
         String input = Serial1.readStringUntil('\n');
         input.trim();
@@ -720,6 +770,7 @@ void loop()
             }
         }
     }
+#endif
 
     /* Check USB Serial (manual control) - character-by-character collection */
     while(Serial.available()) {

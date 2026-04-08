@@ -34,6 +34,8 @@ LV_FONT_DECLARE(lv_font_digits_72);
 
 #include "webserver.h"
 
+#define RAW_UART_TEST_MODE 0  /* 1 = einfacher ESP32->Pico Rohdaten-Test, 0 = Normalbetrieb */
+
 int32_t db_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */
 static lv_obj_t * digit_cursor;     /* underline indicator */
@@ -53,6 +55,9 @@ static bool long_press_active = false;
 bool autoset = true;
 static lv_obj_t * btn_set = NULL;
 static lv_obj_t * ae_switch = NULL;
+#if RAW_UART_TEST_MODE
+static uint32_t raw_uart_test_tx_count = 0;
+#endif
 
 
 
@@ -61,6 +66,15 @@ uint8_t wifi_mode_setting = 2; /* default: Client */
 static lv_obj_t * wifi_radio_btns = NULL;
 lv_obj_t * ip_label = NULL;
 lv_obj_t * auto_set_label = NULL;  /* Label für AUTO-Set Status */
+
+#if RAW_UART_TEST_MODE
+static void send_raw_uart_test_value(void)
+{
+    raw_uart_test_tx_count++;
+    Serial.write((uint8_t)db_value);
+    Serial.flush();
+}
+#endif
 
 static void kb_close(void)
 {
@@ -167,7 +181,9 @@ static void digit_click_cb(lv_event_t * e)
     ws_broadcast_seldigit(idx);
     
     /* Sende Digit-Auswahl an Pico über Serial */
+#if !RAW_UART_TEST_MODE
     Serial.printf("SEL%d\n", idx);
+#endif
 }
 
 /* Digit long-press: open numeric keyboard for direct value entry */
@@ -198,9 +214,13 @@ static void digit_long_press_cb(lv_event_t * e)
 /* Send current attenuation value to Pico via Serial */
 void apply_attenuation(void)
 {
+#if RAW_UART_TEST_MODE
+    return;
+#else
     int32_t att = (db_value / 10) * 10;
     if(att > 110) att = 110;
     Serial.printf("%ddB\n", (int)att);
+#endif
 }
 
 static void btn_up_cb(lv_event_t * e)
@@ -212,7 +232,11 @@ static void btn_up_cb(lv_event_t * e)
     update_digit_labels();
     prefs.putInt("cval", db_value);
     ws_broadcast_val();
+#if RAW_UART_TEST_MODE
+    send_raw_uart_test_value();
+#else
     if(autoset) apply_attenuation();
+#endif
 }
 
 static void btn_down_cb(lv_event_t * e)
@@ -224,7 +248,11 @@ static void btn_down_cb(lv_event_t * e)
     update_digit_labels();
     prefs.putInt("cval", db_value);
     ws_broadcast_val();
+#if RAW_UART_TEST_MODE
+    send_raw_uart_test_value();
+#else
     if(autoset) apply_attenuation();
+#endif
 }
 
 static void config_create(lv_obj_t * parent)
@@ -446,8 +474,10 @@ static void help_create(lv_obj_t * parent)
         }
         
         /* Sende Status an Pico über Serial */
+#if !RAW_UART_TEST_MODE
         Serial.print("AUTO:");
         Serial.println(autoset ? "ON" : "OFF");
+#endif
         
         ws_broadcast_ae();
     }, LV_EVENT_VALUE_CHANGED, NULL);
@@ -518,8 +548,10 @@ void web_update_ae(void)
         else          lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
     }
     /* Sende Status an Pico über Serial */
+#if !RAW_UART_TEST_MODE
     Serial.print("AUTO:");
     Serial.println(autoset ? "ON" : "OFF");
+#endif
 }
 
 /* Called from webserver.h when web client changes selected digit */
