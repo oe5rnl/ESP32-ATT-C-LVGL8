@@ -106,16 +106,16 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
 </div>
 
 <div class="card">
-  <h2>Defaults</h2>
-  <div class="defaults" id="defaults"></div>
-</div>
-
-<div class="card">
   <h2>Config</h2>
   <div class="switch-row">
     <label>Auto-Set</label>
     <input type="checkbox" id="swAE" onchange="sendAE()">
   </div>
+</div>
+
+<div class="card">
+  <h2>Defaults</h2>
+  <div class="defaults" id="defaults"></div>
 </div>
 
 <div class="card" id="wifiSetup" style="display:none">
