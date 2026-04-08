@@ -137,6 +137,7 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
 </div>
 
 <div id="status"><span class="led" id="led"></span><span id="stxt">Verbinde...</span></div>
+<div id="netmode" style="text-align:center;font-size:.8em;color:#888;margin-top:4px">WLAN: lade Status...</div>
 
 <div class="modal-overlay" id="digitModal">
   <div class="modal-box">
@@ -218,6 +219,27 @@ function connectWS(){
       document.getElementById('btnSet').style.display = msg.val ? 'none' : 'inline-block';
     }
   };
+}
+
+function updateNetMode(){
+  Promise.all([
+    fetch('/api/mode').then(r=>r.json()),
+    fetch('/api/wifistatus').then(r=>r.json())
+  ]).then(([m,s])=>{
+    let txt='WLAN: Status unbekannt';
+    if(m.mode===0){
+      txt='WLAN: aus';
+    }
+    else if(m.mode===1){
+      txt='WLAN: AP';
+    }
+    else if(m.mode===2){
+      txt = s.connected ? 'WLAN: AP + Client verbunden' : 'WLAN: AP + Client';
+    }
+    document.getElementById('netmode').textContent = txt;
+  }).catch(()=>{
+    document.getElementById('netmode').textContent = 'WLAN: Status nicht verfuegbar';
+  });
 }
 
 function renderDigits(){
@@ -426,6 +448,8 @@ function connectWifi(){
 }
 
 connectWS();
+updateNetMode();
+setInterval(updateNetMode, 3000);
 setInterval(()=>{
   const led=document.getElementById('led');
   const alive=ws&&ws.readyState===WebSocket.OPEN&&(Date.now()-lastContact)<2000;
