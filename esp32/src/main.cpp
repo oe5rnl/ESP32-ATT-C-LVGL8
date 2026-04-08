@@ -76,6 +76,23 @@ static void send_raw_uart_test_value(void)
 }
 #endif
 
+static void send_attenuation_command(bool force_apply)
+{
+#if RAW_UART_TEST_MODE
+    LV_UNUSED(force_apply);
+    return;
+#else
+    int32_t att = (db_value / 10) * 10;
+    if(att > 110) att = 110;
+    if(force_apply) {
+        Serial.printf("SET:%ddB\n", (int)att);
+    }
+    else {
+        Serial.printf("%ddB\n", (int)att);
+    }
+#endif
+}
+
 static void kb_close(void)
 {
     if(kb) { lv_obj_del(kb); kb = NULL; }
@@ -214,13 +231,12 @@ static void digit_long_press_cb(lv_event_t * e)
 /* Send current attenuation value to Pico via Serial */
 void apply_attenuation(void)
 {
-#if RAW_UART_TEST_MODE
-    return;
-#else
-    int32_t att = (db_value / 10) * 10;
-    if(att > 110) att = 110;
-    Serial.printf("%ddB\n", (int)att);
-#endif
+    send_attenuation_command(false);
+}
+
+void apply_attenuation_set(void)
+{
+    send_attenuation_command(true);
 }
 
 static void btn_up_cb(lv_event_t * e)
@@ -370,7 +386,8 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_width(btn_set, 88);
     lv_obj_add_style(btn_set, &style_btn, 0);
     lv_obj_add_event_cb(btn_set, [](lv_event_t * e) {
-        apply_attenuation();
+        LV_UNUSED(e);
+        apply_attenuation_set();
     }, LV_EVENT_CLICKED, NULL);
     lv_obj_t * lbl_set = lv_label_create(btn_set);
     lv_label_set_text(lbl_set, "Set");
@@ -388,6 +405,12 @@ void update_config_value(int32_t val)
     /* Do NOT call ws_broadcast_val() here – callers handle it */
 }
 
+void apply_preset_value(int32_t val)
+{
+    update_config_value(val);
+    if(!autoset) apply_attenuation_set();
+}
+
 static void btn_default_cb(lv_event_t * e)
 {
     if(long_press_active) {
@@ -395,7 +418,7 @@ static void btn_default_cb(lv_event_t * e)
         return;
     }
     int idx = (int)(intptr_t)lv_event_get_user_data(e);
-    update_config_value(default_values[idx]);
+    apply_preset_value(default_values[idx]);
     ws_broadcast_val();
     ws_broadcast_active_def(idx);
 }
@@ -687,7 +710,9 @@ void setup()
     wifi_mode_setting = prefs.getUChar("wmode", 2);
 
     /* Restore last attenuation setting */
-    apply_attenuation();
+    if(autoset) {
+        apply_attenuation();
+    }
 
     // String info = "LVGL version ";
     // info += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();

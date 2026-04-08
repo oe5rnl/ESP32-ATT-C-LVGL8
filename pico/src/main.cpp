@@ -12,7 +12,6 @@
 #include <BlockDevice.h>
 #include <LittleFileSystem.h>
 #include "SSD1306.h"
-
 #define RAW_UART_TEST_MODE 0  /* 1 = einfacher ESP32->Pico Rohdaten-Test, 0 = Normalbetrieb */
 
 /* I2C Display SSD1306 (128x64) using I2C0 on GP4 (SDA) / GP5 (SCL) */
@@ -345,12 +344,17 @@ void drawCursor()
     }
 }
 
-void apply_attenuation(int32_t db_value)
+static int32_t normalize_attenuation_value(int32_t db_value)
 {
-    // Round to 10 dB steps
     int32_t att = (db_value / 10) * 10;
     if(att > 110) att = 110;
     if(att < 0) att = 0;
+    return att;
+}
+
+static void update_attenuation_display_state(int32_t db_value)
+{
+    int32_t att = normalize_attenuation_value(db_value);
 
     int32_t prev_db = current_db;
     current_db = att;
@@ -378,20 +382,51 @@ void apply_attenuation(int32_t db_value)
     }
     
     display.display();
-    
-    /* Relais nur schalten wenn AUTO-Set aktiviert ist */
-    if(!auto_set_mode) {
-        Serial.print("Display only (AUTO-Set OFF): ");
-        Serial.print(att);
-        Serial.println(" dB");
-        return;  /* Keine Relais-Schaltung */
-    }
+}
+
+static void refresh_attenuation_display(void)
+{
+    update_attenuation_display_state(current_db);
+}
+
+void apply_attenuation(int32_t db_value)
+{
+    update_attenuation_display_state(db_value);
 
     if(suppress_relay_update) {
         return;  /* Relais werden nach Drehstopp angewendet */
     }
     
     apply_relays(db_value);
+}
+
+static void apply_attenuation_from_esp_db(int32_t db_value)
+{
+    update_attenuation_display_state(db_value);
+
+    if(!auto_set_mode) {
+        Serial.print("ESP32 dB command -> display only: ");
+        Serial.print(current_db);
+        Serial.println(" dB");
+        return;
+    }
+
+    if(suppress_relay_update) {
+        return;
+    }
+
+    apply_relays(current_db);
+}
+
+static void apply_attenuation_from_esp_set(int32_t db_value)
+{
+    update_attenuation_display_state(db_value);
+
+    if(suppress_relay_update) {
+        return;
+    }
+
+    apply_relays(current_db);
 }
 
 void setup()
@@ -555,16 +590,11 @@ void loop()
             
             /* Anwendung der neuen Dämpfung */
             if(new_db != current_db) {
-                if(auto_set_mode) {
-                    suppress_relay_update = true;
-                    apply_attenuation(new_db);
-                    suppress_relay_update = false;
-                    encoder_apply_pending = true;
-                    last_encoder_change = now;
-                }
-                else {
-                    apply_attenuation(new_db);
-                }
+                suppress_relay_update = true;
+                apply_attenuation(new_db);
+                suppress_relay_update = false;
+                encoder_apply_pending = true;
+                last_encoder_change = now;
                 
                 /* Sende neuen Wert an ESP32 über Serial1 */
                 Serial1.print(new_db);
@@ -579,7 +609,7 @@ void loop()
     }
     encoder_last_clk = clk_state;
 
-    if(encoder_apply_pending && auto_set_mode && !test_mode && (now - last_encoder_change) >= ENCODER_SETTLE_TIME) {
+    if(encoder_apply_pending && !test_mode && (now - last_encoder_change) >= ENCODER_SETTLE_TIME) {
         encoder_apply_pending = false;
         Serial.print("Encoder settled -> apply ");
         Serial.print(current_db);
@@ -659,7 +689,7 @@ void loop()
                 selected_digit = (selected_digit == 0) ? 1 : 0;
                 
                 /* Update Display mit neuem Cursor */
-                apply_attenuation(current_db);
+                refresh_attenuation_display();
                 
                 /* Sende DIGIT-Befehl an ESP32 über Serial1 */
                 Serial1.println("DIGIT");
@@ -741,19 +771,26 @@ void loop()
                 Serial.print("ESP32 selected digit: ");
                 Serial.println(digit);
                 /* Update Display mit neuem Cursor */
-                apply_attenuation(current_db);
+                refresh_attenuation_display();
             }
         }
         else if(input.startsWith("AUTO:")) {
             /* AUTO-Set Status vom ESP32: AUTO:ON oder AUTO:OFF */
             auto_set_mode = input.endsWith("ON");
-            if(!auto_set_mode) encoder_apply_pending = false;
             Serial.print("ESP32 AUTO-Set: ");
             Serial.println(auto_set_mode ? "ON" : "OFF");
             /* Update Display */
-            apply_attenuation(current_db);
+            refresh_attenuation_display();
         }
         else {
+            bool force_apply = false;
+
+            if(input.startsWith("SET:")) {
+                force_apply = true;
+                input = input.substring(4);
+                input.trim();
+            }
+
             /* Parse number: accept plain number or "xxdB" format */
             input.toLowerCase();
             int dbPos = input.indexOf("db");
@@ -762,7 +799,15 @@ void loop()
             }
             int val = input.toInt();
             if(val > 0 || input == "0") {  /* Valid number */
-                apply_attenuation(val);
+                if(force_apply) {
+                    Serial.print("ESP32 SET command: ");
+                    Serial.print(val);
+                    Serial.println(" dB");
+                    apply_attenuation_from_esp_set(val);
+                }
+                else {
+                    apply_attenuation_from_esp_db(val);
+                }
                 /* LED solid for 2 seconds */
                 led_solid_mode = true;
                 led_solid_start = now;

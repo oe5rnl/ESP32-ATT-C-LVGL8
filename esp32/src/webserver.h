@@ -30,6 +30,8 @@ extern uint8_t wifi_mode_setting;
 extern lv_obj_t * ip_label;
 void update_config_value(int32_t val);
 void apply_attenuation(void);
+void apply_attenuation_set(void);
+void apply_preset_value(int32_t val);
 void web_update_defaults(void);
 void web_update_ae(void);
 void web_update_seldigit(void);
@@ -246,6 +248,7 @@ function step(dir){
 }
 
 function sendSet(){
+  if(document.getElementById('swAE').checked) return;
   ws.send(JSON.stringify({cmd:'set', val:curVal}));
 }
 
@@ -889,7 +892,7 @@ static void webserver_loop(void)
                 update_config_value(m.val);
                 break;
             case WS_CMD_APPLY_DEF:
-                update_config_value(default_values[m.idx]);
+                apply_preset_value(default_values[m.idx]);
                 break;
             case WS_CMD_DEF_SET:
                 update_config_value(default_values[m.idx]);
@@ -905,7 +908,7 @@ static void webserver_loop(void)
                 break;
             case WS_CMD_SET:
                 update_config_value(m.val);
-                apply_attenuation();
+                if(!autoset) apply_attenuation_set();
                 break;
             case WS_CMD_WIFI_APPLY:
                 apply_wifi_mode();
