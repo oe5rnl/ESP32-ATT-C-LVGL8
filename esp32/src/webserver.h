@@ -80,6 +80,11 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   input[type=checkbox]{width:40px;height:22px;cursor:pointer;accent-color:#7ec8e3}
   #status{text-align:center;font-size:.85em;color:#888;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px}
   .led{width:12px;height:12px;border-radius:50%;display:inline-block;background:#d00}
+  .collapsible-summary{list-style:none;cursor:pointer;color:#aaa;font-size:1em;font-weight:600}
+  .collapsible-summary::-webkit-details-marker{display:none}
+  .collapsible-summary::before{content:'+';display:inline-block;width:1em;color:#7ec8e3}
+  details[open] > .collapsible-summary::before{content:'-'}
+  .wifi-setup-body{margin-top:12px}
   .modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
   .modal-overlay.active{display:flex}
   .modal-box{background:#16213e;border-radius:10px;padding:24px;text-align:center;min-width:240px}
@@ -120,8 +125,9 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   <div class="defaults" id="defaults"></div>
 </div>
 
-<div class="card" id="wifiSetup" style="display:none">
-  <h2>WLAN konfigurieren</h2>
+<details class="card" id="wifiSetup" style="display:none">
+  <summary class="collapsible-summary">WLAN konfigurieren</summary>
+  <div class="wifi-setup-body">
   <button id="btnScan" onclick="scanWifi()" style="width:100%;margin-bottom:10px">Netzwerke suchen</button>
   <div id="scanResults"></div>
   <input type="text" id="wifiSSID" placeholder="SSID" autocomplete="off"
@@ -134,7 +140,8 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   </div>
   <button onclick="connectWifi()" style="width:100%;background:#0a6640">Verbinden</button>
   <div id="wifiStatus" style="margin-top:8px;text-align:center;font-size:.85em;min-height:1.2em"></div>
-</div>
+  </div>
+</details>
 
 <div id="status"><span class="led" id="led"></span><span id="stxt">Verbinde...</span></div>
 <div id="netmode" style="text-align:center;font-size:.8em;color:#888;margin-top:4px">WLAN: lade Status...</div>
@@ -230,10 +237,7 @@ function updateNetMode(){
     if(m.mode===0){
       txt='WLAN: aus';
     }
-    else if(m.mode===1){
-      txt='WLAN: AP';
-    }
-    else if(m.mode===2){
+    else {
       txt = s.connected ? 'WLAN: AP + Client verbunden' : 'WLAN: AP + Client';
     }
     document.getElementById('netmode').textContent = txt;
@@ -347,10 +351,10 @@ function digitModalCancel(){
   document.getElementById('digitModal').classList.remove('active');
 }
 
-// --- WiFi-Setup (nur im AP-Modus sichtbar) ---
+// --- WiFi-Setup (sichtbar solange WLAN aktiv ist) ---
 let scannedNets=[];
 fetch('/api/mode').then(r=>r.json()).then(d=>{
-  if(d.mode===1) document.getElementById('wifiSetup').style.display='block';
+  if(d.mode!==0) document.getElementById('wifiSetup').style.display='block';
 }).catch(()=>{});
 
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -685,11 +689,29 @@ static String jsonEscStr(const String & s)
     return out;
 }
 
-  static void update_ip_label_text(const String & statusLine)
+  static void update_wifi_status_label(void)
   {
     if(!ip_label) return;
-    lv_label_set_text_fmt(ip_label, "%s\nAP SSID: %s  PW: %s",
-      statusLine.c_str(), WIFI_AP_SSID, WIFI_AP_PASSWORD);
+
+    String text = "AP: SSID:";
+    text += WIFI_AP_SSID;
+    text += " PW:";
+    text += WIFI_AP_PASSWORD;
+    text += "\n       IP: ";
+    text += WiFi.softAPIP().toString();
+    text += "\n";
+
+    if(WiFi.status() == WL_CONNECTED) {
+      text += "\nClient: connected SSID: ";
+      text += WiFi.SSID();
+      text += "\n       IP: ";
+      text += WiFi.localIP().toString();
+    }
+    else {
+      text += "\nClient: nicht verbunden";
+    }
+
+    lv_label_set_text(ip_label, text.c_str());
   }
 
 static void start_webserver(void)
@@ -702,7 +724,7 @@ static void start_webserver(void)
         req->send_P(200, "text/html", WEB_PAGE);
     });
 
-    /* Returns current WiFi mode: 0=off, 1=AP, 2=Client */
+    /* Returns current WiFi mode: 0=off, 2=AP+Client */
     webServer.on("/api/mode", HTTP_GET, [](AsyncWebServerRequest * req){
         char buf[24];
         snprintf(buf, sizeof(buf), "{\"mode\":%d}", wifi_mode_setting);
@@ -809,6 +831,7 @@ static void apply_wifi_mode(void)
 {
     /* Reset connection state */
     wifi_connect_state = WIFI_IDLE;
+  if(wifi_mode_setting != 0) wifi_mode_setting = 2;
     
     /* Mode 0: WiFi OFF */
     if(wifi_mode_setting == 0) {
@@ -821,7 +844,7 @@ static void apply_wifi_mode(void)
         return;
     }
     
-    /* Mode 1 & 2: Immer AP_STA Modus für durchgehende Erreichbarkeit */
+    /* WLAN EIN: Immer AP_STA Modus für durchgehende Erreichbarkeit */
     wifi_mode_t currentMode = WiFi.getMode();
     
     /* Nur komplett neu starten wenn WiFi OFF war oder Webserver nicht läuft */
@@ -831,43 +854,27 @@ static void apply_wifi_mode(void)
         delay(200);
       WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD);
         Serial.printf("AP gestartet, IP: %s\n", WiFi.softAPIP().toString().c_str());
-      update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
+      update_wifi_status_label();
         start_webserver();
     }
     
-    /* Mode 1: Nur AP (keine Client-Verbindung) */
-    if(wifi_mode_setting == 1) {
-        /* STA-Verbindung trennen falls vorhanden, AP läuft weiter */
-        if(WiFi.status() == WL_CONNECTED) {
-            WiFi.disconnect();
-            Serial.println("Client-Verbindung getrennt, AP läuft weiter");
-        update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
-        }
-      else {
-        update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
-      }
-        return;
-    }
+    /* WLAN EIN: AP + Client (zusätzliche Client-Verbindung aufbauen) */
+    String _ssid = prefs.getString("wifi_ssid", WIFI_SSID);
+    String _pass = prefs.getString("wifi_pass", WIFI_PASSWORD);
     
-    /* Mode 2: AP + Client (zusätzliche Client-Verbindung aufbauen) */
-    if(wifi_mode_setting == 2) {
-        /* Gespeicherte Zugangsdaten bevorzugen, Fallback auf wifi_credentials.h */
-        String _ssid = prefs.getString("wifi_ssid", WIFI_SSID);
-        String _pass = prefs.getString("wifi_pass", WIFI_PASSWORD);
+    /* Nur neu verbinden wenn noch nicht verbunden oder andere SSID */
+    if(WiFi.status() != WL_CONNECTED || WiFi.SSID() != _ssid) {
+      Serial.printf("WiFi verbinde mit SSID: %s (non-blocking)\n", _ssid.c_str());
+      update_wifi_status_label();
         
-        /* Nur neu verbinden wenn noch nicht verbunden oder andere SSID */
-        if(WiFi.status() != WL_CONNECTED || WiFi.SSID() != _ssid) {
-            Serial.printf("WiFi verbinde mit SSID: %s (non-blocking)\n", _ssid.c_str());
-          update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
-            
-            /* Start non-blocking connection */
-            WiFi.begin(_ssid.c_str(), _pass.c_str());
-            wifi_connect_state = WIFI_CONNECTING;
-            wifi_connect_start = millis();
-        } else {
-            Serial.printf("WiFi bereits verbunden mit %s\n", WiFi.SSID().c_str());
-            wifi_connect_state = WIFI_CONNECTED;
-        }
+      /* Start non-blocking connection */
+      WiFi.begin(_ssid.c_str(), _pass.c_str());
+      wifi_connect_state = WIFI_CONNECTING;
+      wifi_connect_start = millis();
+    } else {
+      Serial.printf("WiFi bereits verbunden mit %s\n", WiFi.SSID().c_str());
+      wifi_connect_state = WIFI_CONNECTED;
+      update_wifi_status_label();
     }
 }
 
@@ -888,7 +895,7 @@ static void webserver_loop(void)
             Serial.printf("\nWiFi OK, Client-IP: %s, AP-IP: %s\n", 
                 WiFi.localIP().toString().c_str(), 
                 WiFi.softAPIP().toString().c_str());
-          update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
+            update_wifi_status_label();
             
             /* mDNS starten für Erreichbarkeit über esp32-att.local */
             if(!MDNS.begin("esp32-att")) {
@@ -901,12 +908,12 @@ static void webserver_loop(void)
         else if(millis() - wifi_connect_start > WIFI_CONNECT_TIMEOUT) {
             wifi_connect_state = WIFI_FAILED;
             Serial.println("\nWiFi Client-Verbindung fehlgeschlagen (Timeout)");
-          update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
+          update_wifi_status_label();
         }
         else if(status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
             wifi_connect_state = WIFI_FAILED;
             Serial.printf("\nWiFi Client-Verbindung fehlgeschlagen (Status: %d)\n", status);
-          update_ip_label_text(String("IP: ") + WiFi.softAPIP().toString());
+          update_wifi_status_label();
         }
     }
 

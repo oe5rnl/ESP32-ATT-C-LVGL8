@@ -61,9 +61,9 @@ static uint32_t raw_uart_test_tx_count = 0;
 
 
 
-/* WiFi mode: 0=off, 1=AP, 2=Client */
-uint8_t wifi_mode_setting = 2; /* default: Client */
-static lv_obj_t * wifi_radio_btns = NULL;
+/* WiFi mode: 0=off, 2=AP+Client */
+uint8_t wifi_mode_setting = 2; /* default: WLAN an */
+static lv_obj_t * wifi_switch = NULL;
 lv_obj_t * ip_label = NULL;
 lv_obj_t * auto_set_label = NULL;  /* Label für AUTO-Set Status */
 
@@ -491,6 +491,7 @@ static void help_create(lv_obj_t * parent)
     lv_obj_align_to(sw, label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
     lv_obj_set_style_bg_color(sw, lv_color_hex(0x1a5090), 0);
     lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(sw, lv_color_hex(0x008000), LV_PART_INDICATOR | LV_STATE_CHECKED);
     if(autoset) lv_obj_add_state(sw, LV_STATE_CHECKED);
     lv_obj_add_event_cb(sw, [](lv_event_t * e) {
         autoset = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
@@ -516,35 +517,21 @@ static void help_create(lv_obj_t * parent)
         ws_broadcast_ae();
     }, LV_EVENT_VALUE_CHANGED, NULL);
 
-    /* WiFi mode radio buttons */
+    /* WiFi on/off switch */
     lv_obj_t * wlabel = lv_label_create(parent);
     lv_label_set_text(wlabel, "WLAN");
     lv_obj_set_style_text_font(wlabel, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(wlabel, lv_color_white(), 0);
     lv_obj_align(wlabel, LV_ALIGN_TOP_LEFT, 10, 55);
 
-    static const char * wifi_opts[] = {"Aus", "AP", "Client", ""};
-    wifi_radio_btns = lv_btnmatrix_create(parent);
-    lv_btnmatrix_set_map(wifi_radio_btns, wifi_opts);
-    lv_btnmatrix_set_btn_ctrl_all(wifi_radio_btns, LV_BTNMATRIX_CTRL_CHECKABLE);
-    lv_btnmatrix_set_one_checked(wifi_radio_btns, true);
-    lv_btnmatrix_set_btn_ctrl(wifi_radio_btns, wifi_mode_setting, LV_BTNMATRIX_CTRL_CHECKED);
-    lv_obj_set_size(wifi_radio_btns, 300, 67);
-    lv_obj_align(wifi_radio_btns, LV_ALIGN_TOP_LEFT, 10, 85);
-    lv_obj_set_style_text_font(wifi_radio_btns, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(wifi_radio_btns, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_opa(wifi_radio_btns, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_text_color(wifi_radio_btns, lv_color_hex(0x888888), 0);
-    lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_hex(0x1a5090), LV_PART_ITEMS);
-    lv_obj_set_style_bg_opa(wifi_radio_btns, LV_OPA_COVER, LV_PART_ITEMS);
-    lv_obj_set_style_border_opa(wifi_radio_btns, LV_OPA_TRANSP, LV_PART_ITEMS);
-    lv_obj_set_style_text_color(wifi_radio_btns, lv_color_white(), LV_PART_ITEMS);
-    lv_obj_set_style_bg_color(wifi_radio_btns, lv_color_hex(0x008000), LV_PART_ITEMS | LV_STATE_CHECKED);
-    lv_obj_add_event_cb(wifi_radio_btns, [](lv_event_t * e) {
-        uint32_t id = lv_btnmatrix_get_selected_btn(lv_event_get_target(e));
-        if(id > 2) return;
-        wifi_mode_setting = (uint8_t)id;
+    wifi_switch = lv_switch_create(parent);
+    lv_obj_align_to(wifi_switch, ae_switch, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 25);
+    lv_obj_set_style_bg_color(wifi_switch, lv_color_hex(0x1a5090), 0);
+    lv_obj_set_style_bg_opa(wifi_switch, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_color(wifi_switch, lv_color_hex(0x008000), LV_PART_INDICATOR | LV_STATE_CHECKED);
+    if(wifi_mode_setting != 0) lv_obj_add_state(wifi_switch, LV_STATE_CHECKED);
+    lv_obj_add_event_cb(wifi_switch, [](lv_event_t * e) {
+        wifi_mode_setting = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED) ? 2 : 0;
         prefs.putUChar("wmode", wifi_mode_setting);
         apply_wifi_mode();
     }, LV_EVENT_VALUE_CHANGED, NULL);
@@ -555,8 +542,8 @@ static void help_create(lv_obj_t * parent)
     lv_obj_set_style_text_font(ip_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(ip_label, lv_color_hex(0x60d0ff), 0);
     lv_label_set_long_mode(ip_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(ip_label, 300);
-    lv_obj_align(ip_label, LV_ALIGN_TOP_LEFT, 10, 145);
+    lv_obj_set_width(ip_label, 260);
+    lv_obj_align_to(ip_label, wlabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 20);
 }
 
 /* Called from webserver.h when web client changes default_values */
@@ -721,6 +708,10 @@ void setup()
     db_value = prefs.getInt("cval", db_value);
     autoset = prefs.getBool("ae", true);
     wifi_mode_setting = prefs.getUChar("wmode", 2);
+    if(wifi_mode_setting != 0) {
+        wifi_mode_setting = 2;
+        prefs.putUChar("wmode", wifi_mode_setting);
+    }
 
     /* Restore last attenuation setting */
     if(autoset) {
