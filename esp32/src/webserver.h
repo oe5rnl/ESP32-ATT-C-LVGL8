@@ -815,7 +815,6 @@ static void start_webserver(void)
 
     webServer.begin();
     webserver_running = true;
-    Serial.println("Webserver gestartet");
 }
 
 static void stop_webserver(void)
@@ -824,7 +823,48 @@ static void stop_webserver(void)
     ws.closeAll();
     webServer.end();
     webserver_running = false;
-    Serial.println("Webserver gestoppt");
+}
+
+static bool has_wifi_client_credentials(String * ssid_out = nullptr, String * pass_out = nullptr)
+{
+  String ssid = prefs.getString("wifi_ssid", WIFI_SSID);
+  String pass = prefs.getString("wifi_pass", WIFI_PASSWORD);
+  ssid.trim();
+
+  if(ssid_out) *ssid_out = ssid;
+  if(pass_out) *pass_out = pass;
+
+  return ssid.length() > 0;
+}
+
+static void ensure_ap_running(bool enable_sta)
+{
+  wifi_mode_t desired_mode = enable_sta ? WIFI_AP_STA : WIFI_AP;
+  bool mode_changed = WiFi.getMode() != desired_mode;
+
+  if(mode_changed) {
+    WiFi.mode(desired_mode);
+    delay(50);
+  }
+
+  WiFi.setSleep(false);
+
+  if(mode_changed || WiFi.softAPIP() == IPAddress((uint32_t)0)) {
+    WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD);
+  }
+
+  start_webserver();
+  update_wifi_status_label();
+}
+
+static void fallback_to_ap_only(const char * reason)
+{
+  WiFi.setAutoReconnect(false);
+  WiFi.disconnect(false, false);
+  wifi_connect_state = WIFI_FAILED;
+  ensure_ap_running(false);
+
+  LV_UNUSED(reason);
 }
 
 static void apply_wifi_mode(void)
@@ -836,43 +876,36 @@ static void apply_wifi_mode(void)
     /* Mode 0: WiFi OFF */
     if(wifi_mode_setting == 0) {
         stop_webserver();
+        MDNS.end();
         WiFi.softAPdisconnect(true);
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
-        Serial.println("WiFi AUS");
         if(ip_label) lv_label_set_text(ip_label, "");
         return;
     }
-    
-    /* WLAN EIN: Immer AP_STA Modus für durchgehende Erreichbarkeit */
-    wifi_mode_t currentMode = WiFi.getMode();
-    
-    /* Nur komplett neu starten wenn WiFi OFF war oder Webserver nicht läuft */
-    if(currentMode == WIFI_OFF || !webserver_running) {
-        stop_webserver();
-        WiFi.mode(WIFI_AP_STA);
-        delay(200);
-      WiFi.softAP(WIFI_AP_SSID, WIFI_AP_PASSWORD);
-        Serial.printf("AP gestartet, IP: %s\n", WiFi.softAPIP().toString().c_str());
-      update_wifi_status_label();
-        start_webserver();
+
+    /* WLAN EIN: AP immer aktiv halten; STA nur bei gültiger Client-Konfiguration */
+    String _ssid;
+    String _pass;
+    if(!has_wifi_client_credentials(&_ssid, &_pass)) {
+        ensure_ap_running(false);
+        return;
     }
-    
-    /* WLAN EIN: AP + Client (zusätzliche Client-Verbindung aufbauen) */
-    String _ssid = prefs.getString("wifi_ssid", WIFI_SSID);
-    String _pass = prefs.getString("wifi_pass", WIFI_PASSWORD);
+
+    ensure_ap_running(true);
+    WiFi.setAutoReconnect(false);
+    WiFi.persistent(false);
     
     /* Nur neu verbinden wenn noch nicht verbunden oder andere SSID */
     if(WiFi.status() != WL_CONNECTED || WiFi.SSID() != _ssid) {
-      Serial.printf("WiFi verbinde mit SSID: %s (non-blocking)\n", _ssid.c_str());
       update_wifi_status_label();
         
       /* Start non-blocking connection */
+      WiFi.disconnect(false, false);
       WiFi.begin(_ssid.c_str(), _pass.c_str());
       wifi_connect_state = WIFI_CONNECTING;
       wifi_connect_start = millis();
     } else {
-      Serial.printf("WiFi bereits verbunden mit %s\n", WiFi.SSID().c_str());
       wifi_connect_state = WIFI_CONNECTED;
       update_wifi_status_label();
     }
@@ -892,28 +925,21 @@ static void webserver_loop(void)
         wl_status_t status = WiFi.status();
         if(status == WL_CONNECTED) {
             wifi_connect_state = WIFI_CONNECTED;
-            Serial.printf("\nWiFi OK, Client-IP: %s, AP-IP: %s\n", 
-                WiFi.localIP().toString().c_str(), 
-                WiFi.softAPIP().toString().c_str());
             update_wifi_status_label();
             
             /* mDNS starten für Erreichbarkeit über esp32-att.local */
             if(!MDNS.begin("esp32-att")) {
-                Serial.println("mDNS Start fehlgeschlagen");
             } else {
                 MDNS.addService("http", "tcp", 80);
-                Serial.println("mDNS gestartet: esp32-att.local");
             }
         }
         else if(millis() - wifi_connect_start > WIFI_CONNECT_TIMEOUT) {
-            wifi_connect_state = WIFI_FAILED;
-            Serial.println("\nWiFi Client-Verbindung fehlgeschlagen (Timeout)");
-          update_wifi_status_label();
+            fallback_to_ap_only("WiFi Client-Verbindung fehlgeschlagen (Timeout) - fallback auf AP-only");
         }
         else if(status == WL_CONNECT_FAILED || status == WL_NO_SSID_AVAIL) {
-            wifi_connect_state = WIFI_FAILED;
-            Serial.printf("\nWiFi Client-Verbindung fehlgeschlagen (Status: %d)\n", status);
-          update_wifi_status_label();
+            char reason[96];
+            snprintf(reason, sizeof(reason), "WiFi Client-Verbindung fehlgeschlagen (Status: %d) - fallback auf AP-only", status);
+            fallback_to_ap_only(reason);
         }
     }
 

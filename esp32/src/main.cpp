@@ -645,8 +645,7 @@ TFT_eSPI tft = TFT_eSPI(screenWidth, screenHeight);
 #if LV_USE_LOG != 0
 void my_print(const char *buf)
 {
-    Serial.printf(buf);
-    Serial.flush();
+    LV_UNUSED(buf);
 }
 #endif
 
@@ -789,7 +788,6 @@ void loop()
                     selected_digit = (selected_digit == 0) ? 1 : 0;
                     update_cursor();
                     ws_broadcast_seldigit(selected_digit);
-                    Serial.println("DIGIT command received - toggled digit selection");
                     
                     /* Sende neue Auswahl zurück an Pico */
                     Serial.printf("SEL%d\n", selected_digit);
@@ -819,7 +817,6 @@ void loop()
                     }
                     
                     ws_broadcast_ae();
-                    Serial.println("AUTO-Set status received: " + input);
                 }
                 else {
                     /* Parse number: accept plain number or "xxdB" format */
