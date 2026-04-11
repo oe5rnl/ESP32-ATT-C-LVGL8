@@ -4,6 +4,10 @@
  * 
  * Hardware: Raspberry Pi Pico
  * GPIO Mapping: Attenuator control 
+ * 
+ * serial.println  gibt über die USB zum PC (debug) ausgegeben
+ * Serial1.println spricht über GPIO1 (TX) (RX) mit dem ESP32 
+ *  für die Ermitteltes tAttenuator, Synchronisation von db-Wert, AUTO-Set und Digit-Auswahl...
  */
 
 #include <Arduino.h>
@@ -18,8 +22,20 @@
 SSD1306 display(&Wire);
 
 
-#define ATTENUATOR_26_5GHz          1       
-#define ATTENUATOR_GPIO_RS_70DB     2    
+/* KY-040 Rotary Encoder */
+#define ENCODER_SW     19   // Switch/Button
+#define ENCODER_DT     20   // Data (Direction)
+#define ENCODER_CLK    21   // Clock (Pulse)
+
+/* Attenuator Type Select Inputs with Pull-up */
+#define MODE_SELECT0     2
+#define MODE_SELECT1     3
+
+
+#define ATTENUATOR_26_5GHz      1       
+#define ATTENUATOR_RS_135DB     2    // 135 dB
+
+
 
 
 /* 26.5 GHz Attenuator ***********************************************************
@@ -32,60 +48,46 @@ SSD1306 display(&Wire);
 #define ATT_GPIO_40DB_A  8
 #define ATT_GPIO_40DB_B  9
 
-/* Mode Select Inputs with Pull-up */
-#define MODE_SELECT0     2
-#define MODE_SELECT1     3
-
-/* KY-040 Rotary Encoder */
-#define ENCODER_SW     19   // Switch/Button
-#define ENCODER_DT     20   // Data (Direction)
-#define ENCODER_CLK    21   // Clock (Pulse)
 
 
-
-/* RS 7 Relais Attenuatur   ******************************************************
-* Pads:  ????
+/* RS 135 dB Attenuator with bistable relais ******************************************
+* Pads:  5 dB, 10 dB, 2 x 20dB, 2 x 40 dB, 70 dB → max 135 dB in 5 dB Schritten
+*        Die Relais haben eine Set/Reset Logik, daher 2 Bits je Relais (A/B) - High aktiv
+* RF_ON/RF_OFF bei eingestelltem Dämpungswert RF ON/OFF
 */
-// Relais 1: 10 dB ??
-#define GPIO_2_7    // PIN=4  GPIO_2  Relais_1 a
-#define GPIO_3_7    // PIN=5  GPIO_3  Relais_1 b
 
-// Relais 2: 20 dB ??
-#define GPIO_4_7    // PIN=6  GPIO_4  Relais_2 a
-#define GPIO_5_7    // PIN=7  GPIO_5  Relais_2 b
+// Relais 1: 40 dB 
+#define GPIO_2_135DB    // PIN=4  Relais_1 a
+#define GPIO_3_135DB    // PIN=5  Relais_1 b
 
-// Relais 3: 40 dB ??
-#define GPIO_6_7    // PIN=9  GPIO_6  Relais_3 a
-#define GPIO_7_7    // PIN=10 GPIO_7  Relais_3 b
+// Relais 2: 20 dB 
+#define GPIO_6_135DB    // PIN=6  Relais_2 a
+#define GPIO_7_135DB    // PIN=7  Relais_2 b
 
-// Relais 4: 70 dB ??
-#define GPIO_8_7    // PIN=11 GPIO_8   Relais_4 a
-#define GPIO_9_7    // PIN=12 GPIO_9   Relais_4 b
+// Relais 3: 5 dB 
+#define GPIO_6_135DB    // PIN=9  Relais_3 a
+#define GPIO_7_135DB    // PIN=10 Relais_3 b
 
-// Relais  5
-#define GPIO_10_7  // PIN=14 GPIO_10  Relais_5 a 
-#define GPIO_11_7  // PIN=15 GPIO_11  Relais_5 b
+// Relais 4: 20 dB 
+#define GPIO_8_135DB    // PIN=11 Relais_4 a
+#define GPIO_9_135DB    // PIN=12 Relais_4 b
 
-// Relais 6
-// 16 GPIO_12  Relais_6 a
-#define GPIO_12_7  // PIN=16 GPIO_12  Relais_6 b
-#define GPIO_13_7  // PIN=17 GPIO_13  Relais_6 b
+// Relais  5: 10 dB
+#define GPIO_14_135DB  // PIN=19 Relais_5 a 
+#define GPIO_15_135DB  // PIN=20 Relais_5 b
 
-// Relais 7
-// 19 GPIO_14  Relais_7 a
-#define GPIO_14_7  // PIN=19 GPIO_14  Relais_7 b
-#define GPIO_15_7  // PIN=20 GPIO_15  Relais_7 a
+// Relais 6: 40 dB
+#define GPIO_16_135DB  // PIN=21 Relais_6 a
+#define GPIO_17_135DB  // PIN=22 Relais_6 b
 
-// Relais 8
-#define GPIO_16_7  // PIN=21 GPIO_16  Relais_8 a
-#define GPIO_17_7  // PIN=22 GPIO_17  Relais_8 b
+// Relais 7: RF ON/OFF
+#define GPIO_27_135DB  // PIN=32 Relais_7 b
+#define GPIO_28_135DB  // PIN=34 Relais_7 a
 
 
-
-
-
-// Relais 
-
+/* -------------------------------------------------------
+ * Global State
+ * ------------------------------------------------------- */
 
 static int32_t current_db = 0;
 static unsigned long last_led_toggle = 0;
@@ -451,21 +453,21 @@ void setup()
 
     /* Initialize I2C on standard pins: GP4 (SDA), GP5 (SCL) for display output */
     Wire.begin();
-    Serial.println("I2C initialized on GP4 (SDA) and GP5 (SCL)");
+    // Serial.println("I2C initialized on GP4 (SDA) and GP5 (SCL)");
     
     /* Initialize SSD1306 Display */
     display.init();
-    Serial.println("SSD1306 Display initialized");
+    // Serial.println("SSD1306 Display initialized");
     
     /* Mode Select Inputs with Pull-up - MUSS VOR dem Lesen konfiguriert werden! */
     pinMode(MODE_SELECT0, INPUT_PULLUP);
     pinMode(MODE_SELECT1, INPUT_PULLUP);   
     delay(10);  // Kurze Verzögerung, damit sich die Pullups stabilisieren
     
-    Serial.println("Reading Mode Select pins...");
-    Serial.println("  MODE_SELECT0 (GP18): " + String(digitalRead(MODE_SELECT0) == HIGH ? "HIGH" : "LOW"));
-    Serial.println("  MODE_SELECT1 (GP21): " + String(digitalRead(MODE_SELECT1) == HIGH ? "HIGH" : "LOW"));
-    Serial.print("Attenuator: ");
+    // Serial.println("Reading Mode Select pins...");
+    // Serial.println("  MODE_SELECT0 (GP18): " + String(digitalRead(MODE_SELECT0) == HIGH ? "HIGH" : "LOW"));
+    // Serial.println("  MODE_SELECT1 (GP21): " + String(digitalRead(MODE_SELECT1) == HIGH ? "HIGH" : "LOW"));
+    // Serial.print("Attenuator: ");
 
     display.clear();    
     
@@ -480,12 +482,12 @@ void setup()
         setup_attenuation_26();  // Initialisierung mit 0 dB
     }
     // R&S 70 dB Attenuator
-    else if(getAttenuator() == ATTENUATOR_GPIO_RS_70DB) {
-        attenuator = ATTENUATOR_GPIO_RS_70DB;
-        Serial.println("R&S 70 dB");
-        display.drawString(10, 10, "RS-70 dB");
-        display.drawString(10, 20, "Att: 70dB Steps 10dB");
-        setup_attenuation_70db();  // TODO: Implementieren
+    else if(getAttenuator() == ATTENUATOR_RS_135DB) {
+        attenuator = ATTENUATOR_RS_135DB;
+        Serial.println("R&S 135 dB");
+        display.drawString(10, 10, "RS-135 dB");
+        display.drawString(10, 20, "Att: 135dB Steps 10dB");
+        setup_attenuation_135db();  // TODO: Implementieren
     }
     else {
         display.drawString(10, 10, "Unknown");
@@ -506,11 +508,11 @@ void setup()
     Serial1.begin(115200);
     Serial1.setTimeout(100);
 
-    Serial.println("GPIO initialized");
-    Serial.println("\nCommands (USB + ENTER):");
-    Serial.println("  0-110 + ENTER : Set attenuation (10 dB steps)");
-    Serial.println("  ? + ENTER     : Show current value");
-    Serial.println("\nWaiting for ESP32 on Serial1 (GP0/GP1)...\n");
+    // Serial.println("GPIO initialized");
+    // Serial.println("\nCommands (USB + ENTER):");
+    // Serial.println("  0-110 + ENTER : Set attenuation (10 dB steps)");
+    // Serial.println("  ? + ENTER     : Show current value");
+    // Serial.println("\nWaiting for ESP32 on Serial1 (GP0/GP1)...\n");
     
     /* Sofort beim Start den gespeicherten Wert anwenden und anzeigen */
     apply_attenuation(current_db);
