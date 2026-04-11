@@ -28,12 +28,12 @@ SSD1306 display(&Wire);
 #define ENCODER_CLK    21   // Clock (Pulse)
 
 /* Attenuator Type Select Inputs with Pull-up */
-#define MODE_SELECT0     2
-#define MODE_SELECT1     3
+#define MODE_SELECT0     6
+#define MODE_SELECT1     7
 
 
-#define ATTENUATOR_26_5GHz      1       
-#define ATTENUATOR_RS_135DB     2    // 135 dB
+#define ATTENUATOR_26_5GHz  1 // 26,5 GHz, 110 dB, in 10 dB Schritten max. 110 dB   
+#define ATTENUATOR_RS_135DB 2 // ??,? Ghz, 135 dB, in 5 dB Schritten, bistabile Relais mit Set/Reset Logik
 
 
 
@@ -57,32 +57,32 @@ SSD1306 display(&Wire);
 */
 
 // Relais 1: 40 dB 
-#define GPIO_2_135DB    // PIN=4  Relais_1 a
-#define GPIO_3_135DB    // PIN=5  Relais_1 b
+#define GPIO_135DB_40DB_A_ON    12 // GPIO2 Pin16
+#define GPIO_135DB_40DB_A_OFF   13 // GPIO3 Pin17
 
 // Relais 2: 20 dB 
-#define GPIO_6_135DB    // PIN=6  Relais_2 a
-#define GPIO_7_135DB    // PIN=7  Relais_2 b
+#define GPIO_135DB_20DB_A_ON    10 // GPIO10 Pin14
+#define GPIO_135DB_20DB_A_OFF   11 // GPIO11 Pin15 
 
-// Relais 3: 5 dB 
-#define GPIO_6_135DB    // PIN=9  Relais_3 a
-#define GPIO_7_135DB    // PIN=10 Relais_3 b
+// Relais 5: 5 dB
+#define GPIO_135DB_5DB_ON        8 // GPIO8 Pin11
+#define GPIO_135DB_5DB_OFF       9 // GPIO9 Pin12
 
 // Relais 4: 20 dB 
-#define GPIO_8_135DB    // PIN=11 Relais_4 a
-#define GPIO_9_135DB    // PIN=12 Relais_4 b
+#define GPIO_135DB_20DB_ON_B    14 // GPIO14 Pin19
+#define GPIO_135DB_20DB_OFF_B   15 // GPIO15 Pin20
 
 // Relais  5: 10 dB
-#define GPIO_14_135DB  // PIN=19 Relais_5 a 
-#define GPIO_15_135DB  // PIN=20 Relais_5 b
+#define GPIO_135DB_10DB_ON      16 // GPIO16 Pin21
+#define GPIO_135DB_10DB_OFF     17 // GPIO17 Pin22       
 
 // Relais 6: 40 dB
-#define GPIO_16_135DB  // PIN=21 Relais_6 a
-#define GPIO_17_135DB  // PIN=22 Relais_6 b
+#define GPIO_135DB_40DB_ON_B    22 // GPIO22 Pin29
+#define GPIO_135DB_40DB_OFF_B   26 // GPIO26 Pin31
 
 // Relais 7: RF ON/OFF
-#define GPIO_27_135DB  // PIN=32 Relais_7 b
-#define GPIO_28_135DB  // PIN=34 Relais_7 a
+#define GPIO_135DB_RF_OFF       27 // GPIO27 Pin32
+#define GPIO_135DB_RF_ON        28 // GPIO28 Pin34
 
 
 /* -------------------------------------------------------
@@ -233,14 +233,14 @@ int getAttenuator()
         return ATTENUATOR_26_5GHz;
     }
     else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
-        return ATTENUATOR_GPIO_RS_70DB;
+        return ATTENUATOR_RS_135DB;
     }
     else {
         return 0;  // Unknown
     }    
 }
 
-void setup_attenuation_26()
+void setup_attenuation_26Ghz()
 {
     /* Attenuator GPIO init */
     pinMode(ATT_GPIO_10DB,   OUTPUT);
@@ -305,11 +305,36 @@ void apply_relays(int32_t db_value)
 }
 
 
-void setup_attenuation_70db()
+void setup_attenuation_135db()
 {
+    pinMode(GPIO_135DB_5DB_ON,   OUTPUT);
+    pinMode(GPIO_135DB_5DB_OFF,  OUTPUT);
+    
+    pinMode(GPIO_135DB_10DB_ON, OUTPUT);
+    pinMode(GPIO_135DB_10DB_OFF, OUTPUT);
+    
+    pinMode(GPIO_135DB_A_20DB_ON, OUTPUT);
+    pinMode(GPIO_135DB_A_20DB_OFF, OUTPUT);
+    
+    pinMode(GPIO_135DB_B_20DB_OFF_2, OUTPUT);
+    
+    
+    pinMode(GPIO_135DB_B_40DB_ON_2, OUTPUT);
+    
+    pinMode(GPIO_135DB_A_40DB_ON, OUTPUT);
+    pinMode(GPIO_135DB_A_40DB_OFF, OUTPUT);
+    
+    pinMode(GPIO_135DB_B_20DB_ON_2, OUTPUT);
+    pinMode(GPIO_135DB_B_40DB_OFF_2, OUTPUT);
+    pinMode(GPIO_135DB_RF_ON, OUTPUT);
+    pinMode(GPIO_135DB_RF_OFF, OUTPUT);
+
+
+    // All OFF (LOW = inactive, HIGH = active)
+    digitalWrite(GPIO_135DB_5DB_ON,   LOW);
 }
 
-void apply_attenuation_70db(int32_t db_value)
+void apply_attenuation_135db(int32_t db_value)
 {
 }
 
@@ -479,19 +504,20 @@ void setup()
         display.drawString(3, 20, "Att  : 110dB");
         display.drawString(3, 30, "Steps:  10dB");
             
-        setup_attenuation_26();  // Initialisierung mit 0 dB
+        setup_attenuation_26Ghz(); 
     }
-    // R&S 70 dB Attenuator
+    // R&S 135 dB Attenuator
     else if(getAttenuator() == ATTENUATOR_RS_135DB) {
         attenuator = ATTENUATOR_RS_135DB;
         Serial.println("R&S 135 dB");
         display.drawString(10, 10, "RS-135 dB");
-        display.drawString(10, 20, "Att: 135dB Steps 10dB");
-        setup_attenuation_135db();  // TODO: Implementieren
+        display.drawString(10, 20, "Att: 135dB Steps 5dB");
+        setup_attenuation_135db();  
     }
     else {
         display.drawString(10, 10, "Unknown");
         Serial.println("Unknown ");
+        exit(1);
     }
 
     display.display();
