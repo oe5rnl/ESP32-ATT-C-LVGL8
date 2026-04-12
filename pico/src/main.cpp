@@ -18,22 +18,31 @@
 #include "SSD1306.h"
 #define RAW_UART_TEST_MODE 0  /* 1 = einfacher ESP32->Pico Rohdaten-Test, 0 = Normalbetrieb */
 
-/* I2C Display SSD1306 (128x64) using I2C0 on GP4 (SDA) / GP5 (SCL) */
+/* I2C Display SSD1306 (128x64) using I2C0 on GPIO4 PIN6 (SDA) / GPIO5 PIN7 (SCL) */
 SSD1306 display(&Wire);
 
 
 /* KY-040 Rotary Encoder */
-#define ENCODER_SW     19   // Switch/Button
-#define ENCODER_DT     20   // Data (Direction)
-#define ENCODER_CLK    21   // Clock (Pulse)
+#define ENCODER_SW     19   // Pin 25 Switch/Button
+#define ENCODER_DT     20   // Pin 26 Data (Direction)
+#define ENCODER_CLK    21   // Pin 27 Clock (Pulse)
 
 /* Attenuator Type Select Inputs with Pull-up */
-#define MODE_SELECT0     6
-#define MODE_SELECT1     7
+/* GPIO6 GPIO7
+ *  H     H    R&S 26,5 GHz Attenuator
+ *  H     L    B Unbekannt (nicht implementiert, Fehler)
+ *  L     H    C Unbekannt (nicht implementiert, Fehler)
+ *  L     L    R&S 135 dB Attenuator
+*/
+
+#define MODE_SELECT0     6  // GPIO6 Pin9
+#define MODE_SELECT1     7  // GPIO7 Pin10
 
 
-#define ATTENUATOR_26_5GHz  1 // 26,5 GHz, 110 dB, in 10 dB Schritten max. 110 dB   
-#define ATTENUATOR_RS_135DB 2 // ??,? Ghz, 135 dB, in 5 dB Schritten, bistabile Relais mit Set/Reset Logik
+#define ATTENUATOR_RS_135DB 0 // ??,? Ghz, 135 dB, in 5 dB Schritten, bistabile Relais mit Set/Reset Logik
+#define ATTENUATOR_A        1 //   
+#define ATTENUATOR_B        2 // 
+#define ATTENUATOR_26_5GHz  3 // 26,5 GHz, 110 dB, in 10 dB Schritten max. 110 dB   
 
 
 
@@ -43,10 +52,10 @@ SSD1306 display(&Wire);
 *  Der Attenuator verfügt über eine Logik mit H Brücke
 *  daher 1 Bit je Relais - high aktiv 
 */
-#define ATT_GPIO_10DB    6
-#define ATT_GPIO_20DB    7
-#define ATT_GPIO_40DB_A  8
-#define ATT_GPIO_40DB_B  9
+#define ATT_GPIO_10DB    10 // Pin 14 old  6
+#define ATT_GPIO_20DB    11 // Pin 15 old  7
+#define ATT_GPIO_40DB_A  12 // Pin 16 old  8
+#define ATT_GPIO_40DB_B  13 // Pin 17 old  9
 
 
 
@@ -61,7 +70,7 @@ SSD1306 display(&Wire);
 #define GPIO_135DB_40DB_OFF_A   13 // GPIO3 Pin17
 
 // Relais 2: 20 dB 
-#define GPIO_135DB_20DB_ON_A     10 // GPIO10 Pin14
+#define GPIO_135DB_20DB_ON_A    10 // GPIO10 Pin14
 #define GPIO_135DB_20DB_OFF_A   11 // GPIO11 Pin15 
 
 // Relais 5: 5 dB
@@ -229,15 +238,22 @@ static void sync_state_to_esp32()
 
 int getAttenuator()
 {
-    if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) {
-        return ATTENUATOR_26_5GHz;
-    }
-    else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
+
+    //return ATTENUATOR_26_5GHz;
+
+    if(digitalRead(MODE_SELECT0) == LOW  && digitalRead(MODE_SELECT1) == LOW) {
         return ATTENUATOR_RS_135DB;
     }
-    else {
-        return 0;  // Unknown
-    }    
+    else if(digitalRead(MODE_SELECT0) == LOW  && digitalRead(MODE_SELECT1) == HIGH) {
+        return ATTENUATOR_A;
+    }
+    else if(digitalRead(MODE_SELECT0) == HIGH  && digitalRead(MODE_SELECT1) == LOW) {
+        return ATTENUATOR_B;
+    }
+    else if(digitalRead(MODE_SELECT0) == HIGH  && digitalRead(MODE_SELECT1) == HIGH) {
+        return ATTENUATOR_26_5GHz;
+    }   
+    return -1;  /* Unbekannt/Fehler */
 }
 
 void setup_attenuation_26Ghz()
@@ -514,13 +530,19 @@ void setup()
         setup_attenuation_135db();  
     }
     else {
-        display.drawString(10, 10, "Unknown");
-        Serial.println("Unknown ");
-        exit(1);
+        char att_buf[24];
+        snprintf(att_buf, sizeof(att_buf), "Att-Code: %d", getAttenuator());
+        display.drawString(10, 10, "Error");
+        display.drawString(10, 20, "Attenuator");
+        display.drawString(10, 30, att_buf);
+        display.display();
+        while(true) { delay(1000); }  /* Anhalten, Display bleibt sichtbar */
     }
 
     display.display();
     
+    delay(2000); 
+
     /* KY-040 Rotary Encoder init */
     pinMode(ENCODER_CLK, INPUT_PULLUP);
     pinMode(ENCODER_DT, INPUT_PULLUP);
