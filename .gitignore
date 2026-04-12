@@ -13,7 +13,9 @@ build/
 Thumbs.db
 
 # KiCad/Schaltungs-Backups
-Schaltung/att/att-backups/
+Schaltung/att_26/att-backups/
+Schaltung/att_135/att-backups/
+
 Schaltung/att/.history/
 
 # WiFi credentials (ESP32)
