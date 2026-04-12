@@ -57,12 +57,12 @@ SSD1306 display(&Wire);
 */
 
 // Relais 1: 40 dB 
-#define GPIO_135DB_40DB_A_ON    12 // GPIO2 Pin16
-#define GPIO_135DB_40DB_A_OFF   13 // GPIO3 Pin17
+#define GPIO_135DB_40DB_ON_A    12 // GPIO2 Pin16
+#define GPIO_135DB_40DB_OFF_A   13 // GPIO3 Pin17
 
 // Relais 2: 20 dB 
-#define GPIO_135DB_20DB_A_ON    10 // GPIO10 Pin14
-#define GPIO_135DB_20DB_A_OFF   11 // GPIO11 Pin15 
+#define GPIO_135DB_20DB_ON_A     10 // GPIO10 Pin14
+#define GPIO_135DB_20DB_OFF_A   11 // GPIO11 Pin15 
 
 // Relais 5: 5 dB
 #define GPIO_135DB_5DB_ON        8 // GPIO8 Pin11
@@ -81,8 +81,8 @@ SSD1306 display(&Wire);
 #define GPIO_135DB_40DB_OFF_B   26 // GPIO26 Pin31
 
 // Relais 7: RF ON/OFF
-#define GPIO_135DB_RF_OFF       27 // GPIO27 Pin32
-#define GPIO_135DB_RF_ON        28 // GPIO28 Pin34
+#define GPIO_135DB_RF_ON        27 // GPIO27 Pin32
+#define GPIO_135DB_RF_OFF       28 // GPIO28 Pin34
 
 
 /* -------------------------------------------------------
@@ -163,7 +163,7 @@ static void update_raw_uart_test_display()
 }
 #endif
 
-void apply_attenuation_70db(int32_t db_value);
+void apply_attenuation_135db(int32_t db_value);
 
 static void init_persistent_storage()
 {
@@ -295,7 +295,7 @@ void apply_relays(int32_t db_value)
         apply_attenuation_26(db_value);
     }
     else if(digitalRead(MODE_SELECT0) == LOW && digitalRead(MODE_SELECT1) == HIGH) {
-        apply_attenuation_70db(db_value);
+        apply_attenuation_135db(db_value);
     }
     else {
         Serial.print("Display: ");
@@ -307,28 +307,27 @@ void apply_relays(int32_t db_value)
 
 void setup_attenuation_135db()
 {
-    pinMode(GPIO_135DB_5DB_ON,   OUTPUT);
-    pinMode(GPIO_135DB_5DB_OFF,  OUTPUT);
+    pinMode(GPIO_135DB_40DB_ON_A,   OUTPUT);
+    pinMode(GPIO_135DB_40DB_OFF_A,  OUTPUT);
+    
+    pinMode(GPIO_135DB_20DB_ON_A, OUTPUT);
+    pinMode(GPIO_135DB_20DB_OFF_A, OUTPUT);
+    
+    pinMode(GPIO_135DB_5DB_ON, OUTPUT);
+    pinMode(GPIO_135DB_5DB_OFF, OUTPUT);
+    
+    pinMode(GPIO_135DB_20DB_ON_B, OUTPUT);
+    pinMode(GPIO_135DB_20DB_OFF_B, OUTPUT);
     
     pinMode(GPIO_135DB_10DB_ON, OUTPUT);
     pinMode(GPIO_135DB_10DB_OFF, OUTPUT);
-    
-    pinMode(GPIO_135DB_A_20DB_ON, OUTPUT);
-    pinMode(GPIO_135DB_A_20DB_OFF, OUTPUT);
-    
-    pinMode(GPIO_135DB_B_20DB_OFF_2, OUTPUT);
-    
-    
-    pinMode(GPIO_135DB_B_40DB_ON_2, OUTPUT);
-    
-    pinMode(GPIO_135DB_A_40DB_ON, OUTPUT);
-    pinMode(GPIO_135DB_A_40DB_OFF, OUTPUT);
-    
-    pinMode(GPIO_135DB_B_20DB_ON_2, OUTPUT);
-    pinMode(GPIO_135DB_B_40DB_OFF_2, OUTPUT);
+        
+    pinMode(GPIO_135DB_40DB_ON_B, OUTPUT);
+    pinMode(GPIO_135DB_40DB_OFF_B, OUTPUT);
+        
     pinMode(GPIO_135DB_RF_ON, OUTPUT);
     pinMode(GPIO_135DB_RF_OFF, OUTPUT);
-
+    
 
     // All OFF (LOW = inactive, HIGH = active)
     digitalWrite(GPIO_135DB_5DB_ON,   LOW);
