@@ -949,7 +949,7 @@ static void webserver_loop(void)
         lastPing = millis();
         ws.textAll("{\"type\":\"hb\"}");
     }
-
+     
     if(!ws_cmd_queue) return;
     WsCmdMsg m;
     while(xQueueReceive(ws_cmd_queue, &m, 0) == pdTRUE) {
