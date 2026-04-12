@@ -104,7 +104,6 @@ static bool led_state = false;
 static bool led_solid_mode = false;  /* true = 2s solid, false = blink */
 static unsigned long led_solid_start = 0;
 static String serial_buffer = "";  /* Buffer for USB serial input */
-static int attenuator = 0;
 
 /* Rotary Encoder State */
 static int encoder_last_clk = HIGH;
@@ -238,9 +237,6 @@ static void sync_state_to_esp32()
 
 int getAttenuator()
 {
-
-    //return ATTENUATOR_26_5GHz;
-
     if(digitalRead(MODE_SELECT0) == LOW  && digitalRead(MODE_SELECT1) == LOW) {
         return ATTENUATOR_RS_135DB;
     }
@@ -471,6 +467,35 @@ static void apply_attenuation_from_esp_set(int32_t db_value)
     apply_relays(current_db);
 }
 
+static void show_attenuator_info()
+{
+    display.clear();    
+    
+    // R&S 26 Ghz Attenuator
+    if(getAttenuator() == ATTENUATOR_26_5GHz) {
+        Serial.println("R&S 26_5GHz");
+        display.drawString(3, 10, "26.5 GHz");
+        display.drawString(3, 20, "Att  : 110dB");
+        display.drawString(3, 30, "Steps:  10dB");
+    }
+    // R&S 135 dB Attenuator
+    else if(getAttenuator() == ATTENUATOR_RS_135DB) {
+        Serial.println("R&S 135 dB");
+        display.drawString(3, 10, "RS-135 dB");
+        display.drawString(3, 20, "Att: 135dB");
+        display.drawString(3, 30, "Steps: 5dB"); 
+
+    }
+    else {
+        char att_buf[24];
+        snprintf(att_buf, sizeof(att_buf), "Att-Code: %d", getAttenuator());
+        display.drawString(3, 10, "Error");
+        display.drawString(3, 20, "Attenuator");
+        display.drawString(3, 30, att_buf);
+    }
+    display.display();
+}
+
 void setup()
 {
     Serial.begin(115200);
@@ -504,43 +529,7 @@ void setup()
     pinMode(MODE_SELECT1, INPUT_PULLUP);   
     delay(10);  // Kurze Verzögerung, damit sich die Pullups stabilisieren
     
-    // Serial.println("Reading Mode Select pins...");
-    // Serial.println("  MODE_SELECT0 (GP18): " + String(digitalRead(MODE_SELECT0) == HIGH ? "HIGH" : "LOW"));
-    // Serial.println("  MODE_SELECT1 (GP21): " + String(digitalRead(MODE_SELECT1) == HIGH ? "HIGH" : "LOW"));
-    // Serial.print("Attenuator: ");
-
-    display.clear();    
-    
-    // R&S 26 Ghz Attenuator
-    if(getAttenuator() == ATTENUATOR_26_5GHz) {
-        attenuator = ATTENUATOR_26_5GHz;
-        Serial.println("R&S 26_5GHz");
-        display.drawString(3, 10, "26.5 GHz");
-        display.drawString(3, 20, "Att  : 110dB");
-        display.drawString(3, 30, "Steps:  10dB");
-            
-        setup_attenuation_26Ghz(); 
-    }
-    // R&S 135 dB Attenuator
-    else if(getAttenuator() == ATTENUATOR_RS_135DB) {
-        attenuator = ATTENUATOR_RS_135DB;
-        Serial.println("R&S 135 dB");
-        display.drawString(10, 10, "RS-135 dB");
-        display.drawString(10, 20, "Att: 135dB Steps 5dB");
-        setup_attenuation_135db();  
-    }
-    else {
-        char att_buf[24];
-        snprintf(att_buf, sizeof(att_buf), "Att-Code: %d", getAttenuator());
-        display.drawString(10, 10, "Error");
-        display.drawString(10, 20, "Attenuator");
-        display.drawString(10, 30, att_buf);
-        display.display();
-        while(true) { delay(1000); }  /* Anhalten, Display bleibt sichtbar */
-    }
-
-    display.display();
-    
+    show_attenuator_info();
     delay(2000); 
 
     /* KY-040 Rotary Encoder init */
