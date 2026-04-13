@@ -71,16 +71,16 @@ void Att135dB::apply(int32_t dv)
         }
     }
 
-    Serial.print("ATT 135dB: ");
-    Serial.print(att);
-    Serial.print(" dB  [40A="); Serial.print(a40a);
-    Serial.print(" 20A=");      Serial.print(a20a);
-    Serial.print(" 5=");        Serial.print(a5);
-    Serial.print(" 20B=");      Serial.print(a20b);
-    Serial.print(" 10=");       Serial.print(a10);
-    Serial.print(" 40B=");      Serial.print(a40b);
-    Serial.print(" RF=");       Serial.print(rf);
-    Serial.println("]");
+    // Serial.print("ATT 135dB: ");
+    // Serial.print(att);
+    // Serial.print(" dB  [40A="); Serial.print(a40a);
+    // Serial.print(" 20A=");      Serial.print(a20a);
+    // Serial.print(" 5=");        Serial.print(a5);
+    // Serial.print(" 20B=");      Serial.print(a20b);
+    // Serial.print(" 10=");       Serial.print(a10);
+    // Serial.print(" 40B=");      Serial.print(a40b);
+    // Serial.print(" RF=");       Serial.print(rf);
+    // Serial.println("]");
 }
 
 void Att135dB::show_info()

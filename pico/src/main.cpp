@@ -397,8 +397,8 @@ void loop()
                 encoder_apply_pending = true;
                 last_encoder_change   = now;
 
-                Serial1.print(new_db);
-                Serial1.println("dB");
+                // Serial1.print(new_db);
+                // Serial1.println("dB");
 
                 led_solid_mode  = true;
                 led_solid_start = now;

@@ -35,17 +35,6 @@ void Att26GHz::apply(int32_t dv)
     digitalWrite(ATT_GPIO_40DB_A, a40a ? HIGH : LOW);
     digitalWrite(ATT_GPIO_40DB_B, a40b ? HIGH : LOW);
 
-    Serial.print("ATT 26GHz: ");
-    Serial.print(att);
-    Serial.print(" dB  [10=");
-    Serial.print(a10);
-    Serial.print(" 20=");
-    Serial.print(a20);
-    Serial.print(" 40a=");
-    Serial.print(a40a);
-    Serial.print(" 40b=");
-    Serial.print(a40b);
-    Serial.println("]");
 }
 
 void Att26GHz::show_info()
