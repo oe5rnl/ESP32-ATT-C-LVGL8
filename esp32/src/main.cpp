@@ -39,8 +39,14 @@ LV_FONT_DECLARE(lv_font_digits_72);
 int32_t db_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */
 static lv_obj_t * digit_cursor;     /* underline indicator */
-static const uint8_t digit_max[3] = { DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2 };
+static uint8_t digit_max[3] = { DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2 };
 int selected_digit = (DIGIT_MAX_2 > 0) ? 2 : (DIGIT_MAX_1 > 0) ? 1 : 0;
+
+/* — Laufzeit-Attenuatorkonfiguration (wird beim Start vom Pico empfangen) — */
+static int         att_relay_count = 4;
+static String      att_name_str    = "";
+static int32_t     att_step        = 10;
+static int32_t     att_max_val     = DIGIT_MAX_VAL;
 static lv_obj_t * tabview;
 
 /* Default values for the preset buttons (3 x 3) */
@@ -66,6 +72,7 @@ uint8_t wifi_mode_setting = 2; /* default: WLAN an */
 static lv_obj_t * wifi_switch = NULL;
 lv_obj_t * ip_label = NULL;
 lv_obj_t * auto_set_label = NULL;  /* Label für AUTO-Set Status */
+static lv_obj_t * title_label = NULL;  /* Titel-Label: zeigt ATTNAME */
 
 #if RAW_UART_TEST_MODE
 static void send_raw_uart_test_value(void)
@@ -82,8 +89,8 @@ static void send_attenuation_command(bool force_apply)
     LV_UNUSED(force_apply);
     return;
 #else
-    int32_t att = (db_value / 10) * 10;
-    if(att > 110) att = 110;
+    int32_t att = (db_value / att_step) * att_step;
+    if(att > att_max_val) att = att_max_val;
     if(force_apply) {
         Serial.printf("SET:%ddB\n", (int)att);
     }
@@ -107,10 +114,10 @@ static void ta_event_cb(lv_event_t * e)
         const char * txt = lv_textarea_get_text(ta);
         int32_t val = atoi(txt);
         if(val < 0) val = 0;
-        if(val > DIGIT_MAX_VAL) val = DIGIT_MAX_VAL;  /* Obergrenze */
+        if(val > att_max_val) val = att_max_val;  /* Obergrenze */
         /* Gesperrte Stellen auf 0 runden (z.B. Einer gesperrt → 33 → 30) */
-        if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;
-        if(DIGIT_MAX_1 == 0) val = (val / 100) * 100;
+        if(digit_max[2] == 0) val = (val / 10) * 10;
+        if(digit_max[1] == 0) val = (val / 100) * 100;
         if(editing_index >= 0 && editing_index < DEFAULT_BUTTON_COUNT) {
             default_values[editing_index] = val;
             lv_label_set_text_fmt(default_labels[editing_index], "%d dB", val);
@@ -243,7 +250,6 @@ static void set_config_value(int32_t val, bool apply_auto_command)
 {
     db_value = val;
     update_digit_labels();
-    prefs.putInt("cval", db_value);
     lv_tabview_set_act(tabview, 0, LV_ANIM_OFF);
     if(apply_auto_command) apply_attenuation();
 }
@@ -253,9 +259,8 @@ static void btn_up_cb(lv_event_t * e)
     if(digit_max[selected_digit] == 0) return;
     int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : 1;
     db_value += multiplier;
-    if(db_value > DIGIT_MAX_VAL) db_value = DIGIT_MAX_VAL;
+    if(db_value > att_max_val) db_value = att_max_val;
     update_digit_labels();
-    prefs.putInt("cval", db_value);
     ws_broadcast_val();
 #if RAW_UART_TEST_MODE
     send_raw_uart_test_value();
@@ -271,7 +276,6 @@ static void btn_down_cb(lv_event_t * e)
     db_value -= multiplier;
     if(db_value < 0) db_value = 0;
     update_digit_labels();
-    prefs.putInt("cval", db_value);
     ws_broadcast_val();
 #if RAW_UART_TEST_MODE
     send_raw_uart_test_value();
@@ -289,14 +293,14 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
 
     /* Title */
-    lv_obj_t * title = lv_label_create(parent);
-    lv_label_set_text(title, "26.5 GHz Attenuator");
+    title_label = lv_label_create(parent);
+    lv_label_set_text(title_label, att_name_str.length() > 0 ? att_name_str.c_str() : "Attenuator");
     static lv_style_t style_title;
     lv_style_init(&style_title);
     lv_style_set_text_font(&style_title, &lv_font_montserrat_24);
     lv_style_set_text_color(&style_title, lv_color_hex(0x60d0ff));
-    lv_obj_add_style(title, &style_title, 0);
-    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, -5);
+    lv_obj_add_style(title_label, &style_title, 0);
+    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, -5);
 
     /* Large number display – 3 individual clickable digit labels */
     static lv_style_t style_big;
@@ -704,7 +708,6 @@ void setup()
         snprintf(key, sizeof(key), "def%d", i);
         default_values[i] = prefs.getInt(key, default_values[i]);
     }
-    db_value = prefs.getInt("cval", db_value);
     autoset = prefs.getBool("ae", true);
     wifi_mode_setting = prefs.getUChar("wmode", 2);
     if(wifi_mode_setting != 0) {
@@ -818,6 +821,46 @@ void loop()
                     
                     ws_broadcast_ae();
                 }
+                /* Attenuator-Infos vom Pico beim Programmstart */
+                else if(input.startsWith("RELAYS:")) {
+                    att_relay_count = input.substring(7).toInt();
+                }
+                else if(input.startsWith("ATTNAME:")) {
+                    att_name_str = input.substring(8);
+                    if(title_label) lv_label_set_text(title_label, att_name_str.c_str());
+                }
+                else if(input.startsWith("DIGITS:")) {
+                    int d = input.substring(7).toInt();
+                    digit_max[2] = (d >= 3) ? 9 : 0;
+                    digit_max[1] = (d >= 2) ? 9 : 0;
+                    /* db_value auf gültige Stellen kürzen */
+                    if(digit_max[2] == 0) db_value = (db_value / 10) * 10;
+                    if(digit_max[1] == 0) db_value = (db_value / 100) * 100;
+                    update_digit_labels();
+                    /* Cursor auf gültige Stelle setzen falls nötig */
+                    if(digit_max[selected_digit] == 0) {
+                        selected_digit = (digit_max[1] > 0) ? 1 : 0;
+                    }
+                    update_cursor();
+                }
+                else if(input.startsWith("STEP:")) {
+                    att_step = input.substring(5).toInt();
+                    if(att_step < 1) att_step = 1;
+                }
+                else if(input.startsWith("MAXDB:")) {
+                    int32_t m = input.substring(6).toInt();
+                    if(m > 0) {
+                        att_max_val = m;
+                        /* Hunderter-Stelle aktivieren falls max >= 100 */
+                        digit_max[0] = (m >= 100) ? (m / 100) : 0;
+                        /* db_value auf neuen Maximalwert klämmern */
+                        if(db_value > att_max_val) {
+                            db_value = att_max_val;
+                            update_digit_labels();
+                        }
+                        update_cursor();
+                    }
+                }
                 else {
                     /* Parse number: accept plain number or "xxdB" format */
                     input.toLowerCase();
@@ -841,15 +884,14 @@ void loop()
                     int val = input.toInt();
                 
                     /* Validiere und aktualisiere Wert */
-                    if(val >= 0 && val <= DIGIT_MAX_VAL) {
+                    if(val >= 0 && val <= att_max_val) {
                         /* Runde auf erlaubte Schritte */
-                        if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;  /* 10 dB Schritte */
-                        if(DIGIT_MAX_1 == 0) val = (val / 100) * 100;  /* 100 dB Schritte */
+                        if(digit_max[2] == 0) val = (val / 10) * 10;  /* 10 dB Schritte */
+                        if(digit_max[1] == 0) val = (val / 100) * 100;  /* 100 dB Schritte */
                         
                         /* Aktualisiere nur Display, NICHT Relais (Pico hat bereits gesetzt) */
                         db_value = val;
                         update_digit_labels();
-                        prefs.putInt("cval", db_value);
                         
                         /* Display sofort rendern */
                         lv_timer_handler();

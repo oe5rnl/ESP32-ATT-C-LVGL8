@@ -21,8 +21,11 @@ public:
     virtual void    apply(int32_t dv)    = 0;
 
     /* Attenuator characteristics */
-    virtual int32_t max_db()  const      = 0;
-    virtual int32_t step_db() const      = 0;
+    virtual int32_t     max_db()      const = 0;
+    virtual int32_t     step_db()     const = 0;
+    virtual int         relay_count() const = 0;
+    virtual const char* att_name()    const = 0;
+    virtual int         digit_count() const = 0;
 
     /* Show attenuator-specific info screen on SSD1306 at startup.
      * Responsible for clear() + draw + display() */

@@ -175,6 +175,20 @@ static void sync_state_to_esp32()
     Serial1.println(selected_digit);
 }
 
+static void send_info_to_esp32()
+{
+    Serial1.print("RELAYS:");
+    Serial1.println(att ? att->relay_count() : 0);
+    Serial1.print("ATTNAME:");
+    Serial1.println(att ? att->att_name() : "UNKNOWN");
+    Serial1.print("DIGITS:");
+    Serial1.println(att ? att->digit_count() : 2);
+    Serial1.print("STEP:");
+    Serial1.println(att ? (int)att->step_db() : 10);
+    Serial1.print("MAXDB:");
+    Serial1.println(att ? (int)att->max_db() : 110);
+}
+
 /* -------------------------------------------------------
  * Attenuator Type Detection
  * ------------------------------------------------------- */
@@ -286,10 +300,10 @@ void setup()
     Serial.begin(115200);
     delay(100);
 
-    Serial.println("\n\n=================================");
-    Serial.println("Raspberry Pi Pico Attenuator");
-    Serial.println("Version 0.4");
-    Serial.println("=================================\n");
+    // Serial.println("\n\n=================================");
+    // Serial.println("Raspberry Pi Pico Attenuator");
+    // Serial.println("Version 0.4");
+    // Serial.println("=================================\n");
 
     /* Mode Select Inputs FIRST – needed by getAttenuator() / create_attenuator() */
     pinMode(MODE_SELECT0, INPUT_PULLUP);
@@ -301,6 +315,13 @@ void setup()
 
     init_persistent_storage();
     load_persisted_db();
+    /* Gespeicherten Wert auf gültigen Step des aktiven Attenuators runden */
+    if(att) {
+        int32_t s = att->step_db();
+        if(s > 1) current_db = (current_db / s) * s;
+        if(current_db > att->max_db()) current_db = att->max_db();
+        persisted_db_cache = current_db;
+    }
 
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
@@ -320,7 +341,6 @@ void setup()
         display.drawString(3, 30, buf);
         display.display();
     }
-    delay(2000);
 
     /* Setup attenuator GPIOs */
     if(att) att->setup();
@@ -338,6 +358,9 @@ void setup()
 
     apply_attenuation(current_db);
 
+    send_info_to_esp32();
+    delay(2000);
+    //delay(100);
     for(int i = 0; i < 3; i++) {
         sync_state_to_esp32();
         delay(80);
@@ -397,8 +420,8 @@ void loop()
                 encoder_apply_pending = true;
                 last_encoder_change   = now;
 
-                // Serial1.print(new_db);
-                // Serial1.println("dB");
+                Serial1.print(current_db);
+                Serial1.println("dB");
 
                 led_solid_mode  = true;
                 led_solid_start = now;
@@ -414,6 +437,8 @@ void loop()
         Serial.print(current_db);
         Serial.println(" dB");
         apply_relays(current_db);
+        Serial1.print(current_db);
+        Serial1.println("dB");
     }
 
     /* Read Encoder Button */

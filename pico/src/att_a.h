@@ -40,8 +40,11 @@ class AttA : public Attenuator {
 public:
     void    setup()               override;
     void    apply(int32_t dv)     override;
-    int32_t max_db()  const       override { return 131; }
-    int32_t step_db() const       override { return   1; }
+    int32_t     max_db()      const override { return 131; }
+    int32_t     step_db()     const override { return   1; }
+    int         relay_count() const override { return RELAY_COUNT; }
+    const char* att_name()    const override { return "ATT-A"; }
+    int         digit_count() const override { return 3; }
     void    show_info()           override;
     void    test_init()           override;
     void    test_rotate(int dir)  override;
