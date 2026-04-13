@@ -30,6 +30,9 @@ extern bool autoset;
 extern int selected_digit;
 extern uint8_t wifi_mode_setting;
 extern lv_obj_t * ip_label;
+extern int32_t att_max_val;
+extern int32_t att_step;
+extern uint8_t digit_max[3];
 void update_config_value(int32_t val);
 void apply_attenuation(void);
 void apply_attenuation_set(void);
@@ -169,6 +172,7 @@ let digitLpTimer = [0,0,0];
 let digitLpFired = false;
 let maxVal = 999;
 let digitMax = [9,9,9];
+let attStep = 10;
 
 function applyDigitDisable(){
   for(let i=0;i<3;i++){
@@ -176,12 +180,12 @@ function applyDigitDisable(){
     if(!el) continue;
     if(digitMax[i]===0){
       el.style.cursor='default';
-      el.style.color=(i===2)?'#a2a2a2':'#555';
+      el.style.color='#555';
       el.style.borderBottomColor='transparent';
     }
     else{
       el.style.cursor='pointer';
-      el.style.color=(i===2)?'#a2a2a2':'#fff';
+      el.style.color='#fff';
     }
   }
 }
@@ -204,6 +208,7 @@ function connectWS(){
       document.getElementById('btnSet').style.display = msg.ae ? 'none' : 'inline-block';
       if(msg.sel !== undefined) applyDigitSelection(msg.sel);
       if(msg.maxVal !== undefined) maxVal=msg.maxVal;
+      if(msg.attStep !== undefined) attStep=msg.attStep;
       if(msg.digitMax !== undefined){digitMax=msg.digitMax;applyDigitDisable();}
     }
     if(msg.type === 'val'){
@@ -268,7 +273,7 @@ function selectDigit(i){
 
 function step(dir){
   if(digitMax[selDigit]===0) return;
-  const m = selDigit===0?100:selDigit===1?10:1;
+  const m = selDigit===0?100:selDigit===1?10:attStep;
   curVal += dir*m;
   if(curVal<0) curVal=0;
   if(curVal>maxVal) curVal=maxVal;
@@ -486,9 +491,9 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
 
     snprintf(buf, sizeof(buf),
         "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"sel\":%d,"
-        "\"maxVal\":%d,\"digitMax\":[%d,%d,%d]}",
+        "\"maxVal\":%d,\"attStep\":%d,\"digitMax\":[%d,%d,%d]}",
         (int)db_value, defArr, autoset ? "true" : "false", selected_digit,
-        DIGIT_MAX_VAL, DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2);
+        (int)att_max_val, (int)att_step, (int)digit_max[0], (int)digit_max[1], (int)digit_max[2]);
 
     if(client) client->text(buf);
     else        ws.textAll(buf);

@@ -39,14 +39,14 @@ LV_FONT_DECLARE(lv_font_digits_72);
 int32_t db_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */
 static lv_obj_t * digit_cursor;     /* underline indicator */
-static uint8_t digit_max[3] = { DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2 };
+uint8_t digit_max[3] = { DIGIT_MAX_0, DIGIT_MAX_1, DIGIT_MAX_2 };
 int selected_digit = (DIGIT_MAX_2 > 0) ? 2 : (DIGIT_MAX_1 > 0) ? 1 : 0;
 
 /* — Laufzeit-Attenuatorkonfiguration (wird beim Start vom Pico empfangen) — */
 static int         att_relay_count = 4;
 static String      att_name_str    = "";
-static int32_t     att_step        = 10;
-static int32_t     att_max_val     = DIGIT_MAX_VAL;
+int32_t            att_step        = 10;
+int32_t            att_max_val     = DIGIT_MAX_VAL;
 static lv_obj_t * tabview;
 
 /* Default values for the preset buttons (3 x 3) */
@@ -257,9 +257,11 @@ static void set_config_value(int32_t val, bool apply_auto_command)
 static void btn_up_cb(lv_event_t * e)
 {
     if(digit_max[selected_digit] == 0) return;
-    int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : 1;
+    int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : (int)att_step;
     db_value += multiplier;
     if(db_value > att_max_val) db_value = att_max_val;
+    /* Auf gültigen Step runden */
+    db_value = (db_value / att_step) * att_step;
     update_digit_labels();
     ws_broadcast_val();
 #if RAW_UART_TEST_MODE
@@ -272,9 +274,11 @@ static void btn_up_cb(lv_event_t * e)
 static void btn_down_cb(lv_event_t * e)
 {
     if(digit_max[selected_digit] == 0) return;
-    int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : 1;
+    int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : (int)att_step;
     db_value -= multiplier;
     if(db_value < 0) db_value = 0;
+    /* Auf gültigen Step runden */
+    db_value = (db_value / att_step) * att_step;
     update_digit_labels();
     ws_broadcast_val();
 #if RAW_UART_TEST_MODE
@@ -789,7 +793,7 @@ void loop()
                 if(input.equalsIgnoreCase("DIGIT")) {
                     /* Veraltet – Pico sendet nun SEL direkt */
                     int md = (digit_max[2] > 0) ? 3 : (digit_max[1] > 0) ? 2 : 1;
-                    selected_digit = (selected_digit == 0) ? (md - 1) : (selected_digit - 1);
+                    selected_digit = (selected_digit >= md - 1) ? 0 : (selected_digit + 1);
                     update_cursor();
                     ws_broadcast_seldigit(selected_digit);
                 }

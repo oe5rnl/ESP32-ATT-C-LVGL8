@@ -480,7 +480,7 @@ void loop()
                 Serial.println("DOUBLE CLICK -> Toggle Digit Selection");
                 waiting_for_double_click = false;
                 { int md = att ? att->digit_count() : 2;
-                  selected_digit = (selected_digit == 0) ? (md - 1) : (selected_digit - 1); }
+                  selected_digit = (selected_digit >= md - 1) ? 0 : (selected_digit + 1); }
                 refresh_attenuation_display();
                 Serial1.print("SEL");
                 Serial1.println(selected_digit);
