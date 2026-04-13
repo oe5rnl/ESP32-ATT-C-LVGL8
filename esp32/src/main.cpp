@@ -787,13 +787,20 @@ void loop()
                 
                 /* Check für DIGIT-Befehl (Toggle selected_digit) */
                 if(input.equalsIgnoreCase("DIGIT")) {
-                    /* Toggle zwischen Hunderter (0) und Zehner (1) Stelle */
-                    selected_digit = (selected_digit == 0) ? 1 : 0;
+                    /* Veraltet – Pico sendet nun SEL direkt */
+                    int md = (digit_max[2] > 0) ? 3 : (digit_max[1] > 0) ? 2 : 1;
+                    selected_digit = (selected_digit == 0) ? (md - 1) : (selected_digit - 1);
                     update_cursor();
                     ws_broadcast_seldigit(selected_digit);
-                    
-                    /* Sende neue Auswahl zurück an Pico */
-                    Serial.printf("SEL%d\n", selected_digit);
+                }
+                /* Digit-Auswahl direkt vom Pico */
+                else if(input.startsWith("SEL")) {
+                    int idx = input.substring(3).toInt();
+                    if(idx >= 0 && idx < 3) {
+                        selected_digit = idx;
+                        update_cursor();
+                        ws_broadcast_seldigit(selected_digit);
+                    }
                 }
                 /* Check für AUTO-Set Status vom Pico */
                 else if(input.startsWith("AUTO:")) {

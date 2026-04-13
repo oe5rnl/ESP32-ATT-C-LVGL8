@@ -209,7 +209,7 @@ int getAttenuator()
 static void drawCursor()
 {
     uint8_t cursor_y = 49;
-    uint8_t cursor_x = (selected_digit == 1) ? (10 + 24 + 2) : 10;
+    uint8_t cursor_x = 10 + (uint8_t)selected_digit * 26;
     for(uint8_t i = 0; i < 24; i++) {
         display.setPixel(cursor_x + i, cursor_y, true);
     }
@@ -284,7 +284,8 @@ static void apply_attenuation_from_esp_set(int32_t db_value)
 static int encoder_step()
 {
     if(selected_digit == 0) return 100;
-    return att ? att->step_db() : 10;
+    if(selected_digit == 1) return 10;
+    return att ? att->step_db() : 1;
 }
 
 static int32_t att_max_db()
@@ -448,7 +449,6 @@ void loop()
         button_press_start   = now;
         button_was_pressed   = true;
         long_press_executed  = false;
-        waiting_for_double_click = false;
     }
 
     if(sw_state == LOW && button_was_pressed && !long_press_executed) {
@@ -479,9 +479,11 @@ void loop()
             if(waiting_for_double_click && (now - last_click_time) < DOUBLE_CLICK_TIME) {
                 Serial.println("DOUBLE CLICK -> Toggle Digit Selection");
                 waiting_for_double_click = false;
-                selected_digit = (selected_digit == 0) ? 1 : 0;
+                { int md = att ? att->digit_count() : 2;
+                  selected_digit = (selected_digit == 0) ? (md - 1) : (selected_digit - 1); }
                 refresh_attenuation_display();
-                Serial1.println("DIGIT");
+                Serial1.print("SEL");
+                Serial1.println(selected_digit);
                 led_solid_mode  = true;
                 led_solid_start = now;
                 digitalWrite(LED_BUILTIN, HIGH);
@@ -529,7 +531,8 @@ void loop()
             Serial1.print("Current: "); Serial1.print(current_db); Serial1.println(" dB");
         } else if(input.startsWith("SEL")) {
             int digit = input.substring(3).toInt();
-            if(digit == 0 || digit == 1) {
+            int max_digits = att ? att->digit_count() : 2;
+            if(digit >= 0 && digit < max_digits) {
                 selected_digit = digit;
                 Serial.print("ESP32 selected digit: "); Serial.println(digit);
                 refresh_attenuation_display();
