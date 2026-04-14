@@ -1,0 +1,4 @@
+(sym_lib_table
+	(version 7)
+	(lib (name "RNL_ATT") (type "KiCad") (uri "/home/oe5rnl/0_dev/ESP32-ATT-C-LVGL8/Schaltung/symbols") (options "") (descr ""))
+)
