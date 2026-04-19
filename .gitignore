@@ -25,6 +25,7 @@ Schaltung/*-backups/
 Schaltung/*.bak
 Schaltung/*.tmp
 Schaltung/*.lck
+Schaltung/.history/
 
 # Plot / Fertigungsdaten (optional)
 #Schaltung/*.gbr
