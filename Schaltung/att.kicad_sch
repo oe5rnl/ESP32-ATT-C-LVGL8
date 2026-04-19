@@ -387,6 +387,396 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "0_RNL_ATT:Conn_02x05_26GHz_Att"
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J5"
+				(at 1.27 1.016 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "R&S Attenuator 26.5 GHz"
+				(at -4.064 -17.018 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Generic connector, double row, 02x05, counter clockwise pin numbering scheme (similar to DIP package numbering), script generated (kicad-library-utils/schlib/autogen/connector/)"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "connector"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "Connector*:*_2x??_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "Conn_02x05_26GHz_Att_1_1"
+				(rectangle
+					(start -1.27 6.35)
+					(end 3.81 -6.35)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(rectangle
+					(start -1.27 5.207)
+					(end 0 4.953)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 2.667)
+					(end 0 2.413)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 0.127)
+					(end 0 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -2.413)
+					(end 0 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -4.953)
+					(end 0 -5.207)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 5.207)
+					(end 2.54 4.953)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 2.667)
+					(end 2.54 2.413)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 0.127)
+					(end 2.54 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 -2.413)
+					(end 2.54 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 -4.953)
+					(end 2.54 -5.207)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at 7.62 5.08 180)
+					(length 3.81)
+					(name "Pin_10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 5.08 0)
+					(length 3.81)
+					(name "Pin_1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 2.54 180)
+					(length 3.81)
+					(name "Pin_9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 2.54 0)
+					(length 3.81)
+					(name "Pin_2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 0 180)
+					(length 3.81)
+					(name "Pin_8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 0 0)
+					(length 3.81)
+					(name "Pin_3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 -2.54 180)
+					(length 3.81)
+					(name "Pin_7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -2.54 0)
+					(length 3.81)
+					(name "Pin_4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 -5.08 180)
+					(length 3.81)
+					(name "Pin_6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -5.08 0)
+					(length 3.81)
+					(name "Pin_5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "0_RNL_ATT:TTL-Pegelwandler"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -2244,396 +2634,6 @@
 						)
 					)
 					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "Connector_Generic:Conn_02x05_Odd_Even"
-			(pin_names
-				(offset 1.016)
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "J"
-				(at 1.27 7.62 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "Conn_02x05_Odd_Even"
-				(at 1.27 -7.62 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Generic connector, double row, 02x05, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "connector"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "Connector*:*_2x??_*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "Conn_02x05_Odd_Even_1_1"
-				(rectangle
-					(start -1.27 6.35)
-					(end 3.81 -6.35)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-				(rectangle
-					(start -1.27 5.207)
-					(end 0 4.953)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 2.667)
-					(end 0 2.413)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 0.127)
-					(end 0 -0.127)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 -2.413)
-					(end 0 -2.667)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 -4.953)
-					(end 0 -5.207)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 5.207)
-					(end 2.54 4.953)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 2.667)
-					(end 2.54 2.413)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 0.127)
-					(end 2.54 -0.127)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 -2.413)
-					(end 2.54 -2.667)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 -4.953)
-					(end 2.54 -5.207)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(pin passive line
-					(at -5.08 5.08 0)
-					(length 3.81)
-					(name "Pin_1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 5.08 180)
-					(length 3.81)
-					(name "Pin_2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 2.54 0)
-					(length 3.81)
-					(name "Pin_3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 2.54 180)
-					(length 3.81)
-					(name "Pin_4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 0 0)
-					(length 3.81)
-					(name "Pin_5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 0 180)
-					(length 3.81)
-					(name "Pin_6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -2.54 0)
-					(length 3.81)
-					(name "Pin_7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 -2.54 180)
-					(length 3.81)
-					(name "Pin_8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -5.08 0)
-					(length 3.81)
-					(name "Pin_9"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "9"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 -5.08 180)
-					(length 3.81)
-					(name "Pin_10"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "10"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4573,6 +4573,105 @@
 								(size 1.27 1.27)
 							)
 						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "Mechanical:MountingHole"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom no)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "H"
+				(at 0 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "MountingHole"
+				(at 0 3.175 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Mounting Hole without connection"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "mounting hole"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "MountingHole*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "MountingHole_0_1"
+				(circle
+					(center 0 0)
+					(radius 1.27)
+					(stroke
+						(width 1.27)
+						(type default)
+					)
+					(fill
+						(type none)
 					)
 				)
 			)
@@ -8511,7 +8610,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 53.848 45.212 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8811,6 +8910,83 @@
 	)
 	(symbol
 		(lib_id "power:+15V")
+		(at 24.13 105.41 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "18bae371-4f03-4626-a3d7-7b3921dd7be7")
+		(property "Reference" "#PWR017"
+			(at 27.94 105.41 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+15V-24V"
+			(at 20.066 105.664 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 24.13 105.41 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 24.13 105.41 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"+15V\""
+			(at 24.13 105.41 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f3c36e2a-b145-48f1-ac70-c1a648a04090")
+		)
+		(instances
+			(project "att"
+				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
+					(reference "#PWR017")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:+15V")
 		(at 53.34 137.16 0)
 		(unit 1)
 		(body_style 1)
@@ -8831,7 +9007,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 57.658 135.382 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8881,84 +9057,6 @@
 			(project "att"
 				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
 					(reference "#PWR020")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "power:+15V")
-		(at 24.13 105.41 90)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "1eae5cf6-f1a1-4579-bc46-5b7320370dad")
-		(property "Reference" "#PWR017"
-			(at 27.94 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+15V"
-			(at 23.622 106.934 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" ""
-			(at 24.13 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 24.13 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"+15V\""
-			(at 24.13 105.41 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "567219e6-eb36-4963-af1b-f81ba4bb0325")
-		)
-		(instances
-			(project "att"
-				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
-					(reference "#PWR017")
 					(unit 1)
 				)
 			)
@@ -9636,7 +9734,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 195.834 129.286 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9769,8 +9867,9 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector_Generic:Conn_02x05_Odd_Even")
-		(at 35.56 110.49 0)
+		(lib_id "Connector:Conn_01x04_Pin")
+		(at 35.56 97.79 0)
+		(mirror x)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9778,9 +9877,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "3d3e04e6-be00-40e7-a753-a5b641a44183")
-		(property "Reference" "J16"
-			(at 36.576 102.87 0)
+		(uuid "3daeca07-1ecf-42e9-a75d-a013e25e6beb")
+		(property "Reference" "J6"
+			(at 35.814 102.108 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9789,8 +9888,8 @@
 				)
 			)
 		)
-		(property "Value" "Conn_02x05_Odd_Even"
-			(at 40.132 124.46 0)
+		(property "Value" "Display"
+			(at 33.02 96.52 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9799,8 +9898,8 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical"
-			(at 35.56 110.49 0)
+		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+			(at 35.56 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9811,7 +9910,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 35.56 110.49 0)
+			(at 35.56 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9821,8 +9920,8 @@
 				)
 			)
 		)
-		(property "Description" "Generic connector, double row, 02x05, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"
-			(at 35.56 110.49 0)
+		(property "Description" "Generic connector, single row, 01x04, script generated"
+			(at 35.56 97.79 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9831,41 +9930,23 @@
 					(size 1.27 1.27)
 				)
 			)
-		)
-		(pin "9"
-			(uuid "49f982a0-4fc8-40d1-957c-5860e53dd59c")
-		)
-		(pin "7"
-			(uuid "caf800d6-6d61-4ac8-af1e-407d19d29931")
-		)
-		(pin "10"
-			(uuid "c657ad4b-52c7-4260-9ccf-4bc2a3b1f4f9")
-		)
-		(pin "8"
-			(uuid "894c7974-c551-4587-b994-e83b7bb0724e")
-		)
-		(pin "5"
-			(uuid "0090aefe-4690-4466-8c3d-c35d7ceb32aa")
-		)
-		(pin "6"
-			(uuid "15ec0fae-a579-4a60-bcdb-76143e41819e")
 		)
 		(pin "4"
-			(uuid "d4833ed5-cdf7-4a4b-a8c9-bdeea171f169")
+			(uuid "6b88fea3-8fc3-4744-bea7-9d564d3eeac2")
 		)
 		(pin "2"
-			(uuid "6ecd0636-26fe-49e0-800c-99cfd9ee956e")
+			(uuid "0a6722f8-6485-42e3-b011-152ce2f729c3")
 		)
 		(pin "3"
-			(uuid "d71c0317-3c73-4401-9640-1fc8b933e2cd")
+			(uuid "ff2da251-8889-4c99-8a5c-bf702d42a0cc")
 		)
 		(pin "1"
-			(uuid "e3d605e0-ef01-4dbe-8776-e17b7b70f435")
+			(uuid "adf7d061-ebd4-41b2-a342-145a1347b46a")
 		)
 		(instances
 			(project "att"
 				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
-					(reference "J16")
+					(reference "J6")
 					(unit 1)
 				)
 			)
@@ -9944,6 +10025,82 @@
 			(project "att"
 				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
 					(reference "#PWR08")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 255.27 156.21 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "41ad7d85-4b52-479e-84a3-2bc1f1843a80")
+		(property "Reference" "H2"
+			(at 257.81 154.9399 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 257.81 157.4799 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.5mm"
+			(at 255.27 156.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 255.27 156.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 255.27 156.21 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "att"
+				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
+					(reference "H2")
 					(unit 1)
 				)
 			)
@@ -10234,7 +10391,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 196.088 60.198 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10992,6 +11149,82 @@
 		)
 	)
 	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 266.7 152.4 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "59fb3215-05b6-444b-8d3e-f20d9af8434a")
+		(property "Reference" "H4"
+			(at 269.24 151.1299 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 269.24 153.6699 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.5mm"
+			(at 266.7 152.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 266.7 152.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 266.7 152.4 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "att"
+				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
+					(reference "H4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "0_RNL_ATT:con-1-18-unabhängig")
 		(at 213.36 137.16 0)
 		(unit 9)
@@ -11352,172 +11585,6 @@
 		)
 	)
 	(symbol
-		(lib_id "Connector:Conn_01x04_Pin")
-		(at 35.56 95.25 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "67a8cc66-5b1c-49ab-9538-01b1edc26da5")
-		(property "Reference" "J2"
-			(at 35.814 90.932 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "Dsiplay"
-			(at 33.02 96.52 90)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
-			(at 35.56 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 35.56 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Generic connector, single row, 01x04, script generated"
-			(at 35.56 95.25 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "4"
-			(uuid "98a51a59-2d98-4128-a617-d28a47d0ae0e")
-		)
-		(pin "2"
-			(uuid "80746cd9-aa9b-4226-991c-f301db4a4c1b")
-		)
-		(pin "3"
-			(uuid "a436148f-2746-4d53-a7fb-556762ce71bd")
-		)
-		(pin "1"
-			(uuid "753d36c8-82b5-44ad-a0a5-54ed2adb6ac9")
-		)
-		(instances
-			(project "att"
-				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
-					(reference "J2")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Device:C_Polarized")
-		(at 212.09 16.51 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "689cdc21-9b70-4b80-8a70-dd09c90b8817")
-		(property "Reference" "C20"
-			(at 205.486 14.224 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "47uF 50V"
-			(at 214.63 18.796 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:CP_Elec_6.3x5.2"
-			(at 213.0552 20.32 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 212.09 16.51 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Polarized capacitor"
-			(at 212.09 16.51 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "2"
-			(uuid "2662cb6d-415c-4304-b3ed-e3a4b00ad723")
-		)
-		(pin "1"
-			(uuid "b3915dc8-3a78-4551-92af-686c6af9f909")
-		)
-		(instances
-			(project "att"
-				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
-					(reference "C20")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
 		(lib_id "power:GND")
 		(at 191.77 82.55 0)
 		(unit 1)
@@ -11590,6 +11657,111 @@
 			(project "att"
 				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
 					(reference "#PWR034")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "0_RNL_ATT:Conn_02x05_26GHz_Att")
+		(at 38.1 110.49 0)
+		(mirror y)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6c8fd696-a40a-435c-acea-66e4a8f9e051")
+		(property "Reference" "J2"
+			(at 36.83 99.06 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "R&S Attenuator 26.5 GHz"
+			(at 36.83 101.6 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Connector_PinSocket_2.54mm:PinSocket_2x05_P2.54mm_Vertical"
+			(at 38.1 110.49 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 38.1 110.49 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Generic connector, double row, 02x05, counter clockwise pin numbering scheme (similar to DIP package numbering), script generated (kicad-library-utils/schlib/autogen/connector/)"
+			(at 38.1 110.49 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "4"
+			(uuid "bc1f75ec-7420-45de-8585-5d1582445552")
+		)
+		(pin "9"
+			(uuid "0f121f6a-6378-4ef8-b0a8-e3b0662f6d79")
+		)
+		(pin "5"
+			(uuid "47b94275-4e3c-418e-97ab-f6f6b5f6257a")
+		)
+		(pin "6"
+			(uuid "9bf09d13-fb0e-4d77-aa21-5d3a63719e46")
+		)
+		(pin "1"
+			(uuid "1ada3b9a-0dea-4e12-95b6-ece10b02116a")
+		)
+		(pin "7"
+			(uuid "315c46bc-be62-4779-97b8-2a6e368c5956")
+		)
+		(pin "2"
+			(uuid "53c616b9-72ef-42cd-8b1b-0180b9213512")
+		)
+		(pin "10"
+			(uuid "474c92d1-28da-40c7-923a-20518f11c990")
+		)
+		(pin "8"
+			(uuid "b45aac1e-448b-402e-b05d-07f7c7bc3012")
+		)
+		(pin "3"
+			(uuid "a47da20c-2007-42ba-bc62-a5bc731c98f4")
+		)
+		(instances
+			(project "att"
+				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
+					(reference "J2")
 					(unit 1)
 				)
 			)
@@ -12437,6 +12609,82 @@
 			(project "att"
 				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
 					(reference "R8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 259.08 147.32 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "88c579de-b717-4aba-b2f0-2debf33737cd")
+		(property "Reference" "H3"
+			(at 261.62 146.0499 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 261.62 148.5899 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.5mm"
+			(at 259.08 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 259.08 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 259.08 147.32 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "att"
+				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
+					(reference "H3")
 					(unit 1)
 				)
 			)
@@ -13939,7 +14187,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 98.298 45.212 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14877,6 +15125,82 @@
 		)
 	)
 	(symbol
+		(lib_id "Mechanical:MountingHole")
+		(at 246.38 149.86 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom no)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "c6b8655b-fb44-4dbb-8dd7-69839f735618")
+		(property "Reference" "H1"
+			(at 248.92 148.5899 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "MountingHole"
+			(at 248.92 151.1299 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "MountingHole:MountingHole_2.5mm"
+			(at 246.38 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 246.38 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Mounting Hole without connection"
+			(at 246.38 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(instances
+			(project "att"
+				(path "/018aec4b-c766-4652-8f21-caeb401652b2"
+					(reference "H1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:C")
 		(at 208.28 82.55 90)
 		(unit 1)
@@ -15323,7 +15647,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 196.088 100.838 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15558,7 +15882,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 136.144 139.192 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15875,7 +16199,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 58.928 163.576 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -16276,7 +16600,7 @@
 				)
 			)
 		)
-		(property "Value" "+15-24V"
+		(property "Value" "+15V-24V"
 			(at 135.89 169.926 0)
 			(show_name no)
 			(do_not_autoplace no)

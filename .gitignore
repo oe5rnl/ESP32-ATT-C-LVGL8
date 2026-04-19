@@ -12,6 +12,27 @@ build/
 .DS_Store
 Thumbs.db
 
+
+# WiFi credentials (ESP32)
+esp32/src/wifi_credentials.h
+
+
+# KiCad (nur temporäre Dateien ignorieren)
+Schaltung/*.kicad_prl
+Schaltung/*.kicad_sch-bak
+Schaltung/*.kicad_pcb-bak
+Schaltung/*-backups/
+Schaltung/*.bak
+Schaltung/*.tmp
+Schaltung/*.lck
+
+# Plot / Fertigungsdaten (optional)
+#Schaltung/*.gbr
+#Schaltung/*.drl
+#Schaltung/*.zip
+
+
+
 # KiCad/Schaltungs-Backups
 Schaltung/att_26/att-backups/
 Schaltung/att_26/.history/
@@ -19,7 +40,4 @@ Schaltung/att_26/.history/
 Schaltung/att_135/att-backups/
 Schaltung/att_135/.history/
 
-
-# WiFi credentials (ESP32)
-esp32/src/wifi_credentials.h
 
