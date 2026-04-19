@@ -592,9 +592,9 @@
 				)
 			)
 			(pin passive line
-				(at 7.62 5.08 180)
+				(at -5.08 5.08 0)
 				(length 3.81)
-				(name "Pin_10"
+				(name "Pin_1"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -610,9 +610,9 @@
 				)
 			)
 			(pin passive line
-				(at -5.08 5.08 0)
+				(at 7.62 5.08 180)
 				(length 3.81)
-				(name "Pin_1"
+				(name "Pin_10"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -620,24 +620,6 @@
 					)
 				)
 				(number "2"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-			)
-			(pin passive line
-				(at 7.62 2.54 180)
-				(length 3.81)
-				(name "Pin_9"
-					(effects
-						(font
-							(size 1.27 1.27)
-						)
-					)
-				)
-				(number "3"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -655,7 +637,7 @@
 						)
 					)
 				)
-				(number "4"
+				(number "3"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -664,16 +646,16 @@
 				)
 			)
 			(pin passive line
-				(at 7.62 0 180)
+				(at 7.62 2.54 180)
 				(length 3.81)
-				(name "Pin_8"
+				(name "Pin_9"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "5"
+				(number "4"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -691,7 +673,7 @@
 						)
 					)
 				)
-				(number "6"
+				(number "5"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -700,16 +682,16 @@
 				)
 			)
 			(pin passive line
-				(at 7.62 -2.54 180)
+				(at 7.62 0 180)
 				(length 3.81)
-				(name "Pin_7"
+				(name "Pin_8"
 					(effects
 						(font
 							(size 1.27 1.27)
 						)
 					)
 				)
-				(number "7"
+				(number "6"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -727,6 +709,24 @@
 						)
 					)
 				)
+				(number "7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 7.62 -2.54 180)
+				(length 3.81)
+				(name "Pin_7"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
 				(number "8"
 					(effects
 						(font
@@ -736,9 +736,9 @@
 				)
 			)
 			(pin passive line
-				(at 7.62 -5.08 180)
+				(at -5.08 -5.08 0)
 				(length 3.81)
-				(name "Pin_6"
+				(name "Pin_5"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -754,9 +754,9 @@
 				)
 			)
 			(pin passive line
-				(at -5.08 -5.08 0)
+				(at 7.62 -5.08 180)
 				(length 3.81)
-				(name "Pin_5"
+				(name "Pin_6"
 					(effects
 						(font
 							(size 1.27 1.27)
