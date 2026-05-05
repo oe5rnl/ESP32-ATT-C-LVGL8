@@ -14,7 +14,7 @@
  *   att_135db.*        – R&S 135 dB   (bistable relays, 5 dB steps)
  *   att_a.*            – Stub for unknown type A
  *   att_b.*            – Stub for unknown type B
- *   att_types.h        – type constants, MODE_SELECT pins, getAttenuator()
+ *   att_types.h        – type constants, ADC_SELECT_PIN, getAttenuator()
  */
 
 #include <Arduino.h>
@@ -195,10 +195,14 @@ static void send_info_to_esp32()
 
 int getAttenuator()
 {
-    if(digitalRead(MODE_SELECT0) == LOW  && digitalRead(MODE_SELECT1) == LOW)  return ATTENUATOR_RS_135DB;
-    if(digitalRead(MODE_SELECT0) == LOW  && digitalRead(MODE_SELECT1) == HIGH) return ATTENUATOR_A;
-    if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == LOW)  return ATTENUATOR_B;
-    if(digitalRead(MODE_SELECT0) == HIGH && digitalRead(MODE_SELECT1) == HIGH) return ATTENUATOR_26_5GHz;
+    analogReadResolution(12);
+    int raw = analogRead(ADC_SELECT_PIN);
+    float v = (float)raw / 4095.0f * 3.3f;
+
+    if(v >= 0.0f && v < 0.8f) return ATTENUATOR_26_5GHz;
+    if(v >= 0.8f && v < 1.6f) return ATTENUATOR_A;
+    if(v >= 1.6f && v < 2.4f) return ATTENUATOR_B;
+    if(v >= 2.4f)             return ATTENUATOR_RS_135DB;
     return -1;
 }
 
@@ -294,6 +298,82 @@ static int32_t att_max_db()
 }
 
 /* -------------------------------------------------------
+ * H-Bridge Startup Test Mode
+ *
+ * Aktivierung: Encoder-Taste beim Einschalten gedrückt halten.
+ * Drehregler : H-Brücke 1–9 auswählen
+ * Drücken    : Zustand wechseln  OFF → FWD → REV → OFF ...
+ * Beenden    : Stromlos schalten
+ * ------------------------------------------------------- */
+static const int HB_COUNT        = 9;
+static const int hb_pin_a[HB_COUNT] = {  2,  6,  8, 10, 12, 14, 16, 18, 27 };
+static const int hb_pin_b[HB_COUNT] = {  3,  7,  9, 11, 13, 15, 17, 22, 28 };
+
+static void hb_draw(int sel, const int states[])
+{
+    static const char* const snames[] = { "Ein", "Aus" };
+    char buf[24];
+    display.clear();
+    display.drawString(0,  0, "H-BRIDGE TEST");
+    snprintf(buf, sizeof(buf), "Bridge: %d / %d", sel + 1, HB_COUNT);
+    display.drawString(0, 16, buf);
+    snprintf(buf, sizeof(buf), "Status  : %s", snames[states[sel]]);
+    display.drawString(0, 32, buf);
+    snprintf(buf, sizeof(buf), "A:GP%d  B:GP%d", hb_pin_a[sel], hb_pin_b[sel]);
+    display.drawString(0, 48, buf);
+    display.display();
+}
+
+static void hbridge_startup_test()
+{
+    /* All H-bridge pins as output, LOW (safe state) */
+    for(int i = 0; i < HB_COUNT; i++) {
+        pinMode(hb_pin_a[i], OUTPUT); digitalWrite(hb_pin_a[i], LOW);
+        pinMode(hb_pin_b[i], OUTPUT); digitalWrite(hb_pin_b[i], LOW);
+    }
+
+    int sel = 0;
+    int states[HB_COUNT] = {};   /* 0=FWD, 1=REV */
+
+    hb_draw(sel, states);
+
+    int last_clk = digitalRead(ENCODER_CLK);
+    int last_sw  = digitalRead(ENCODER_SW);
+
+    while(true) {
+        /* Encoder rotation → select bridge */
+        int clk = digitalRead(ENCODER_CLK);
+        if(clk != last_clk && clk == LOW) {
+            int dir = (digitalRead(ENCODER_DT) != clk) ? 1 : -1;
+            sel = (sel + (dir > 0 ? 1 : HB_COUNT - 1)) % HB_COUNT;
+            hb_draw(sel, states);
+        }
+        last_clk = clk;
+
+        /* Button press → pulse FWD or REV for 20 ms, then toggle next state */
+        int sw = digitalRead(ENCODER_SW);
+        if(sw == LOW && last_sw == HIGH) {
+            delay(20);  /* debounce */
+            /* Pulse the selected direction */
+            if(states[sel] == 0) {          /* FWD: A=HIGH, B=LOW */
+                digitalWrite(hb_pin_a[sel], HIGH);
+                delay(20);
+                digitalWrite(hb_pin_a[sel], LOW);
+            } else {                        /* REV: A=LOW, B=HIGH */
+                digitalWrite(hb_pin_b[sel], HIGH);
+                delay(20);
+                digitalWrite(hb_pin_b[sel], LOW);
+            }
+            states[sel] = 1 - states[sel]; /* toggle next direction */
+            hb_draw(sel, states);
+        }
+        last_sw = sw;
+
+        delay(5);
+    }
+}
+
+/* -------------------------------------------------------
  * setup()
  * ------------------------------------------------------- */
 void setup()
@@ -306,13 +386,13 @@ void setup()
     // Serial.println("Version 0.4");
     // Serial.println("=================================\n");
 
-    /* Mode Select Inputs FIRST – needed by getAttenuator() / create_attenuator() */
-    pinMode(MODE_SELECT0, INPUT_PULLUP);
-    pinMode(MODE_SELECT1, INPUT_PULLUP);
+    /* ADC_SELECT_PIN (A0/GPIO26) – read once to determine attenuator type */
+    pinMode(ADC_SELECT_PIN, INPUT);
     delay(10);
 
     /* Create attenuator instance for the detected hardware type */
     att = create_attenuator(getAttenuator());
+
 
     init_persistent_storage();
     load_persisted_db();
@@ -329,6 +409,41 @@ void setup()
 
     Wire.begin();
     display.init();
+
+    /* Encoder pins early – needed for startup test check */
+    pinMode(ENCODER_CLK, INPUT_PULLUP);
+    pinMode(ENCODER_DT,  INPUT_PULLUP);
+    pinMode(ENCODER_SW,  INPUT_PULLUP);
+    delay(10);
+
+    /* H-Bridge startup test: hold encoder button at power-on */
+    if(digitalRead(ENCODER_SW) == LOW) {
+        display.clear();
+        display.drawString(0,  0, "H-BRIDGE TEST");
+        display.drawString(0, 16, "Starte ...");
+        display.display();
+        delay(500);
+        hbridge_startup_test();   /* blocking – never returns */
+    }
+
+    /* Show detected attenuator type */
+    {
+        analogReadResolution(12);
+        int adc_raw = analogRead(ADC_SELECT_PIN);
+        float adc_v = (float)adc_raw / 4095.0f * 3.3f;
+        int att_code = getAttenuator();
+        const char* att_label = att ? att->att_name() : "UNKNOWN";
+        char buf[24];
+        display.clear();
+        display.drawString(0,  0, "Attenuator detected:");
+        snprintf(buf, sizeof(buf), "ADC: %d.%02dV (%d)",
+                 (int)adc_v, (int)(adc_v * 100) % 100, adc_raw);
+        display.drawString(0, 16, buf);
+        snprintf(buf, sizeof(buf), "Code: %d  %s", att_code, att_label);
+        display.drawString(0, 32, buf);
+        display.display();
+        delay(3000);
+    }
 
     /* Show attenuator info screen */
     if(att) {

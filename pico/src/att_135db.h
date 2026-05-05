@@ -8,33 +8,42 @@
  * Bistabile Relais mit Set/Reset Logik: je 2 Pins pro Relais (ON / OFF)
  * ============================================================ */
 
-/* --- Relais 1: 40 dB (A) --- */
-#define GPIO_135DB_40DB_ON_A    12  // GPIO12 Pin16
-#define GPIO_135DB_40DB_OFF_A   13  // GPIO13 Pin17
 
-/* --- Relais 2: 20 dB (A) --- */
+/* --- U1 Relais 1: 5 dB --- */
+#define GPIO_135DB_5DB_ON       2  // GPIO2 Pin4
+#define GPIO_135DB_5DB_OFF      3  // GPIO3 Pin5
+
+/* --- U2 Relais 2: 10 dB --- */
+#define GPIO_135DB_10DB_ON      6  // GPIO6 Pin9
+#define GPIO_135DB_10DB_OFF     7  // GPIO7 Pin10
+
+/* --- U3 Relais 3: 20 dB (B) --- */
+#define GPIO_135DB_20DB_ON_B    8  // GPIO8 Pin11
+#define GPIO_135DB_20DB_OFF_B   9  // GPIO9 Pin12
+
+/* --- U4 Relais 4: 20 dB (A) --- */
 #define GPIO_135DB_20DB_ON_A    10  // GPIO10 Pin14
 #define GPIO_135DB_20DB_OFF_A   11  // GPIO11 Pin15
 
-/* --- Relais 3: 5 dB --- */
-#define GPIO_135DB_5DB_ON        8  // GPIO8  Pin11
-#define GPIO_135DB_5DB_OFF       9  // GPIO9  Pin12
+/* --- U5 Relais 5: 40 dB (A) --- */
+#define GPIO_135DB_40DB_ON_A    12  // GPIO12 Pin16
+#define GPIO_135DB_40DB_OFF_A   13  // GPIO13 Pin17
 
-/* --- Relais 4: 20 dB (B) --- */
-#define GPIO_135DB_20DB_ON_B    14  // GPIO14 Pin19
-#define GPIO_135DB_20DB_OFF_B   15  // GPIO15 Pin20
+/* --- U6 Relais 6: 40 dB (B) --- */
+#define GPIO_135DB_40DB_ON_B    14  // GPIO14 Pin19
+#define GPIO_135DB_40DB_OFF_B   15  // GPIO15 Pin20
 
-/* --- Relais 5: 10 dB --- */
-#define GPIO_135DB_10DB_ON      16  // GPIO16 Pin21
-#define GPIO_135DB_10DB_OFF     17  // GPIO17 Pin22
+/* --- U7 Relais 7: RF ON/OFF --- */
+#define GPIO_135DB_RF_ON        16  // GPIO16 Pin21
+#define GPIO_135DB_RF_OFF       17  // GPIO17 Pin22
 
-/* --- Relais 6: 40 dB (B) --- */
-#define GPIO_135DB_40DB_ON_B    22  // GPIO22 Pin29
-#define GPIO_135DB_40DB_OFF_B   26  // GPIO26 Pin31
+/* --- U8 Relais 8: NC --- */
+#define GPIO_18                 18  // GPIO18 Pin24
+#define GPIO_22                 22  // GPIO19 Pin29
 
-/* --- Relais 7: RF ON/OFF --- */
-#define GPIO_135DB_RF_ON        27  // GPIO27 Pin32
-#define GPIO_135DB_RF_OFF       28  // GPIO28 Pin34
+/* --- UC Relais 9: NC --- */
+#define GPIO_27                 27  // GPIO27 Pin32
+#define GPIO_28                 28  // GPIO28 Pin34
 
 class Att135dB : public Attenuator {
 public:
