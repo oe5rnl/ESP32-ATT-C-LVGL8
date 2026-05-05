@@ -30,14 +30,14 @@ Einfache Steuerung mit Raspberry Pi Pico für Attenuator:
 ### ESP32 flashen
 ```bash
 cd esp32
-~/.platformio/penv/bin/pio run -t upload
+~/.upload.sh
 ~/.platformio/penv/bin/pio device monitor
 ```
 
 ### Raspberry Pi Pico flashen
 ```bash
 cd pico
-~/.platformio/penv/bin/pio run -t upload
+~/.platformio/penv/bin/pio run -t upload 
 ~/.platformio/penv/bin/pio device monitor
 ```
 
