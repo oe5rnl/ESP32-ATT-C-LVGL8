@@ -1,0 +1,17 @@
+﻿Designator,Quantity,Value,Footprint,Package,MPN,DNP,Mount_Type,Description,KiLib_Generator
+A1,1,RaspberryPi_Pico,RaspberryPi_Pico_SMD,,,,smt,"Versatile and inexpensive microcontroller module (with full pinout for test point and debug connections) powered by RP2040 dual-core Arm Cortex-M0+ processor up to 133 MHz, 264kB SRAM, 2MB QSPI flash; also supports Raspberry Pi Pico 2",
+"C1, C11, C12, C13, C2, C3, C4, C5, C6, C7, C8, C9",12,100nF,C_0805_2012Metric,,,,smt,Unpolarized capacitor,SMD_2terminal_chip_molded
+C10,1,47uF 50V,CP_Radial_D8.0mm_P5.00mm,,,,tht,Polarized capacitor,capacitor/THT/other
+C21,1,47uF 50V,CP_Elec_6.3x5.2,,,,smt,Polarized capacitor,capacitor/SMD/elec_round_polarized
+J1,1,12V Power supply,TerminalBlock_MetzConnect_Type055_RT01502HDWU_1x02_P5.00mm_Horizontal,,,,tht,"Generic screw terminal, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)",terminal_block/Metz_Connect
+J2,1,R&S Attenuator 26.5 GHz,PinHeader_2x05_P2.54mm_Vertical,,,,tht,"Generic connector, double row, 02x05, counter clockwise pin numbering scheme (similar to DIP package numbering), script generated (kicad-library-utils/schlib/autogen/connector/)",connector/pin_header_socket
+J3,1,dB Drehgeber,PinHeader_1x05_P2.54mm_Vertical,,,,tht,"Generic connector, single row, 01x05, script generated",connector/pin_header_socket
+J4,1,ESP-Controller,PinHeader_1x04_P2.54mm_Vertical,,,,tht,"Generic connector, single row, 01x04, script generated",connector/pin_header_socket
+J6,1,Display,PinHeader_1x04_P2.54mm_Vertical,,,,tht,"Generic connector, single row, 01x04, script generated",connector/pin_header_socket
+"R1, R10, R11, R2, R4, R5, R6, R7, R8, R9",10,15k,R_0805_2012Metric,,,,smt,Resistor,SMD_2terminal_chip_molded
+R3,1,15K,R_0805_2012Metric,,,,smt,Resistor,SMD_2terminal_chip_molded
+"U1, U2, U3, U4, U5, U6, U7, U8, U9",9,DRV8871DDA,Texas_HTSOP-8-1EP_3.9x4.9mm_P1.27mm_EP2.95x4.9mm_Mask2.4x3.1mm_ThermalVias,,,,smt,"Brushed DC Motor Driver, PWM Control, 45V, 3.6A, Current limiting, HTSOP-8",
+U10,1,~,DC-DC_12_5,,,,smt,,
+U11,1,~,ttl_converter,,,,smt,,
+U12,1,~,DC-DC_12_24,,,,smt,,
+U13,1,~,SIL_18,,,,smt,,

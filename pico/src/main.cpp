@@ -461,9 +461,9 @@ void setup()
     /* Setup attenuator GPIOs */
     if(att) att->setup();
 
-    pinMode(ENCODER_CLK, INPUT_PULLUP);
-    pinMode(ENCODER_DT,  INPUT_PULLUP);
-    pinMode(ENCODER_SW,  INPUT_PULLUP);
+    // pinMode(ENCODER_CLK, INPUT_PULLUP);
+    // pinMode(ENCODER_DT,  INPUT_PULLUP);
+    // pinMode(ENCODER_SW,  INPUT_PULLUP);
     encoder_last_clk = digitalRead(ENCODER_CLK);
     encoder_last_sw  = digitalRead(ENCODER_SW);
     Serial.println("KY-040 Rotary Encoder initialized (GP19/20/21)");
