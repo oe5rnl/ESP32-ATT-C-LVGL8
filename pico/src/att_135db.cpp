@@ -13,11 +13,11 @@ extern SSD1306 display;
  *   U6 (GPIO14/15) = 40 dB
  */
 const Att135dB::RelayDef Att135dB::_relays[] = {
-    {"40A",  GPIO_135DB_20DB_ON_B,  GPIO_135DB_20DB_OFF_B }, /* U3 = 40 dB */
+    {"40A",  GPIO_135DB_40DB_ON_A,  GPIO_135DB_40DB_OFF_A }, /* U3 = 40 dB */
     {"20A",  GPIO_135DB_20DB_ON_A,  GPIO_135DB_20DB_OFF_A }, /* U4 = 20 dB */
-    {"5dB",  GPIO_135DB_5DB_ON,     GPIO_135DB_5DB_OFF    }, /* U1 = 5 dB  */
-    {"20B",  GPIO_135DB_10DB_ON,    GPIO_135DB_10DB_OFF   }, /* U2 = 20 dB */
-    {"10dB", GPIO_135DB_40DB_ON_A,  GPIO_135DB_40DB_OFF_A }, /* U5 = 10 dB */
+    {"5dB",  GPIO_135DB_5DB_ON,     GPIO_135DB_5DB_OFF    }, /* U1 =  5 dB  */
+    {"20B",  GPIO_135DB_20DB_ON_B,  GPIO_135DB_20DB_OFF_B }, /* U2 = 20 dB */
+    {"10dB", GPIO_135DB_10DB_ON,    GPIO_135DB_10DB_OFF   }, /* U5 = 10 dB */
     {"40B",  GPIO_135DB_40DB_ON_B,  GPIO_135DB_40DB_OFF_B }, /* U6 = 40 dB */
     {"RF",   GPIO_135DB_RF_ON,      GPIO_135DB_RF_OFF     }, /* U7 = RF    */
 };
