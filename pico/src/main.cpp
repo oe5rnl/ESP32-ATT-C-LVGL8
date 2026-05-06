@@ -378,8 +378,18 @@ static void hbridge_startup_test()
  * ------------------------------------------------------- */
 void setup()
 {
+
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
+
     Serial.begin(115200);
     delay(100);
+
+    Serial1.begin(115200);
+    Serial1.setTimeout(100);
+    Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
+
+    Wire.begin();
 
     // Serial.println("\n\n=================================");
     // Serial.println("Raspberry Pi Pico Attenuator");
@@ -393,7 +403,6 @@ void setup()
     /* Create attenuator instance for the detected hardware type */
     att = create_attenuator(getAttenuator());
 
-
     init_persistent_storage();
     load_persisted_db();
     /* Gespeicherten Wert auf gültigen Step des aktiven Attenuators runden */
@@ -403,11 +412,12 @@ void setup()
         if(current_db > att->max_db()) current_db = att->max_db();
         persisted_db_cache = current_db;
     }
+    send_info_to_esp32();
 
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LOW);
+ /* Setup attenuator GPIOs */
+    if(att) att->setup();
 
-    Wire.begin();
+
     display.init();
 
     /* Encoder pins early – needed for startup test check */
@@ -426,7 +436,7 @@ void setup()
         hbridge_startup_test();   /* blocking – never returns */
     }
 
-    /* Show detected attenuator type */
+    /* Show detected attenuator type on pico display */
     {
         analogReadResolution(12);
         int adc_raw = analogRead(ADC_SELECT_PIN);
@@ -436,8 +446,7 @@ void setup()
         char buf[24];
         display.clear();
         display.drawString(0,  0, "Attenuator detected:");
-        snprintf(buf, sizeof(buf), "ADC: %d.%02dV (%d)",
-                 (int)adc_v, (int)(adc_v * 100) % 100, adc_raw);
+        snprintf(buf, sizeof(buf), "ADC: %d.%02dV (%d)",(int)adc_v, (int)(adc_v * 100) % 100, adc_raw);
         display.drawString(0, 16, buf);
         snprintf(buf, sizeof(buf), "Code: %d  %s", att_code, att_label);
         display.drawString(0, 32, buf);
@@ -458,8 +467,8 @@ void setup()
         display.display();
     }
 
-    /* Setup attenuator GPIOs */
-    if(att) att->setup();
+    // /* Setup attenuator GPIOs */
+    // if(att) att->setup();
 
     // pinMode(ENCODER_CLK, INPUT_PULLUP);
     // pinMode(ENCODER_DT,  INPUT_PULLUP);
@@ -468,14 +477,14 @@ void setup()
     encoder_last_sw  = digitalRead(ENCODER_SW);
     Serial.println("KY-040 Rotary Encoder initialized (GP19/20/21)");
 
-    Serial1.begin(115200);
-    Serial1.setTimeout(100);
-    Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
+    // Serial1.begin(115200);
+    // Serial1.setTimeout(100);
+    // Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
 
     apply_attenuation(current_db);
 
-    send_info_to_esp32();
-    delay(2000);
+    // send_info_to_esp32();
+    //delay(2000);
     //delay(100);
     for(int i = 0; i < 3; i++) {
         sync_state_to_esp32();
