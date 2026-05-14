@@ -374,6 +374,116 @@ static void hbridge_startup_test()
 }
 
 /* -------------------------------------------------------
+ * Static GPIO Test (GPIOs 10–13) – Platzhalter
+ * ------------------------------------------------------- */
+static const int SG_PINS[]     = { 10, 11, 12, 13 };
+static const char* const SG_NAMES[] = { "10dB", "20dB", "40A", "40B" };
+static const int SG_COUNT      = 4;
+
+static void sg_draw(int sel, const bool states[])
+{
+    display.clear();
+    display.drawString(0,  0, "TEST MODE 26GHz");
+    display.drawString(0, 16, "Relay:");
+    display.drawString(40, 16, SG_NAMES[sel]);
+    display.drawString(0, 32, "State:");
+    display.drawString(40, 32, states[sel] ? "ON" : "OFF");
+    display.drawString(0, 48, "Turn: Select");
+    display.drawString(0, 56, "Press: Toggle");
+    display.display();
+}
+
+static void static_gpio_test()
+{
+    for(int i = 0; i < SG_COUNT; i++) {
+        pinMode(SG_PINS[i], OUTPUT);
+        digitalWrite(SG_PINS[i], LOW);
+    }
+
+    int  sel = 0;
+    bool states[SG_COUNT] = {};
+
+    sg_draw(sel, states);
+
+    int last_clk = digitalRead(ENCODER_CLK);
+    int last_sw  = HIGH;
+
+    while(true) {
+        /* Drehregler → Relay wählen */
+        int clk = digitalRead(ENCODER_CLK);
+        if(clk != last_clk && clk == LOW) {
+            int dir = (digitalRead(ENCODER_DT) != clk) ? 1 : -1;
+            sel = (sel + (dir > 0 ? 1 : SG_COUNT - 1)) % SG_COUNT;
+            sg_draw(sel, states);
+        }
+        last_clk = clk;
+
+        /* Taste → Zustand toggeln */
+        int sw = digitalRead(ENCODER_SW);
+        if(sw == LOW && last_sw == HIGH) {
+            delay(20);  /* debounce */
+            states[sel] = !states[sel];
+            digitalWrite(SG_PINS[sel], states[sel] ? HIGH : LOW);
+            sg_draw(sel, states);
+        }
+        last_sw = sw;
+
+        delay(5);
+    }
+}
+
+/* -------------------------------------------------------
+ * Startup Menu
+ * Auswahl per Drehregler, Bestätigung per Taste.
+ * Menüpunkte: "Bridge" → hbridge_startup_test()
+ *             "statisch" → static_gpio_test()
+ * ------------------------------------------------------- */
+static void startup_menu()
+{
+    static const char* const menu_items[] = { "Bridge", "statisch" };
+    const int MENU_COUNT = 2;
+    int sel = 0;
+
+    auto draw_menu = [&]() {
+        display.clear();
+        display.drawString(0, 0, "STARTUP MENU");
+        for(int i = 0; i < MENU_COUNT; i++) {
+            if(i == sel) display.drawString(0, 20 + i * 18, ">");
+            display.drawString(10, 20 + i * 18, menu_items[i]);
+        }
+        display.display();
+    };
+
+    /* Taste kann noch gedrückt sein – erst loslassen abwarten */
+    while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+    delay(50);
+
+    draw_menu();
+
+    int last_clk = digitalRead(ENCODER_CLK);
+    int last_sw  = HIGH;
+
+    while(true) {
+        int clk = digitalRead(ENCODER_CLK);
+        if(clk != last_clk && clk == LOW) {
+            int dir = (digitalRead(ENCODER_DT) != clk) ? 1 : -1;
+            sel = (sel + (dir > 0 ? 1 : MENU_COUNT - 1)) % MENU_COUNT;
+            draw_menu();
+        }
+        last_clk = clk;
+
+        int sw = digitalRead(ENCODER_SW);
+        if(sw == LOW && last_sw == HIGH) {
+            delay(20);  /* debounce */
+            if(sel == 0) hbridge_startup_test();
+            else         static_gpio_test();
+        }
+        last_sw = sw;
+        delay(5);
+    }
+}
+
+/* -------------------------------------------------------
  * setup()
  * ------------------------------------------------------- */
 void setup()
@@ -426,14 +536,9 @@ void setup()
     pinMode(ENCODER_SW,  INPUT_PULLUP);
     delay(10);
 
-    /* H-Bridge startup test: hold encoder button at power-on */
+    /* Startup-Test-Menu: Encoder-Taste beim Einschalten gedrückt halten */
     if(digitalRead(ENCODER_SW) == LOW) {
-        display.clear();
-        display.drawString(0,  0, "H-BRIDGE TEST");
-        display.drawString(0, 16, "Starte ...");
-        display.display();
-        delay(500);
-        hbridge_startup_test();   /* blocking – never returns */
+        startup_menu();   /* blocking – never returns */
     }
 
     /* Show detected attenuator type on pico display */
