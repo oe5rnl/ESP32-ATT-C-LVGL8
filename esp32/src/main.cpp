@@ -719,10 +719,10 @@ void setup()
         prefs.putUChar("wmode", wifi_mode_setting);
     }
 
-    /* Restore last attenuation setting */
-    if(autoset) {
-        apply_attenuation();
-    }
+    /* Beim Boot KEIN dB-Kommando an den Pico senden:
+     * Der Pico haelt den persistierten Wert und sendet ihn beim Start
+     * von sich aus per UART. Wuerden wir hier "0dB" senden, wuerde der
+     * gespeicherte Wert auf 0 ueberschrieben. */
 
     // String info = "LVGL version ";
     // info += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();

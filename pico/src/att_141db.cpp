@@ -1,36 +1,40 @@
-#include "att_a.h"
+#include "att_141db.h"
 #include "SSD1306.h"
 #include <Arduino.h>
 
 extern SSD1306 display;
 
-const AttA::RelayDef AttA::_relays[] = {
-    {"40A",  GPIO_A_40DB_ON_A,  GPIO_A_40DB_OFF_A },
-    {"20A",  GPIO_A_20DB_ON_A,  GPIO_A_20DB_OFF_A },
-    {"1dB",  GPIO_A_1DB_ON,     GPIO_A_1DB_OFF    },
-    {"20B",  GPIO_A_20DB_ON_B,  GPIO_A_20DB_OFF_B },
-    {"10dB", GPIO_A_10DB_ON,    GPIO_A_10DB_OFF   },
-    {"40B",  GPIO_A_40DB_ON_B,  GPIO_A_40DB_OFF_B },
-    {"RF",   GPIO_A_RF_ON,      GPIO_A_RF_OFF     },
+const Att141dB::RelayDef Att141dB::_relays[] = {
+
+    {"4A",  GPIO_A_4DB_ON_A,    GPIO_A_4DB_OFF_A},      // 1
+    {"40A", GPIO_A_40DB_ON_A,   GPIO_A_40DB_OFF_A},     // 2
+    {"10",  GPIO_A_10DB_ON,     GPIO_A_10DB_OFF},       // 3
+    {"20A", GPIO_A_20DB_ON_A,   GPIO_A_20DB_OFF_A},     // 4
+    {"40B", GPIO_A_40DB_ON_B,   GPIO_A_40DB_OFF_B},     // 5
+    {"4B",  GPIO_A_4DB_ON_B,    GPIO_A_4DB_OFF_B},      // 6
+    {"2",   GPIO_A_2DB_ON,      GPIO_A_2DB_OFF},        // 7
+    {"20B", GPIO_A_20DB_ON_B,   GPIO_A_20B_OFF_B},      // 8
+    {"1",   GPIO_A_1DB_ON,      GPIO_A_1DB_OFF},        // 9
+
 };
 
 /* ---- private helpers ---- */
 
-void AttA::pulse_pin(int pin)
+void Att141dB::pulse_pin(int pin)
 {
     digitalWrite(pin, HIGH);
     delay(20);
     digitalWrite(pin, LOW);
 }
 
-void AttA::pulse(int idx, bool activate)
+void Att141dB::pulse(int idx, bool activate)
 {
     pulse_pin(activate ? _relays[idx].on_pin : _relays[idx].off_pin);
 }
 
 /* ---- public interface ---- */
 
-void AttA::setup()
+void Att141dB::setup()
 {
     for(int i = 0; i < RELAY_COUNT; i++) {
         pinMode(_relays[i].on_pin,  OUTPUT);
@@ -45,24 +49,26 @@ void AttA::setup()
     }
 }
 
-void AttA::apply(int32_t dv)
+void Att141dB::apply(int32_t dv)
 {
     int32_t att = (dv / step_db()) * step_db();
     if(att > max_db()) att = max_db();
     if(att < 0) att = 0;
 
-    /* Greedy decomposition: 40A → 40B → 20A → 20B → 10 → 1 */
+    /* Greedy decomposition: a40A, a40B, a20A, a20B, a10, a4A, a4B, a2, a1 */
     int32_t rem = att;
     bool a40a = (rem >= 40); if(a40a) rem -= 40;
     bool a40b = (rem >= 40); if(a40b) rem -= 40;
     bool a20a = (rem >= 20); if(a20a) rem -= 20;
     bool a20b = (rem >= 20); if(a20b) rem -= 20;
     bool a10  = (rem >= 10); if(a10)  rem -= 10;
+    bool a4a  = (rem >= 4);  if(a4a)  rem -= 4;
+    bool a4b  = (rem >= 4);  if(a4b)  rem -= 4;
+    bool a2   = (rem >= 2);  if(a2)   rem -= 2;
     bool a1   = (rem >= 1);
-    bool rf   = (att > 0);
 
-    /* relay order must match _relays[]: 40A,20A,1dB,20B,10dB,40B,RF */
-    bool desired[RELAY_COUNT] = {a40a, a20a, a1, a20b, a10, a40b, rf};
+    /* relay order must match _relays[]: 4A,40A,10,20A,40B,4B,2,20B,1 */
+    bool desired[RELAY_COUNT] = {a4a, a40a, a10, a20a, a40b, a4b, a2, a20b, a1};
 
     for(int i = 0; i < RELAY_COUNT; i++) {
         if(desired[i] != _states[i]) {
@@ -72,17 +78,17 @@ void AttA::apply(int32_t dv)
     }
 }
 
-void AttA::show_info()
+void Att141dB::show_info()
 {
-    Serial.println("ATT TYPE A");
+    Serial.println("RS 141 dB");
     display.clear();
-    display.drawString(3, 10, "ATT TYPE A");
-    display.drawString(3, 20, "Att: 131dB");
+    display.drawString(3, 10, "RS 141 dB");
+    display.drawString(3, 20, "Att: 141dB");
     display.drawString(3, 30, "Steps:  1dB");
     display.display();
 }
 
-void AttA::test_init()
+void Att141dB::test_init()
 {
     _sel = 0;
     for(int i = 0; i < RELAY_COUNT; i++) {
@@ -91,7 +97,7 @@ void AttA::test_init()
     }
 }
 
-void AttA::test_rotate(int dir)
+void Att141dB::test_rotate(int dir)
 {
     _sel = (_sel + (dir > 0 ? 1 : RELAY_COUNT - 1)) % RELAY_COUNT;
     Serial.print("Test ATT A: Relay -> ");
@@ -99,7 +105,7 @@ void AttA::test_rotate(int dir)
     update_test_display();
 }
 
-void AttA::test_toggle()
+void Att141dB::test_toggle()
 {
     _states[_sel] = !_states[_sel];
     Serial.print("Test ATT A: Toggle ");
@@ -110,7 +116,7 @@ void AttA::test_toggle()
     update_test_display();
 }
 
-void AttA::update_test_display()
+void Att141dB::update_test_display()
 {
     display.clear();
     display.drawString(0,  0, "TEST MODE ATT A");

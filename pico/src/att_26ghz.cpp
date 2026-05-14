@@ -30,7 +30,6 @@ void Att26GHz::apply(int32_t dv)
     bool a20  = (rem >= 20); if(a20)  rem -= 20;
     bool a10  = (rem >= 10);
 
-    digitalWrite(ATT_GPIO_10DB,   a10  ? HIGH : LOW);
     digitalWrite(ATT_GPIO_20DB,   a20  ? HIGH : LOW);
     digitalWrite(ATT_GPIO_40DB_A, a40a ? HIGH : LOW);
     digitalWrite(ATT_GPIO_40DB_B, a40b ? HIGH : LOW);

@@ -195,12 +195,17 @@ static void send_info_to_esp32()
 
 int getAttenuator()
 {
-    analogReadResolution(12);
+    // analogReadResolution(12);
     int raw = analogRead(ADC_SELECT_PIN);
     float v = (float)raw / 4095.0f * 3.3f;
 
+    Serial.print("Analog: raw=");
+    Serial.print(raw);
+    Serial.print(" float=");
+    Serial.println(v, 3);
+
     if(v >= 0.0f && v < 0.8f) return ATTENUATOR_26_5GHz;
-    if(v >= 0.8f && v < 1.6f) return ATTENUATOR_A;
+    if(v >= 0.8f && v < 1.6f) return ATTENUATOR_RS_141DB;
     if(v >= 1.6f && v < 2.4f) return ATTENUATOR_B;
     if(v >= 2.4f)             return ATTENUATOR_RS_135DB;
     return -1;
@@ -335,12 +340,23 @@ static void hbridge_startup_test()
     int sel = 0;
     int states[HB_COUNT] = {};   /* 0=FWD, 1=REV */
 
+    /* Taste vom Menü-Klick kann noch gedrückt sein – erst loslassen abwarten */
+    while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+    delay(50);
+
     hb_draw(sel, states);
 
     int last_clk = digitalRead(ENCODER_CLK);
-    int last_sw  = digitalRead(ENCODER_SW);
+    int last_sw  = HIGH;
+
+    /* Doppelklick-Erkennung fuer Menue-Rueckkehr */
+    const unsigned long DC_WINDOW = 400;
+    bool          dc_pending     = false;
+    unsigned long dc_last_release = 0;
 
     while(true) {
+        unsigned long now = millis();
+
         /* Encoder rotation → select bridge */
         int clk = digitalRead(ENCODER_CLK);
         if(clk != last_clk && clk == LOW) {
@@ -350,11 +366,24 @@ static void hbridge_startup_test()
         }
         last_clk = clk;
 
-        /* Button press → pulse FWD or REV for 20 ms, then toggle next state */
+        /* Tastendruck (LOW->) Doppelklick erkennen, sonst single bei Ablauf */
         int sw = digitalRead(ENCODER_SW);
         if(sw == LOW && last_sw == HIGH) {
             delay(20);  /* debounce */
-            /* Pulse the selected direction */
+            if(dc_pending && (now - dc_last_release) < DC_WINDOW) {
+                /* Doppelklick → zurueck ins Menue */
+                while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+                delay(50);
+                return;
+            }
+        }
+        if(sw == HIGH && last_sw == LOW) {
+            dc_pending      = true;
+            dc_last_release = now;
+        }
+        if(dc_pending && (now - dc_last_release) >= DC_WINDOW) {
+            /* Single-Klick → Puls in aktuelle Richtung */
+            dc_pending = false;
             if(states[sel] == 0) {          /* FWD: A=HIGH, B=LOW */
                 digitalWrite(hb_pin_a[sel], HIGH);
                 delay(20);
@@ -364,7 +393,7 @@ static void hbridge_startup_test()
                 delay(20);
                 digitalWrite(hb_pin_b[sel], LOW);
             }
-            states[sel] = 1 - states[sel]; /* toggle next direction */
+            states[sel] = 1 - states[sel];
             hb_draw(sel, states);
         }
         last_sw = sw;
@@ -383,13 +412,13 @@ static const int SG_COUNT      = 4;
 static void sg_draw(int sel, const bool states[])
 {
     display.clear();
-    display.drawString(0,  0, "TEST MODE 26GHz");
-    display.drawString(0, 16, "Relay:");
+    display.drawString(0,   0, "TEST 26GHz");
+    display.drawString(0,  16, "Relay: ");
     display.drawString(40, 16, SG_NAMES[sel]);
-    display.drawString(0, 32, "State:");
+    display.drawString(0,  32, "State: ");
     display.drawString(40, 32, states[sel] ? "ON" : "OFF");
-    display.drawString(0, 48, "Turn: Select");
-    display.drawString(0, 56, "Press: Toggle");
+    display.drawString(0,  48, "Turn : Select");
+    display.drawString(0,  56, "Press: Toggle");
     display.display();
 }
 
@@ -403,12 +432,23 @@ static void static_gpio_test()
     int  sel = 0;
     bool states[SG_COUNT] = {};
 
+    /* Taste vom Menü-Klick kann noch gedrückt sein – erst loslassen abwarten */
+    while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+    delay(50);
+
     sg_draw(sel, states);
 
     int last_clk = digitalRead(ENCODER_CLK);
     int last_sw  = HIGH;
 
+    /* Doppelklick-Erkennung fuer Menue-Rueckkehr */
+    const unsigned long DC_WINDOW = 400;
+    bool          dc_pending     = false;
+    unsigned long dc_last_release = 0;
+
     while(true) {
+        unsigned long now = millis();
+
         /* Drehregler → Relay wählen */
         int clk = digitalRead(ENCODER_CLK);
         if(clk != last_clk && clk == LOW) {
@@ -418,10 +458,24 @@ static void static_gpio_test()
         }
         last_clk = clk;
 
-        /* Taste → Zustand toggeln */
+        /* Tastendruck → Doppelklick = Menue, Single = Toggle */
         int sw = digitalRead(ENCODER_SW);
         if(sw == LOW && last_sw == HIGH) {
             delay(20);  /* debounce */
+            if(dc_pending && (now - dc_last_release) < DC_WINDOW) {
+                /* Doppelklick → zurueck ins Menue */
+                while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+                delay(50);
+                return;
+            }
+        }
+        if(sw == HIGH && last_sw == LOW) {
+            dc_pending      = true;
+            dc_last_release = now;
+        }
+        if(dc_pending && (now - dc_last_release) >= DC_WINDOW) {
+            /* Single-Klick → Zustand toggeln */
+            dc_pending = false;
             states[sel] = !states[sel];
             digitalWrite(SG_PINS[sel], states[sel] ? HIGH : LOW);
             sg_draw(sel, states);
@@ -433,23 +487,55 @@ static void static_gpio_test()
 }
 
 /* -------------------------------------------------------
+ * Info screen: zeigt erkannten Attenuator + ADC-Spannung,
+ * wartet auf Tastendruck, dann zurueck ins Menue.
+ * ------------------------------------------------------- */
+static void info_screen()
+{
+    /* Taste vom Menü-Klick kann noch gedrückt sein – erst loslassen abwarten */
+    while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+    delay(50);
+
+    analogReadResolution(12);
+    int adc_raw = analogRead(ADC_SELECT_PIN);
+    float adc_v = (float)adc_raw / 4095.0f * 3.3f;
+    int att_code = getAttenuator();
+    const char* att_label = att ? att->att_name() : "UNKNOWN";
+    char buf[24];
+    display.clear();
+    display.drawString(15,  0, "Att detected");
+    snprintf(buf, sizeof(buf), "ADC: %d.%02dV (%d)",(int)adc_v, (int)(adc_v * 100) % 100, adc_raw);
+    display.drawString(0, 16, buf);
+    snprintf(buf, sizeof(buf), "Code:%d %s", att_code, att_label);
+    display.drawString(0, 32, buf);
+    display.drawString(0, 56, "Taste: zurueck");
+    display.display();
+
+    /* Auf naechsten Tastendruck warten, dann Loslassen abwarten */
+    while(digitalRead(ENCODER_SW) == HIGH) { delay(10); }
+    while(digitalRead(ENCODER_SW) == LOW)  { delay(10); }
+    delay(50);
+}
+
+/* -------------------------------------------------------
  * Startup Menu
  * Auswahl per Drehregler, Bestätigung per Taste.
  * Menüpunkte: "Bridge" → hbridge_startup_test()
  *             "statisch" → static_gpio_test()
+ *             "info" → info_screen()
  * ------------------------------------------------------- */
 static void startup_menu()
 {
-    static const char* const menu_items[] = { "Bridge", "statisch" };
-    const int MENU_COUNT = 2;
+    static const char* const menu_items[] = { "Bridge", "statisch", "info" };
+    const int MENU_COUNT = 3;
     int sel = 0;
 
     auto draw_menu = [&]() {
         display.clear();
-        display.drawString(0, 0, "STARTUP MENU");
+        display.drawString(0, 0, "SETUP MENU");
         for(int i = 0; i < MENU_COUNT; i++) {
-            if(i == sel) display.drawString(0, 20 + i * 18, ">");
-            display.drawString(10, 20 + i * 18, menu_items[i]);
+            if(i == sel) display.drawString(0, 20 + i * 14, ">");
+            display.drawString(10, 20 + i * 14, menu_items[i]);
         }
         display.display();
     };
@@ -463,7 +549,14 @@ static void startup_menu()
     int last_clk = digitalRead(ENCODER_CLK);
     int last_sw  = HIGH;
 
+    /* Doppelklick im Menue -> System-Reset */
+    const unsigned long DC_WINDOW = 400;
+    bool          dc_pending     = false;
+    unsigned long dc_last_release = 0;
+
     while(true) {
+        unsigned long now = millis();
+
         int clk = digitalRead(ENCODER_CLK);
         if(clk != last_clk && clk == LOW) {
             int dir = (digitalRead(ENCODER_DT) != clk) ? 1 : -1;
@@ -475,8 +568,31 @@ static void startup_menu()
         int sw = digitalRead(ENCODER_SW);
         if(sw == LOW && last_sw == HIGH) {
             delay(20);  /* debounce */
-            if(sel == 0) hbridge_startup_test();
-            else         static_gpio_test();
+            if(dc_pending && (now - dc_last_release) < DC_WINDOW) {
+                /* Doppelklick -> Reset */
+                display.clear();
+                display.drawString(0, 24, "RESET...");
+                display.display();
+                while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+                delay(200);
+                NVIC_SystemReset();
+            }
+        }
+        if(sw == HIGH && last_sw == LOW) {
+            dc_pending      = true;
+            dc_last_release = now;
+        }
+        if(dc_pending && (now - dc_last_release) >= DC_WINDOW) {
+            /* Single-Klick -> ausgewaehlten Menuepunkt starten */
+            dc_pending = false;
+            if(sel == 0)      hbridge_startup_test();
+            else if(sel == 1) static_gpio_test();
+            else              info_screen();
+            /* Nach Rueckkehr: Menu neu zeichnen + States resetten */
+            draw_menu();
+            last_sw  = digitalRead(ENCODER_SW);
+            last_clk = digitalRead(ENCODER_CLK);
+            continue;
         }
         last_sw = sw;
         delay(5);
@@ -488,30 +604,54 @@ static void startup_menu()
  * ------------------------------------------------------- */
 void setup()
 {
-
+    delay(1000);
+    
+    /* Init PICO Led */
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, LOW);
 
-    Serial.begin(115200);
-    delay(100);
-
-    Serial1.begin(115200);
-    Serial1.setTimeout(100);
-    Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
-
-    Wire.begin();
-
-    // Serial.println("\n\n=================================");
-    // Serial.println("Raspberry Pi Pico Attenuator");
-    // Serial.println("Version 0.4");
-    // Serial.println("=================================\n");
-
-    /* ADC_SELECT_PIN (A0/GPIO26) – read once to determine attenuator type */
-    pinMode(ADC_SELECT_PIN, INPUT);
+    /* Encoder pins early – needed for startup test check */
+    pinMode(ENCODER_CLK, INPUT_PULLUP);
+    pinMode(ENCODER_DT,  INPUT_PULLUP);
+    pinMode(ENCODER_SW,  INPUT_PULLUP);
     delay(10);
 
+    /* Init ESP32 serial */
+    Serial1.begin(115200);
+    Serial1.setTimeout(100);
+    delay(10);
+
+    /* Init debug serial */
+    Serial.begin(115200);
+    delay(500);
+
+    Serial.println("\n\n=================================");
+    Serial.println("Raspberry Pi Pico Attenuator");
+    Serial.println("Version 0.4");
+    Serial.println("=================================\n");
+
+
+    Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
+
+    /*  Init I2C */
+    Wire.begin();
+
+    /* Init Pico Display */
+    display.init();
+
+
+   
+    /* detect Attenuator type by ADC Voltage */
+    /* ADC_SELECT_PIN (A0/GPIO26) – read once to determine attenuator type */
+    pinMode(ADC_SELECT_PIN, INPUT);
+    analogReadResolution(12);
+    delay(100);
+ 
     /* Create attenuator instance for the detected hardware type */
     att = create_attenuator(getAttenuator());
+
+    /* Setup attenuator GPIOs */
+    if(att) att->setup();
 
     init_persistent_storage();
     load_persisted_db();
@@ -521,42 +661,6 @@ void setup()
         if(s > 1) current_db = (current_db / s) * s;
         if(current_db > att->max_db()) current_db = att->max_db();
         persisted_db_cache = current_db;
-    }
-    send_info_to_esp32();
-
- /* Setup attenuator GPIOs */
-    if(att) att->setup();
-
-
-    display.init();
-
-    /* Encoder pins early – needed for startup test check */
-    pinMode(ENCODER_CLK, INPUT_PULLUP);
-    pinMode(ENCODER_DT,  INPUT_PULLUP);
-    pinMode(ENCODER_SW,  INPUT_PULLUP);
-    delay(10);
-
-    /* Startup-Test-Menu: Encoder-Taste beim Einschalten gedrückt halten */
-    if(digitalRead(ENCODER_SW) == LOW) {
-        startup_menu();   /* blocking – never returns */
-    }
-
-    /* Show detected attenuator type on pico display */
-    {
-        analogReadResolution(12);
-        int adc_raw = analogRead(ADC_SELECT_PIN);
-        float adc_v = (float)adc_raw / 4095.0f * 3.3f;
-        int att_code = getAttenuator();
-        const char* att_label = att ? att->att_name() : "UNKNOWN";
-        char buf[24];
-        display.clear();
-        display.drawString(0,  0, "Attenuator detected:");
-        snprintf(buf, sizeof(buf), "ADC: %d.%02dV (%d)",(int)adc_v, (int)(adc_v * 100) % 100, adc_raw);
-        display.drawString(0, 16, buf);
-        snprintf(buf, sizeof(buf), "Code: %d  %s", att_code, att_label);
-        display.drawString(0, 32, buf);
-        display.display();
-        delay(3000);
     }
 
     /* Show attenuator info screen */
@@ -570,21 +674,19 @@ void setup()
         display.drawString(3, 20, "Attenuator");
         display.drawString(3, 30, buf);
         display.display();
+        while (1) {};
     }
 
-    // /* Setup attenuator GPIOs */
-    // if(att) att->setup();
+    send_info_to_esp32();
 
-    // pinMode(ENCODER_CLK, INPUT_PULLUP);
-    // pinMode(ENCODER_DT,  INPUT_PULLUP);
-    // pinMode(ENCODER_SW,  INPUT_PULLUP);
+    /* Startup-Test-Menu: Encoder-Taste beim Einschalten gedrückt halten */
+    if(digitalRead(ENCODER_SW) == LOW) {
+        startup_menu();   /* blocking – never returns */
+    }
+
     encoder_last_clk = digitalRead(ENCODER_CLK);
     encoder_last_sw  = digitalRead(ENCODER_SW);
     Serial.println("KY-040 Rotary Encoder initialized (GP19/20/21)");
-
-    // Serial1.begin(115200);
-    // Serial1.setTimeout(100);
-    // Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
 
     apply_attenuation(current_db);
 
@@ -680,24 +782,8 @@ void loop()
         long_press_executed  = false;
     }
 
-    if(sw_state == LOW && button_was_pressed && !long_press_executed) {
-        if((now - button_press_start) >= 5000) {
-            test_mode = true;
-            if(att) att->test_init();
-
-            Serial.println("\n*** TEST MODE ACTIVATED ***");
-            Serial.println("Turn: Select relay");
-            Serial.println("Press: Toggle selected relay");
-            Serial.println("Exit: Power cycle\n");
-
-            if(att) att->update_test_display();
-
-            digitalWrite(LED_BUILTIN, HIGH);
-            led_solid_mode  = true;
-            led_solid_start = now;
-            long_press_executed = true;
-        }
-    }
+    /* Long-Press-Aktivierung des Test-Modes wurde entfernt.
+     * Test-Mode kann nur noch ueber das Startup-Menue erreicht werden. */
 
     if(sw_state == HIGH && encoder_last_sw == LOW && button_was_pressed) {
         button_was_pressed = false;
