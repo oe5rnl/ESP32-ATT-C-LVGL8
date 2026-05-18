@@ -63,8 +63,13 @@ public:
     void    test_toggle()         override;
     void    update_test_display() override;
 
+    /* Safety watchdog: forces any relay pin LOW if it has been HIGH
+     * for more than PIN_MAX_HIGH_MS milliseconds. Call from loop(). */
+    void    poll()                override;
+
 private:
-    static const int RELAY_COUNT = 7;
+    static const int              RELAY_COUNT      = 7;
+    static const unsigned long    PIN_MAX_HIGH_MS  = 100;
 
     struct RelayDef {
         const char* name;
@@ -75,6 +80,10 @@ private:
 
     int  _sel       = 0;
     bool _states[7] = {};
+
+    /* Watchdog: timestamp (millis) when each pin was first seen HIGH.
+     * Indexed [relay][0=off_pin, 1=on_pin]. 0 means "not currently HIGH". */
+    unsigned long _pin_armed_ms[7][2] = {};
 
     static void pulse_pin(int pin);
     void        pulse(int idx, bool activate);

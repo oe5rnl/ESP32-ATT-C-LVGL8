@@ -164,3 +164,33 @@ void Att135dB::update_test_display()
     display.drawString(0, 56, "Press: Toggle");
     display.display();
 }
+
+/* ---- Safety watchdog ---- */
+
+void Att135dB::poll()
+{
+    unsigned long now = millis();
+
+    for(int i = 0; i < RELAY_COUNT; i++) {
+        const int pins[2] = { _relays[i].off_pin, _relays[i].on_pin };
+        for(int p = 0; p < 2; p++) {
+            if(digitalRead(pins[p]) == HIGH) {
+                if(_pin_armed_ms[i][p] == 0) {
+                    /* First sample: record the moment this pin went (or was found) HIGH */
+                    _pin_armed_ms[i][p] = now ? now : 1UL;
+                } else if((now - _pin_armed_ms[i][p]) >= PIN_MAX_HIGH_MS) {
+                    /* Limit exceeded – pull LOW immediately */
+                    digitalWrite(pins[p], LOW);
+                    _pin_armed_ms[i][p] = 0;
+                    Serial.print("[WATCHDOG] att_135db: GPIO");
+                    Serial.print(pins[p]);
+                    Serial.print(" (relay ");
+                    Serial.print(_relays[i].name);
+                    Serial.println(p == 1 ? " ON) forced LOW" : " OFF) forced LOW");
+                }
+            } else {
+                _pin_armed_ms[i][p] = 0;
+            }
+        }
+    }
+}

@@ -715,6 +715,9 @@ void loop()
 {
     unsigned long now = millis();
 
+    /* Hardware safety watchdog – must run first, unconditionally */
+    if(att) att->poll();
+
     /* LED control */
     if(led_solid_mode) {
         if(now - led_solid_start >= 2000) {
