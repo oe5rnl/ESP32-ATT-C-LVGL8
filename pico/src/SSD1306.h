@@ -12,7 +12,7 @@ public:
     
     SSD1306(TwoWire* wire = &Wire, uint8_t addr = 0x3C);
     
-    void init();
+    bool init();
     void clear();
     void display();
     void setPixel(uint8_t x, uint8_t y, bool on = true);
@@ -21,14 +21,16 @@ public:
     void drawBigDigit(uint8_t x, uint8_t y, uint8_t digit);
     void drawBigNumber(uint8_t x, uint8_t y, uint16_t number);
     void invertDisplay(bool invert);
+    uint8_t address() const;
     
 private:
     TwoWire* _wire;
     uint8_t _addr;
     uint8_t _buffer[WIDTH * PAGES];
     
-    void sendCommand(uint8_t cmd);
-    void sendData(const uint8_t* data, size_t len);
+    bool probe(uint8_t addr);
+    bool sendCommand(uint8_t cmd);
+    bool sendData(const uint8_t* data, size_t len);
 };
 
 #endif // SSD1306_H

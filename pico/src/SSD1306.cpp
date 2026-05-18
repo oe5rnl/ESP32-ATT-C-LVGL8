@@ -32,49 +32,77 @@ SSD1306::SSD1306(TwoWire* wire, uint8_t addr)
     memset(_buffer, 0, sizeof(_buffer));
 }
 
-void SSD1306::sendCommand(uint8_t cmd) {
+uint8_t SSD1306::address() const {
+    return _addr;
+}
+
+bool SSD1306::probe(uint8_t addr) {
+    _wire->beginTransmission(addr);
+    return _wire->endTransmission() == 0;
+}
+
+bool SSD1306::sendCommand(uint8_t cmd) {
     _wire->beginTransmission(_addr);
     _wire->write(0x00); // Command mode
     _wire->write(cmd);
-    _wire->endTransmission();
+    return _wire->endTransmission() == 0;
 }
 
-void SSD1306::sendData(const uint8_t* data, size_t len) {
+bool SSD1306::sendData(const uint8_t* data, size_t len) {
     _wire->beginTransmission(_addr);
     _wire->write(0x40); // Data mode
     for (size_t i = 0; i < len; i++) {
         _wire->write(data[i]);
     }
-    _wire->endTransmission();
+    return _wire->endTransmission() == 0;
 }
 
-void SSD1306::init() {
+bool SSD1306::init() {
+    const uint8_t addresses[] = { _addr, static_cast<uint8_t>(_addr == 0x3C ? 0x3D : 0x3C) };
+    bool found = false;
+
+    for (uint8_t attempt = 0; attempt < 3 && !found; attempt++) {
+        delay(20);
+        for (uint8_t addr : addresses) {
+            if (probe(addr)) {
+                _addr = addr;
+                found = true;
+                break;
+            }
+        }
+    }
+    if (!found) return false;
+
     // Initialisierungssequenz für 128x64 Display
-    sendCommand(SSD1306_DISPLAYOFF);
-    sendCommand(SSD1306_SETDISPLAYCLOCKDIV);
-    sendCommand(0x80);
-    sendCommand(SSD1306_SETMULTIPLEX);
-    sendCommand(0x3F); // 64 Zeilen
-    sendCommand(SSD1306_SETDISPLAYOFFSET);
-    sendCommand(0x00);
-    sendCommand(SSD1306_SETSTARTLINE | 0x00);
-    sendCommand(SSD1306_CHARGEPUMP);
-    sendCommand(0x14); // Charge pump aktivieren
-    sendCommand(SSD1306_MEMORYMODE);
-    sendCommand(0x00); // Horizontal addressing mode
-    sendCommand(SSD1306_SEGREMAP | 0x01);
-    sendCommand(SSD1306_COMSCANDEC);
-    sendCommand(SSD1306_SETCOMPINS);
-    sendCommand(0x12);
-    sendCommand(SSD1306_SETCONTRAST);
-    sendCommand(0xCF);
-    sendCommand(SSD1306_SETPRECHARGE);
-    sendCommand(0xF1);
-    sendCommand(SSD1306_SETVCOMDETECT);
-    sendCommand(0x40);
-    sendCommand(SSD1306_DISPLAYALLON_RESUME);
-    sendCommand(SSD1306_NORMALDISPLAY);
-    sendCommand(SSD1306_DISPLAYON);
+    if (!sendCommand(SSD1306_DISPLAYOFF)) return false;
+    if (!sendCommand(SSD1306_SETDISPLAYCLOCKDIV)) return false;
+    if (!sendCommand(0x80)) return false;
+    if (!sendCommand(SSD1306_SETMULTIPLEX)) return false;
+    if (!sendCommand(0x3F)) return false; // 64 Zeilen
+    if (!sendCommand(SSD1306_SETDISPLAYOFFSET)) return false;
+    if (!sendCommand(0x00)) return false;
+    if (!sendCommand(SSD1306_SETSTARTLINE | 0x00)) return false;
+    if (!sendCommand(SSD1306_CHARGEPUMP)) return false;
+    if (!sendCommand(0x14)) return false; // Charge pump aktivieren
+    if (!sendCommand(SSD1306_MEMORYMODE)) return false;
+    if (!sendCommand(0x00)) return false; // Horizontal addressing mode
+    if (!sendCommand(SSD1306_SEGREMAP | 0x01)) return false;
+    if (!sendCommand(SSD1306_COMSCANDEC)) return false;
+    if (!sendCommand(SSD1306_SETCOMPINS)) return false;
+    if (!sendCommand(0x12)) return false;
+    if (!sendCommand(SSD1306_SETCONTRAST)) return false;
+    if (!sendCommand(0xCF)) return false;
+    if (!sendCommand(SSD1306_SETPRECHARGE)) return false;
+    if (!sendCommand(0xF1)) return false;
+    if (!sendCommand(SSD1306_SETVCOMDETECT)) return false;
+    if (!sendCommand(0x40)) return false;
+    if (!sendCommand(SSD1306_DISPLAYALLON_RESUME)) return false;
+    if (!sendCommand(SSD1306_NORMALDISPLAY)) return false;
+    if (!sendCommand(SSD1306_DISPLAYON)) return false;
+
+    clear();
+    display();
+    return true;
 }
 
 void SSD1306::clear() {
@@ -82,19 +110,19 @@ void SSD1306::clear() {
 }
 
 void SSD1306::display() {
-    sendCommand(SSD1306_COLUMNADDR);
-    sendCommand(0);     // Column start
-    sendCommand(WIDTH - 1); // Column end
-    sendCommand(SSD1306_PAGEADDR);
-    sendCommand(0);     // Page start
-    sendCommand(PAGES - 1); // Page end
+    if (!sendCommand(SSD1306_COLUMNADDR)) return;
+    if (!sendCommand(0)) return;     // Column start
+    if (!sendCommand(WIDTH - 1)) return; // Column end
+    if (!sendCommand(SSD1306_PAGEADDR)) return;
+    if (!sendCommand(0)) return;     // Page start
+    if (!sendCommand(PAGES - 1)) return; // Page end
     
     // Daten in kleineren Chunks senden (I2C-Buffer-Limitierung)
     const size_t chunk_size = 16;
     for (size_t i = 0; i < sizeof(_buffer); i += chunk_size) {
         size_t remaining = sizeof(_buffer) - i;
         size_t to_send = remaining < chunk_size ? remaining : chunk_size;
-        sendData(_buffer + i, to_send);
+        if (!sendData(_buffer + i, to_send)) return;
     }
 }
 

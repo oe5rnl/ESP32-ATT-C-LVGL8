@@ -637,7 +637,12 @@ void setup()
     Wire.begin();
 
     /* Init Pico Display */
-    display.init();
+    if(display.init()) {
+        Serial.print("SSD1306 ready on I2C 0x");
+        Serial.println(display.address(), HEX);
+    } else {
+        Serial.println("SSD1306 not found on I2C 0x3C/0x3D");
+    }
 
 
    
@@ -731,6 +736,7 @@ void loop()
             int dir = (digitalRead(ENCODER_DT) != clk_state) ? 1 : -1;
             if(att) att->test_rotate(dir);
         } else {
+            Serial.println("*\n");
             int step      = encoder_step();
             int32_t max_v = att_max_db();
             int new_db    = current_db;

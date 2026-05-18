@@ -9,7 +9,6 @@
  * ============================================================ */
 
 
-
 /* --- U1 Relais 1: 40 dB (A) --- */
 #define GPIO_135DB_40DB_ON_A     3      // GPIO3 Pin5
 #define GPIO_135DB_40DB_OFF_A    2      // GPIO2 Pin4
@@ -48,6 +47,7 @@
 
 
 
+
 class Att135dB : public Attenuator {
 public:
     void    setup()               override;
@@ -79,3 +79,4 @@ private:
     static void pulse_pin(int pin);
     void        pulse(int idx, bool activate);
 };
+
