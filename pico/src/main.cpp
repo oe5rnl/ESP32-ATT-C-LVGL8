@@ -629,8 +629,6 @@ void setup()
     Serial.println("Raspberry Pi Pico Attenuator");
     Serial.println("Version 0.4");
     Serial.println("=================================\n");
-
-
     Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
 
     /*  Init I2C */
@@ -644,8 +642,6 @@ void setup()
         Serial.println("SSD1306 not found on I2C 0x3C/0x3D");
     }
 
-
-   
     /* detect Attenuator type by ADC Voltage */
     /* ADC_SELECT_PIN (A0/GPIO26) – read once to determine attenuator type */
     pinMode(ADC_SELECT_PIN, INPUT);
@@ -658,6 +654,18 @@ void setup()
     /* Setup attenuator GPIOs */
     if(att) att->setup();
 
+    /* Show attenuator info screen */
+    if(!att) {
+        char buf[24];
+        display.clear();
+        snprintf(buf, sizeof(buf), "Att-Code: %d", getAttenuator());
+        display.drawString(3, 10, "Error");
+        display.drawString(3, 20, "Attenuator");
+        display.drawString(3, 30, buf);
+        display.display();
+        while (1) {};
+    }
+
     init_persistent_storage();
     load_persisted_db();
     /* Gespeicherten Wert auf gültigen Step des aktiven Attenuators runden */
@@ -668,19 +676,6 @@ void setup()
         persisted_db_cache = current_db;
     }
 
-    /* Show attenuator info screen */
-    if(att) {
-        att->show_info();
-    } else {
-        char buf[24];
-        display.clear();
-        snprintf(buf, sizeof(buf), "Att-Code: %d", getAttenuator());
-        display.drawString(3, 10, "Error");
-        display.drawString(3, 20, "Attenuator");
-        display.drawString(3, 30, buf);
-        display.display();
-        while (1) {};
-    }
 
     send_info_to_esp32();
 
