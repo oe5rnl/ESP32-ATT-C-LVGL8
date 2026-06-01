@@ -71,6 +71,7 @@ static int raw_uart_last_value = -1;
 #endif
 
 static const unsigned long ENCODER_SETTLE_TIME = 300;
+static const unsigned long LONG_PRESS_TIME      = 800;
 
 /* Doppelklick-Erkennung */
 static unsigned long last_click_time = 0;
@@ -321,7 +322,8 @@ static void info_screen()
     char buf[24];
     display.clear();
     display.drawString(15,  0, "Att detected");
-    snprintf(buf, sizeof(buf), "ADC: %d.%02dV (%d)",(int)adc_v, (int)(adc_v * 100) % 100, adc_raw);
+    //snprintf(buf, sizeof(buf), "ADC:%d.%02dV %d",(int)adc_v, (int)(adc_v * 100) % 100, adc_raw);
+    snprintf(buf, sizeof(buf), "ADC: %d.%02dV",(int)adc_v, (int)(adc_v * 100) % 100);
     display.drawString(0, 16, buf);
     snprintf(buf, sizeof(buf), "Code:%d %s", att_code, att_label);
     display.drawString(0, 32, buf);
@@ -335,24 +337,26 @@ static void info_screen()
 }
 
 /* -------------------------------------------------------
- * Startup Menu
+ * Menu (LongPress im Normalbetrieb / Taste beim Start)
  * Auswahl per Drehregler, Bestätigung per Taste.
- * Menüpunkte: "Bridge" → hbridge_startup_test()
+ * Menüpunkte: "Zurueck"  → kehrt in den Normalbetrieb zurück
+ *             "Info"     → info_screen()
+ *             "Bridge"   → hbridge_startup_test()
  *             "statisch" → static_gpio_test()
- *             "info" → info_screen()
+ *             "Reset"    → NVIC_SystemReset()
  * ------------------------------------------------------- */
-static void startup_menu()
+static void runtime_menu()
 {
-    static const char* const menu_items[] = { "Bridge", "statisch", "info" };
-    const int MENU_COUNT = 3;
+    static const char* const menu_items[] = { "Zurueck", "Info", "Bridge", "statisch", "Reset" };
+    const int MENU_COUNT = 5;
     int sel = 0;
 
     auto draw_menu = [&]() {
         display.clear();
-        display.drawString(0, 0, "SETUP MENU");
+        display.drawString(0, 0, "MENU");
         for(int i = 0; i < MENU_COUNT; i++) {
-            if(i == sel) display.drawString(0, 20 + i * 14, ">");
-            display.drawString(10, 20 + i * 14, menu_items[i]);
+            if(i == sel) display.drawString(0, 13 + i * 10, ">");
+            display.drawString(10, 13 + i * 10, menu_items[i]);
         }
         display.display();
     };
@@ -366,14 +370,7 @@ static void startup_menu()
     int last_clk = digitalRead(ENCODER_CLK);
     int last_sw  = HIGH;
 
-    /* Doppelklick im Menue -> System-Reset */
-    const unsigned long DC_WINDOW = 400;
-    bool          dc_pending     = false;
-    unsigned long dc_last_release = 0;
-
     while(true) {
-        unsigned long now = millis();
-
         int clk = digitalRead(ENCODER_CLK);
         if(clk != last_clk && clk == LOW) {
             int dir = (digitalRead(ENCODER_DT) != clk) ? 1 : -1;
@@ -384,32 +381,27 @@ static void startup_menu()
 
         int sw = digitalRead(ENCODER_SW);
         if(sw == LOW && last_sw == HIGH) {
-            delay(20);  /* debounce */
-            if(dc_pending && (now - dc_last_release) < DC_WINDOW) {
-                /* Doppelklick -> Reset */
+            delay(20); /* debounce */
+            while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+            delay(50);
+            if(sel == 0) {
+                return; /* Zurueck -> Normalbetrieb */
+            } else if(sel == 1) {
+                info_screen();
+                draw_menu();
+            } else if(sel == 2) {
+                hbridge_startup_test();
+                draw_menu();
+            } else if(sel == 3) {
+                static_gpio_test();
+                draw_menu();
+            } else { /* Reset */
                 display.clear();
                 display.drawString(0, 24, "RESET...");
                 display.display();
-                while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
                 delay(200);
                 NVIC_SystemReset();
             }
-        }
-        if(sw == HIGH && last_sw == LOW) {
-            dc_pending      = true;
-            dc_last_release = now;
-        }
-        if(dc_pending && (now - dc_last_release) >= DC_WINDOW) {
-            /* Single-Klick -> ausgewaehlten Menuepunkt starten */
-            dc_pending = false;
-            if(sel == 0)      hbridge_startup_test();
-            else if(sel == 1) static_gpio_test();
-            else              info_screen();
-            /* Nach Rueckkehr: Menu neu zeichnen + States resetten */
-            draw_menu();
-            last_sw  = digitalRead(ENCODER_SW);
-            last_clk = digitalRead(ENCODER_CLK);
-            continue;
         }
         last_sw = sw;
         delay(5);
@@ -496,9 +488,9 @@ void setup()
 
     send_info_to_esp32();
 
-    /* Startup-Test-Menu: Encoder-Taste beim Einschalten gedrückt halten */
+    /* Menu: Encoder-Taste beim Einschalten gedrückt halten */
     if(digitalRead(ENCODER_SW) == LOW) {
-        startup_menu();   /* blocking – never returns */
+        runtime_menu();
     }
 
     encoder_last_clk = digitalRead(ENCODER_CLK);
@@ -603,8 +595,13 @@ void loop()
         long_press_executed  = false;
     }
 
-    /* Long-Press-Aktivierung des Test-Modes wurde entfernt.
-     * Test-Mode kann nur noch ueber das Startup-Menue erreicht werden. */
+    /* LongPress -> Runtime-Menue anzeigen */
+    if(button_was_pressed && !long_press_executed && sw_state == LOW
+       && (now - button_press_start) >= LONG_PRESS_TIME) {
+        long_press_executed = true;
+        runtime_menu();
+        refresh_attenuation_display();
+    }
 
     if(sw_state == HIGH && encoder_last_sw == LOW && button_was_pressed) {
         button_was_pressed = false;

@@ -2,6 +2,10 @@
 
 #include <stdint.h>
 
+#define BRIDGE 0
+#define STATIC 1
+
+
 /* ============================================================
  * Abstract base class for all attenuator types.
  *
