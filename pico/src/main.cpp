@@ -347,16 +347,20 @@ static void info_screen()
  * ------------------------------------------------------- */
 static void runtime_menu()
 {
-    static const char* const menu_items[] = { "Zurueck", "Info", "Bridge", "statisch", "Reset" };
-    const int MENU_COUNT = 5;
+    /* Test-Eintrag je nach Relais-Modus des aktiven Attenuators */
+    bool use_bridge = !att || (att->relay_mode() == BRIDGE);
+    const char* test_label = use_bridge ? "Bridge" : "statisch";
+
+    const char* menu_items[4] = { "Zurueck", "Info", test_label, "Reset" };
+    const int MENU_COUNT = 4;
     int sel = 0;
 
     auto draw_menu = [&]() {
         display.clear();
         display.drawString(0, 0, "MENU");
         for(int i = 0; i < MENU_COUNT; i++) {
-            if(i == sel) display.drawString(0, 13 + i * 10, ">");
-            display.drawString(10, 13 + i * 10, menu_items[i]);
+            if(i == sel) display.drawString(0, 16 + i * 12, ">");
+            display.drawString(10, 16 + i * 12, menu_items[i]);
         }
         display.display();
     };
@@ -390,10 +394,8 @@ static void runtime_menu()
                 info_screen();
                 draw_menu();
             } else if(sel == 2) {
-                hbridge_startup_test();
-                draw_menu();
-            } else if(sel == 3) {
-                static_gpio_test();
+                if(use_bridge) hbridge_startup_test();
+                else           static_gpio_test();
                 draw_menu();
             } else { /* Reset */
                 display.clear();

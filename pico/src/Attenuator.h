@@ -47,6 +47,9 @@ public:
     /* Test mode – redraw display with current relay name/state */
     virtual void    update_test_display() = 0;
 
+    /* Relay driving mode: BRIDGE (H-bridge) or STATIC (direct GPIO) */
+    virtual int     relay_mode()  const = 0;
+
     /* Safety watchdog – call from loop().
      * Default: no-op.  Implementations may use this to enforce
      * hardware constraints (e.g. max pulse width on relay coils). */

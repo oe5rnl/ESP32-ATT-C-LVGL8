@@ -62,6 +62,7 @@ public:
     void    test_rotate(int dir)  override;
     void    test_toggle()         override;
     void    update_test_display() override;
+    int     relay_mode()  const override { return BRIDGE; }
 
     /* Safety watchdog: forces any relay pin LOW if it has been HIGH
      * for more than PIN_MAX_HIGH_MS milliseconds. Call from loop(). */

@@ -20,4 +20,5 @@ public:
     void    test_rotate(int dir)  override;
     void    test_toggle()         override;
     void    update_test_display() override;
+    int     relay_mode()  const override { return BRIDGE; }
 };

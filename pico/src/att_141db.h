@@ -63,6 +63,7 @@ public:
     int         digit_count()           const override { return 3; }
     void        show_info()             override;
     void        test_init()             override;
+    int         relay_mode()  const override { return BRIDGE; }
     void        test_rotate(int dir)    override;
     void        test_toggle()           override;
     void        update_test_display()   override;
