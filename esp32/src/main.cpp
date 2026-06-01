@@ -74,6 +74,19 @@ lv_obj_t * ip_label = NULL;
 lv_obj_t * auto_set_label = NULL;  /* Label für AUTO-Set Status */
 static lv_obj_t * title_label = NULL;  /* Titel-Label: zeigt ATTNAME */
 
+static lv_obj_t * info_name_label  = NULL;
+static lv_obj_t * info_relay_label = NULL;
+static lv_obj_t * info_max_label   = NULL;
+static lv_obj_t * info_step_label  = NULL;
+static lv_obj_t * info_mode_label  = NULL;
+static lv_obj_t * test_type_label  = NULL;
+static int        att_relay_mode   = 0;   /* 0=BRIDGE, 1=STATIC */
+
+/* Untermenü-Navigation */
+static lv_obj_t * submenu_btn_cont       = NULL;
+static lv_obj_t * submenu_pages[4]       = { NULL, NULL, NULL, NULL };
+static lv_obj_t * submenu_back_btn       = NULL;
+
 #if RAW_UART_TEST_MODE
 static void send_raw_uart_test_value(void)
 {
@@ -480,60 +493,147 @@ static void defaults_create(lv_obj_t * parent)
     }
 }
 
-static void help_create(lv_obj_t * parent)
+/* Forward-Deklarationen für Unterseiten */
+static void wlan_create(lv_obj_t * parent);
+static void info_create(lv_obj_t * parent);
+static void test_create(lv_obj_t * parent);
+
+static void show_submenu_page(int idx)
+{
+    if(submenu_btn_cont) lv_obj_add_flag(submenu_btn_cont, LV_OBJ_FLAG_HIDDEN);
+    for(int i = 0; i < 4; i++)
+        if(submenu_pages[i]) lv_obj_add_flag(submenu_pages[i], LV_OBJ_FLAG_HIDDEN);
+    if(idx >= 0 && idx < 4 && submenu_pages[idx])
+        lv_obj_clear_flag(submenu_pages[idx], LV_OBJ_FLAG_HIDDEN);
+    if(submenu_back_btn) lv_obj_clear_flag(submenu_back_btn, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void show_submenu_list(void)
+{
+    if(submenu_btn_cont) lv_obj_clear_flag(submenu_btn_cont, LV_OBJ_FLAG_HIDDEN);
+    for(int i = 0; i < 4; i++)
+        if(submenu_pages[i]) lv_obj_add_flag(submenu_pages[i], LV_OBJ_FLAG_HIDDEN);
+    if(submenu_back_btn) lv_obj_add_flag(submenu_back_btn, LV_OBJ_FLAG_HIDDEN);
+}
+
+static void menu_create(lv_obj_t * parent)
 {
     lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
+    lv_obj_set_style_pad_all(parent, 0, 0);
 
-    /* Dark background */
+    /* --- Untermenü-Schaltflächen --- */
+    submenu_btn_cont = lv_obj_create(parent);
+    lv_obj_set_size(submenu_btn_cont, 320, 200);
+    lv_obj_set_pos(submenu_btn_cont, 0, 0);
+    lv_obj_set_style_bg_opa(submenu_btn_cont, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(submenu_btn_cont, 0, 0);
+    lv_obj_set_style_pad_all(submenu_btn_cont, 0, 0);
+    lv_obj_clear_flag(submenu_btn_cont, LV_OBJ_FLAG_SCROLLABLE);
+
+    const char * item_labels[4] = { "WLAN", "Info", "Test", "Verhalten" };
+    for(int i = 0; i < 4; i++) {
+        lv_obj_t * btn = lv_btn_create(submenu_btn_cont);
+        lv_obj_set_size(btn, 290, 38);
+        lv_obj_set_pos(btn, 15, 10 + i * 46);
+        lv_obj_set_style_bg_color(btn, lv_color_hex(0x1a5090), 0);
+        lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
+        lv_obj_set_style_radius(btn, 6, 0);
+        lv_obj_t * lbl = lv_label_create(btn);
+        lv_label_set_text(lbl, item_labels[i]);
+        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
+        lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 8, 0);
+        lv_obj_add_event_cb(btn, [](lv_event_t * e) {
+            show_submenu_page((int)(intptr_t)lv_event_get_user_data(e));
+        }, LV_EVENT_CLICKED, (void*)(intptr_t)i);
+    }
+
+    /* --- Unterseiten (anfangs versteckt) --- */
+    for(int i = 0; i < 4; i++) {
+        lv_obj_t * page = lv_obj_create(parent);
+        lv_obj_set_size(page, 320, 168);
+        lv_obj_set_pos(page, 0, 0);
+        lv_obj_set_style_bg_color(page, lv_color_black(), 0);
+        lv_obj_set_style_bg_opa(page, LV_OPA_COVER, 0);
+        lv_obj_set_style_border_width(page, 0, 0);
+        lv_obj_set_style_pad_all(page, 0, 0);
+        lv_obj_clear_flag(page, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_add_flag(page, LV_OBJ_FLAG_HIDDEN);
+        submenu_pages[i] = page;
+    }
+
+    wlan_create(submenu_pages[0]);
+    info_create(submenu_pages[1]);
+    test_create(submenu_pages[2]);
+
+    /* Verhalten: Auto-Set */
+    {
+        lv_obj_t * page = submenu_pages[3];
+        lv_obj_t * label = lv_label_create(page);
+        lv_label_set_text(label, "Auto-Set");
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
+        lv_obj_set_style_text_color(label, lv_color_white(), 0);
+        lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
+        lv_obj_t * sw = lv_switch_create(page);
+        ae_switch = sw;
+        lv_obj_align_to(sw, label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+        lv_obj_set_style_bg_color(sw, lv_color_hex(0x1a5090), 0);
+        lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(sw, lv_color_hex(0x008000), LV_PART_INDICATOR | LV_STATE_CHECKED);
+        if(autoset) lv_obj_add_state(sw, LV_STATE_CHECKED);
+        lv_obj_add_event_cb(sw, [](lv_event_t * e) {
+            autoset = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+            prefs.putBool("ae", autoset);
+            if(auto_set_label) {
+                lv_label_set_text(auto_set_label, autoset ? "AUTO: ON" : "AUTO: OFF");
+            }
+            if(btn_set) {
+                if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+                else        lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+            }
+#if !RAW_UART_TEST_MODE
+            Serial.print("AUTO:");
+            Serial.println(autoset ? "ON" : "OFF");
+#endif
+            ws_broadcast_ae();
+        }, LV_EVENT_VALUE_CHANGED, NULL);
+    }
+
+    /* --- Zurück-Schaltfläche --- */
+    submenu_back_btn = lv_btn_create(parent);
+    lv_obj_set_size(submenu_back_btn, 90, 28);
+    lv_obj_set_pos(submenu_back_btn, 10, 170);
+    lv_obj_set_style_bg_color(submenu_back_btn, lv_color_hex(0x444444), 0);
+    lv_obj_set_style_bg_opa(submenu_back_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(submenu_back_btn, 6, 0);
+    lv_obj_t * back_lbl = lv_label_create(submenu_back_btn);
+    lv_label_set_text(back_lbl, "< Zurück");
+    lv_obj_set_style_text_font(back_lbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(back_lbl, lv_color_white(), 0);
+    lv_obj_center(back_lbl);
+    lv_obj_add_flag(submenu_back_btn, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_event_cb(submenu_back_btn, [](lv_event_t * e) {
+        (void)e;
+        show_submenu_list();
+    }, LV_EVENT_CLICKED, NULL);
+}
+
+static void wlan_create(lv_obj_t * parent)
+{
+    lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
 
-    lv_obj_t * label = lv_label_create(parent);
-    lv_label_set_text(label, "Auto-Set");
-    lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_text_color(label, lv_color_white(), 0);
-    lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
-
-    lv_obj_t * sw = lv_switch_create(parent);
-    ae_switch = sw;
-    lv_obj_align_to(sw, label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
-    lv_obj_set_style_bg_color(sw, lv_color_hex(0x1a5090), 0);
-    lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(sw, lv_color_hex(0x008000), LV_PART_INDICATOR | LV_STATE_CHECKED);
-    if(autoset) lv_obj_add_state(sw, LV_STATE_CHECKED);
-    lv_obj_add_event_cb(sw, [](lv_event_t * e) {
-        autoset = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-        prefs.putBool("ae", autoset);
-        
-        /* Update Label im Main-Tab */
-        if(auto_set_label) {
-            lv_label_set_text(auto_set_label, autoset ? "AUTO: ON" : "AUTO: OFF");
-        }
-        
-        /* Update SET-Button Sichtbarkeit */
-        if(btn_set) {
-            if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
-            else lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
-        }
-        
-        /* Sende Status an Pico über Serial */
-#if !RAW_UART_TEST_MODE
-        Serial.print("AUTO:");
-        Serial.println(autoset ? "ON" : "OFF");
-#endif
-        
-        ws_broadcast_ae();
-    }, LV_EVENT_VALUE_CHANGED, NULL);
-
-    /* WiFi on/off switch */
     lv_obj_t * wlabel = lv_label_create(parent);
     lv_label_set_text(wlabel, "WLAN");
     lv_obj_set_style_text_font(wlabel, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(wlabel, lv_color_white(), 0);
-    lv_obj_align(wlabel, LV_ALIGN_TOP_LEFT, 10, 55);
+    lv_obj_align(wlabel, LV_ALIGN_TOP_LEFT, 10, 10);
 
     wifi_switch = lv_switch_create(parent);
-    lv_obj_align_to(wifi_switch, ae_switch, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 25);
+    lv_obj_align_to(wifi_switch, wlabel, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
     lv_obj_set_style_bg_color(wifi_switch, lv_color_hex(0x1a5090), 0);
     lv_obj_set_style_bg_opa(wifi_switch, LV_OPA_COVER, 0);
     lv_obj_set_style_bg_color(wifi_switch, lv_color_hex(0x008000), LV_PART_INDICATOR | LV_STATE_CHECKED);
@@ -544,14 +644,83 @@ static void help_create(lv_obj_t * parent)
         apply_wifi_mode();
     }, LV_EVENT_VALUE_CHANGED, NULL);
 
-    /* IP address label */
+    /* AP / Client Statuslabel */
     ip_label = lv_label_create(parent);
     lv_label_set_text(ip_label, "");
     lv_obj_set_style_text_font(ip_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(ip_label, lv_color_hex(0x60d0ff), 0);
     lv_label_set_long_mode(ip_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(ip_label, 260);
-    lv_obj_align_to(ip_label, wlabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 20);
+    lv_obj_set_width(ip_label, 300);
+    lv_obj_align_to(ip_label, wlabel, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 15);
+}
+
+static void info_create(lv_obj_t * parent)
+{
+    lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
+
+    static lv_style_t style_key, style_val;
+    static bool styles_init = false;
+    if(!styles_init) {
+        styles_init = true;
+        lv_style_init(&style_key);
+        lv_style_set_text_font(&style_key, &lv_font_montserrat_14);
+        lv_style_set_text_color(&style_key, lv_color_hex(0x888888));
+        lv_style_init(&style_val);
+        lv_style_set_text_font(&style_val, &lv_font_montserrat_14);
+        lv_style_set_text_color(&style_val, lv_color_white());
+    }
+
+    const char*   keys[5] = { "Name:", "Relais:", "Max dB:", "Schritt:", "Modus:" };
+    lv_obj_t**    vals[5] = { &info_name_label, &info_relay_label, &info_max_label,
+                               &info_step_label, &info_mode_label };
+    int           ys[5]   = { 10, 42, 74, 106, 138 };
+
+    for(int i = 0; i < 5; i++) {
+        lv_obj_t * k = lv_label_create(parent);
+        lv_label_set_text(k, keys[i]);
+        lv_obj_add_style(k, &style_key, 0);
+        lv_obj_set_pos(k, 10, ys[i]);
+        lv_obj_t * v = lv_label_create(parent);
+        lv_label_set_text(v, "-");
+        lv_obj_add_style(v, &style_val, 0);
+        lv_obj_set_pos(v, 120, ys[i]);
+        *vals[i] = v;
+    }
+
+    /* Mit bereits bekannten Werten befüllen */
+    if(att_name_str.length() > 0)
+        lv_label_set_text(info_name_label, att_name_str.c_str());
+    char buf[16];
+    snprintf(buf, sizeof(buf), "%d", att_relay_count);
+    lv_label_set_text(info_relay_label, buf);
+    snprintf(buf, sizeof(buf), "%d", (int)att_max_val);
+    lv_label_set_text(info_max_label, buf);
+    snprintf(buf, sizeof(buf), "%d", (int)att_step);
+    lv_label_set_text(info_step_label, buf);
+    lv_label_set_text(info_mode_label, att_relay_mode == 1 ? "Static" : "Bridge");
+}
+
+static void test_create(lv_obj_t * parent)
+{
+    lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
+
+    test_type_label = lv_label_create(parent);
+    lv_obj_set_style_text_font(test_type_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(test_type_label, lv_color_hex(0x60d0ff), 0);
+    lv_label_set_text(test_type_label, att_relay_mode == 1 ? "Static-Test" : "Bridge-Test");
+    lv_obj_align(test_type_label, LV_ALIGN_TOP_MID, 0, 15);
+
+    lv_obj_t * hint = lv_label_create(parent);
+    lv_obj_set_style_text_font(hint, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(hint, lv_color_hex(0xaaaaaa), 0);
+    lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(hint, 280);
+    lv_label_set_text(hint, "Test am Pico starten:\nTaste > 800ms halten\n\u2192 Menu \u2192 Test");
+    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 20);
 }
 
 /* Called from webserver.h when web client changes default_values */
@@ -603,7 +772,7 @@ static void create_ui(void)
 
     /* Style tab buttons: dark navy bg, accent color when checked */
     lv_obj_t * tab_btns = lv_tabview_get_tab_btns(tabview);
-    lv_obj_set_style_text_font(tab_btns, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(tab_btns, &lv_font_montserrat_14, 0);
     lv_obj_set_style_bg_color(tab_btns, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(tab_btns, LV_OPA_COVER, 0);
     lv_obj_set_style_text_color(tab_btns, lv_color_hex(0x888888), 0);
@@ -613,11 +782,11 @@ static void create_ui(void)
 
     lv_obj_t * t1 = lv_tabview_add_tab(tabview, "Main");
     lv_obj_t * t2 = lv_tabview_add_tab(tabview, "Presets");
-    lv_obj_t * t3 = lv_tabview_add_tab(tabview, "Config");
+    lv_obj_t * t3 = lv_tabview_add_tab(tabview, "Men\u00fc");
 
     config_create(t1);
     defaults_create(t2);
-    help_create(t3);
+    menu_create(t3);
 
     /* Disable horizontal swipe navigation between tabs */
     lv_obj_clear_flag(lv_tabview_get_content(tabview), LV_OBJ_FLAG_SCROLLABLE);
@@ -835,10 +1004,15 @@ void loop()
                 /* Attenuator-Infos vom Pico beim Programmstart */
                 else if(input.startsWith("RELAYS:")) {
                     att_relay_count = input.substring(7).toInt();
+                    if(info_relay_label) {
+                        char buf[8]; snprintf(buf, sizeof(buf), "%d", att_relay_count);
+                        lv_label_set_text(info_relay_label, buf);
+                    }
                 }
                 else if(input.startsWith("ATTNAME:")) {
                     att_name_str = input.substring(8);
-                    if(title_label) lv_label_set_text(title_label, att_name_str.c_str());
+                    if(title_label)     lv_label_set_text(title_label,     att_name_str.c_str());
+                    if(info_name_label) lv_label_set_text(info_name_label, att_name_str.c_str());
                 }
                 else if(input.startsWith("DIGITS:")) {
                     int d = input.substring(7).toInt();
@@ -857,6 +1031,10 @@ void loop()
                 else if(input.startsWith("STEP:")) {
                     att_step = input.substring(5).toInt();
                     if(att_step < 1) att_step = 1;
+                    if(info_step_label) {
+                        char buf[8]; snprintf(buf, sizeof(buf), "%d", (int)att_step);
+                        lv_label_set_text(info_step_label, buf);
+                    }
                 }
                 else if(input.startsWith("MAXDB:")) {
                     int32_t m = input.substring(6).toInt();
@@ -870,7 +1048,18 @@ void loop()
                             update_digit_labels();
                         }
                         update_cursor();
+                        if(info_max_label) {
+                            char buf[8]; snprintf(buf, sizeof(buf), "%d", (int)att_max_val);
+                            lv_label_set_text(info_max_label, buf);
+                        }
                     }
+                }
+                else if(input.startsWith("RELMODE:")) {
+                    att_relay_mode = input.substring(8).toInt();
+                    const char* ms = att_relay_mode == 1 ? "Static" : "Bridge";
+                    if(info_mode_label)  lv_label_set_text(info_mode_label, ms);
+                    if(test_type_label)  lv_label_set_text(test_type_label,
+                        att_relay_mode == 1 ? "Static-Test" : "Bridge-Test");
                 }
                 else {
                     /* Parse number: accept plain number or "xxdB" format */

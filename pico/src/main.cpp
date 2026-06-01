@@ -189,6 +189,8 @@ static void send_info_to_esp32()
     Serial1.println(att ? (int)att->step_db() : 10);
     Serial1.print("MAXDB:");
     Serial1.println(att ? (int)att->max_db() : 110);
+    Serial1.print("RELMODE:");
+    Serial1.println(att ? att->relay_mode() : BRIDGE);
 }
 
 /* -------------------------------------------------------
