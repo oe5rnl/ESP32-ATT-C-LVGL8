@@ -714,13 +714,23 @@ static void test_create(lv_obj_t * parent)
     lv_label_set_text(test_type_label, att_relay_mode == 1 ? "Static-Test" : "Bridge-Test");
     lv_obj_align(test_type_label, LV_ALIGN_TOP_MID, 0, 15);
 
-    lv_obj_t * hint = lv_label_create(parent);
-    lv_obj_set_style_text_font(hint, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(hint, lv_color_hex(0xaaaaaa), 0);
-    lv_label_set_long_mode(hint, LV_LABEL_LONG_WRAP);
-    lv_obj_set_width(hint, 280);
-    lv_label_set_text(hint, "Test am Pico starten:\nTaste > 800ms halten\n\u2192 Menu \u2192 Test");
-    lv_obj_align(hint, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_t * btn = lv_btn_create(parent);
+    lv_obj_set_size(btn, 200, 50);
+    lv_obj_align(btn, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_set_style_bg_color(btn, lv_color_hex(0x1a5090), 0);
+    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(btn, 8, 0);
+    lv_obj_t * lbl = lv_label_create(btn);
+    lv_label_set_text(lbl, "Test starten");
+    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
+    lv_obj_center(lbl);
+    lv_obj_add_event_cb(btn, [](lv_event_t * e) {
+        (void)e;
+#if !RAW_UART_TEST_MODE
+        Serial.println("TEST");
+#endif
+    }, LV_EVENT_CLICKED, NULL);
 }
 
 /* Called from webserver.h when web client changes default_values */

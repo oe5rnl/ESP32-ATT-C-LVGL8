@@ -678,6 +678,10 @@ void loop()
             auto_set_mode = input.endsWith("ON");
             Serial.print("ESP32 AUTO-Set: "); Serial.println(auto_set_mode ? "ON" : "OFF");
             refresh_attenuation_display();
+        } else if(input == "TEST") {
+            bool use_bridge = !att || (att->relay_mode() == BRIDGE);
+            if(use_bridge) hbridge_startup_test();
+            else           static_gpio_test();
         } else {
             bool force_apply = false;
             if(input.startsWith("SET:")) {
