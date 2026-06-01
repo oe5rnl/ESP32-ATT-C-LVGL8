@@ -87,6 +87,23 @@ static bool auto_set_mode = true;
 /* Test Mode */
 static bool test_mode = false;
 
+/* -------------------------------------------------------
+ * Remote-Test-Modus (gesteuert vom ESP32 per Serial1)
+ * ------------------------------------------------------- */
+static bool  rmt_test_active    = false;
+static bool  rmt_test_is_bridge = false;
+static int   rmt_test_sel       = 0;
+static int   rmt_test_count     = 0;
+/* Bridge-Test-Pins (identisch mit test.cpp) */
+static const int RMT_HB_COUNT       = 9;
+static const int rmt_hb_pin_a[9]    = {  2,  6,  8, 10, 12, 14, 16, 18, 27 };
+static const int rmt_hb_pin_b[9]    = {  3,  7,  9, 11, 13, 15, 17, 22, 28 };
+static int   rmt_hb_states[9]       = {};
+/* Static-Test-Pins */
+static const int RMT_SG_COUNT       = 4;
+static const int rmt_sg_pins[4]     = { 10, 11, 12, 13 };
+static bool  rmt_sg_states[4]       = {};
+
 static const int32_t STARTUP_DB = 0;
 static int32_t persisted_db_cache = -1000;
 static mbed::BlockDevice * storage_bd = nullptr;
@@ -191,6 +208,81 @@ static void send_info_to_esp32()
     Serial1.println(att ? (int)att->max_db() : 110);
     Serial1.print("RELMODE:");
     Serial1.println(att ? att->relay_mode() : BRIDGE);
+}
+
+/* -------------------------------------------------------
+ * Remote-Test-Funktionen (ESP32-gesteuert, non-blocking)
+ * ------------------------------------------------------- */
+static void rmt_test_send_state()
+{
+    int s = rmt_test_is_bridge ? rmt_hb_states[rmt_test_sel]
+                               : (int)rmt_sg_states[rmt_test_sel];
+    Serial1.print("TESTSTATE:");
+    Serial1.print(rmt_test_sel);
+    Serial1.print(",");
+    Serial1.println(s);
+}
+
+static void rmt_test_start()
+{
+    rmt_test_is_bridge = !att || (att->relay_mode() == BRIDGE);
+    rmt_test_sel       = 0;
+    if(rmt_test_is_bridge) {
+        rmt_test_count = RMT_HB_COUNT;
+        for(int i = 0; i < RMT_HB_COUNT; i++) rmt_hb_states[i] = 0;
+        for(int i = 0; i < RMT_HB_COUNT; i++) {
+            pinMode(rmt_hb_pin_a[i], OUTPUT); digitalWrite(rmt_hb_pin_a[i], LOW);
+            pinMode(rmt_hb_pin_b[i], OUTPUT); digitalWrite(rmt_hb_pin_b[i], LOW);
+        }
+    } else {
+        rmt_test_count = RMT_SG_COUNT;
+        for(int i = 0; i < RMT_SG_COUNT; i++) rmt_sg_states[i] = false;
+        for(int i = 0; i < RMT_SG_COUNT; i++) {
+            pinMode(rmt_sg_pins[i], OUTPUT);
+            digitalWrite(rmt_sg_pins[i], LOW);
+        }
+    }
+    rmt_test_active = true;
+    rmt_test_send_state();
+}
+
+static void rmt_test_select(int idx)
+{
+    if(idx < 0 || idx >= rmt_test_count) return;
+    rmt_test_sel = idx;
+    rmt_test_send_state();
+}
+
+static void rmt_test_action()
+{
+    int i = rmt_test_sel;
+    if(rmt_test_is_bridge) {
+        if(rmt_hb_states[i] == 0) {
+            digitalWrite(rmt_hb_pin_a[i], HIGH); delay(20); digitalWrite(rmt_hb_pin_a[i], LOW);
+        } else {
+            digitalWrite(rmt_hb_pin_b[i], HIGH); delay(20); digitalWrite(rmt_hb_pin_b[i], LOW);
+        }
+        rmt_hb_states[i] = 1 - rmt_hb_states[i];
+    } else {
+        rmt_sg_states[i] = !rmt_sg_states[i];
+        digitalWrite(rmt_sg_pins[i], rmt_sg_states[i] ? HIGH : LOW);
+    }
+    rmt_test_send_state();
+}
+
+static void rmt_test_end()
+{
+    if(rmt_test_is_bridge) {
+        for(int i = 0; i < RMT_HB_COUNT; i++) {
+            digitalWrite(rmt_hb_pin_a[i], LOW);
+            digitalWrite(rmt_hb_pin_b[i], LOW);
+        }
+    } else {
+        for(int i = 0; i < RMT_SG_COUNT; i++) {
+            digitalWrite(rmt_sg_pins[i], LOW);
+        }
+    }
+    rmt_test_active = false;
 }
 
 /* -------------------------------------------------------
@@ -678,10 +770,14 @@ void loop()
             auto_set_mode = input.endsWith("ON");
             Serial.print("ESP32 AUTO-Set: "); Serial.println(auto_set_mode ? "ON" : "OFF");
             refresh_attenuation_display();
-        } else if(input == "TEST") {
-            bool use_bridge = !att || (att->relay_mode() == BRIDGE);
-            if(use_bridge) hbridge_startup_test();
-            else           static_gpio_test();
+        } else if(input == "TEST:START") {
+            rmt_test_start();
+        } else if(input.startsWith("TEST:SEL:")) {
+            rmt_test_select(input.substring(9).toInt());
+        } else if(input == "TEST:ACTION") {
+            if(rmt_test_active) rmt_test_action();
+        } else if(input == "TEST:END") {
+            rmt_test_end();
         } else {
             bool force_apply = false;
             if(input.startsWith("SET:")) {

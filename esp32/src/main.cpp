@@ -82,6 +82,16 @@ static lv_obj_t * info_mode_label  = NULL;
 static lv_obj_t * test_type_label  = NULL;
 static int        att_relay_mode   = 0;   /* 0=BRIDGE, 1=STATIC */
 
+/* Remote-Test-UI */
+static lv_obj_t * test_controls    = NULL;
+static lv_obj_t * test_relay_lbl   = NULL;
+static lv_obj_t * test_state_lbl   = NULL;
+static lv_obj_t * test_start_btn   = NULL;
+static bool       test_active      = false;
+static int        test_sel_idx     = 0;
+static int        test_count       = 0;
+static int        test_states_arr[16] = {};
+
 /* Untermenü-Navigation */
 static lv_obj_t * submenu_btn_cont       = NULL;
 static lv_obj_t * submenu_pages[4]       = { NULL, NULL, NULL, NULL };
@@ -609,7 +619,7 @@ static void menu_create(lv_obj_t * parent)
     lv_obj_set_style_bg_opa(submenu_back_btn, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(submenu_back_btn, 6, 0);
     lv_obj_t * back_lbl = lv_label_create(submenu_back_btn);
-    lv_label_set_text(back_lbl, "< Zurück");
+    lv_label_set_text(back_lbl, "< Zuruck");
     lv_obj_set_style_text_font(back_lbl, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(back_lbl, lv_color_white(), 0);
     lv_obj_center(back_lbl);
@@ -702,33 +712,187 @@ static void info_create(lv_obj_t * parent)
     lv_label_set_text(info_mode_label, att_relay_mode == 1 ? "Static" : "Bridge");
 }
 
+static const char* test_relay_name(int idx)
+{
+    if(att_relay_mode == 1) {
+        static const char* n[] = { "10dB", "20dB", "40A", "40B" };
+        if(idx >= 0 && idx < 4) return n[idx];
+        return "?";
+    }
+    static char b[12];
+    snprintf(b, sizeof(b), "Bridge %d", idx + 1);
+    return b;
+}
+
+static void test_ui_update()
+{
+    if(test_relay_lbl) lv_label_set_text(test_relay_lbl, test_relay_name(test_sel_idx));
+    if(test_state_lbl) lv_label_set_text(test_state_lbl,
+        (test_sel_idx < 16 && test_states_arr[test_sel_idx]) ? "EIN" : "AUS");
+}
+
+static void test_show_controls(bool active)
+{
+    test_active = active;
+    if(test_start_btn) {
+        if(active) lv_obj_add_flag(test_start_btn, LV_OBJ_FLAG_HIDDEN);
+        else       lv_obj_clear_flag(test_start_btn, LV_OBJ_FLAG_HIDDEN);
+    }
+    if(test_controls) {
+        if(active) lv_obj_clear_flag(test_controls, LV_OBJ_FLAG_HIDDEN);
+        else       lv_obj_add_flag(test_controls, LV_OBJ_FLAG_HIDDEN);
+    }
+}
+
 static void test_create(lv_obj_t * parent)
 {
     lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_bg_color(parent, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(parent, LV_OPA_COVER, 0);
 
+    /* --- Test-Typ Label --- */
     test_type_label = lv_label_create(parent);
     lv_obj_set_style_text_font(test_type_label, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(test_type_label, lv_color_hex(0x60d0ff), 0);
     lv_label_set_text(test_type_label, att_relay_mode == 1 ? "Static-Test" : "Bridge-Test");
-    lv_obj_align(test_type_label, LV_ALIGN_TOP_MID, 0, 15);
+    lv_obj_align(test_type_label, LV_ALIGN_TOP_MID, 0, 5);
 
-    lv_obj_t * btn = lv_btn_create(parent);
-    lv_obj_set_size(btn, 200, 50);
-    lv_obj_align(btn, LV_ALIGN_CENTER, 0, 20);
-    lv_obj_set_style_bg_color(btn, lv_color_hex(0x1a5090), 0);
-    lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(btn, 8, 0);
-    lv_obj_t * lbl = lv_label_create(btn);
-    lv_label_set_text(lbl, "Test starten");
-    lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
-    lv_obj_center(lbl);
-    lv_obj_add_event_cb(btn, [](lv_event_t * e) {
+    /* --- Start-Button --- */
+    test_start_btn = lv_btn_create(parent);
+    lv_obj_set_size(test_start_btn, 200, 44);
+    lv_obj_align(test_start_btn, LV_ALIGN_CENTER, 0, 20);
+    lv_obj_set_style_bg_color(test_start_btn, lv_color_hex(0x1a5090), 0);
+    lv_obj_set_style_bg_opa(test_start_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(test_start_btn, 8, 0);
+    lv_obj_t * slbl = lv_label_create(test_start_btn);
+    lv_label_set_text(slbl, "Test starten");
+    lv_obj_set_style_text_font(slbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(slbl, lv_color_white(), 0);
+    lv_obj_center(slbl);
+    lv_obj_add_event_cb(test_start_btn, [](lv_event_t * e) {
+        (void)e;
+        for(int i = 0; i < 16; i++) test_states_arr[i] = 0;
+        test_sel_idx = 0;
+        test_count   = (att_relay_mode == 1) ? 4 : 9;
+        test_ui_update();
+        test_show_controls(true);
+#if !RAW_UART_TEST_MODE
+        Serial.println("TEST:START");
+#endif
+    }, LV_EVENT_CLICKED, NULL);
+
+    /* --- Steuerungscontainer (anfangs versteckt) --- */
+    test_controls = lv_obj_create(parent);
+    lv_obj_set_size(test_controls, 320, 133);
+    lv_obj_set_pos(test_controls, 0, 35);
+    lv_obj_set_style_bg_opa(test_controls, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_border_width(test_controls, 0, 0);
+    lv_obj_set_style_pad_all(test_controls, 0, 0);
+    lv_obj_clear_flag(test_controls, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(test_controls, LV_OBJ_FLAG_HIDDEN);
+
+    /* Navigation: < relay_name > */
+    lv_obj_t * prev_btn = lv_btn_create(test_controls);
+    lv_obj_set_size(prev_btn, 40, 38);
+    lv_obj_set_pos(prev_btn, 5, 6);
+    lv_obj_set_style_bg_color(prev_btn, lv_color_hex(0x1a5090), 0);
+    lv_obj_set_style_bg_opa(prev_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(prev_btn, 6, 0);
+    lv_obj_t * plbl = lv_label_create(prev_btn);
+    lv_label_set_text(plbl, "<");
+    lv_obj_set_style_text_font(plbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(plbl, lv_color_white(), 0);
+    lv_obj_center(plbl);
+    lv_obj_add_event_cb(prev_btn, [](lv_event_t * e) {
+        (void)e;
+        if(test_count <= 0) return;
+        test_sel_idx = (test_sel_idx + test_count - 1) % test_count;
+        test_ui_update();
+#if !RAW_UART_TEST_MODE
+        char cmd[20]; snprintf(cmd, sizeof(cmd), "TEST:SEL:%d", test_sel_idx);
+        Serial.println(cmd);
+#endif
+    }, LV_EVENT_CLICKED, NULL);
+
+    test_relay_lbl = lv_label_create(test_controls);
+    lv_obj_set_style_text_font(test_relay_lbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(test_relay_lbl, lv_color_white(), 0);
+    lv_label_set_long_mode(test_relay_lbl, LV_LABEL_LONG_DOT);
+    lv_obj_set_width(test_relay_lbl, 220);
+    lv_obj_set_pos(test_relay_lbl, 52, 18);
+    lv_obj_set_style_text_align(test_relay_lbl, LV_TEXT_ALIGN_CENTER, 0);
+
+    lv_obj_t * next_btn = lv_btn_create(test_controls);
+    lv_obj_set_size(next_btn, 40, 38);
+    lv_obj_set_pos(next_btn, 275, 6);
+    lv_obj_set_style_bg_color(next_btn, lv_color_hex(0x1a5090), 0);
+    lv_obj_set_style_bg_opa(next_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(next_btn, 6, 0);
+    lv_obj_t * nlbl = lv_label_create(next_btn);
+    lv_label_set_text(nlbl, ">");
+    lv_obj_set_style_text_font(nlbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(nlbl, lv_color_white(), 0);
+    lv_obj_center(nlbl);
+    lv_obj_add_event_cb(next_btn, [](lv_event_t * e) {
+        (void)e;
+        if(test_count <= 0) return;
+        test_sel_idx = (test_sel_idx + 1) % test_count;
+        test_ui_update();
+#if !RAW_UART_TEST_MODE
+        char cmd[20]; snprintf(cmd, sizeof(cmd), "TEST:SEL:%d", test_sel_idx);
+        Serial.println(cmd);
+#endif
+    }, LV_EVENT_CLICKED, NULL);
+
+    /* Status-Zeile */
+    lv_obj_t * skey = lv_label_create(test_controls);
+    lv_obj_set_style_text_font(skey, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(skey, lv_color_hex(0x888888), 0);
+    lv_label_set_text(skey, "Status:");
+    lv_obj_set_pos(skey, 5, 54);
+
+    test_state_lbl = lv_label_create(test_controls);
+    lv_obj_set_style_text_font(test_state_lbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(test_state_lbl, lv_color_white(), 0);
+    lv_label_set_text(test_state_lbl, "AUS");
+    lv_obj_set_pos(test_state_lbl, 80, 54);
+
+    /* Aktions-Button */
+    lv_obj_t * act_btn = lv_btn_create(test_controls);
+    lv_obj_set_size(act_btn, 148, 36);
+    lv_obj_set_pos(act_btn, 5, 86);
+    lv_obj_set_style_bg_color(act_btn, lv_color_hex(0x1a7020), 0);
+    lv_obj_set_style_bg_opa(act_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(act_btn, 6, 0);
+    lv_obj_t * albl = lv_label_create(act_btn);
+    lv_label_set_text(albl, "Puls / Toggle");
+    lv_obj_set_style_text_font(albl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(albl, lv_color_white(), 0);
+    lv_obj_center(albl);
+    lv_obj_add_event_cb(act_btn, [](lv_event_t * e) {
         (void)e;
 #if !RAW_UART_TEST_MODE
-        Serial.println("TEST");
+        Serial.println("TEST:ACTION");
+#endif
+    }, LV_EVENT_CLICKED, NULL);
+
+    /* Ende-Button */
+    lv_obj_t * end_btn = lv_btn_create(test_controls);
+    lv_obj_set_size(end_btn, 155, 36);
+    lv_obj_set_pos(end_btn, 160, 86);
+    lv_obj_set_style_bg_color(end_btn, lv_color_hex(0x702020), 0);
+    lv_obj_set_style_bg_opa(end_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_radius(end_btn, 6, 0);
+    lv_obj_t * elbl = lv_label_create(end_btn);
+    lv_label_set_text(elbl, "Test beenden");
+    lv_obj_set_style_text_font(elbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(elbl, lv_color_white(), 0);
+    lv_obj_center(elbl);
+    lv_obj_add_event_cb(end_btn, [](lv_event_t * e) {
+        (void)e;
+        test_show_controls(false);
+#if !RAW_UART_TEST_MODE
+        Serial.println("TEST:END");
 #endif
     }, LV_EVENT_CLICKED, NULL);
 }
@@ -782,7 +946,7 @@ static void create_ui(void)
 
     /* Style tab buttons: dark navy bg, accent color when checked */
     lv_obj_t * tab_btns = lv_tabview_get_tab_btns(tabview);
-    lv_obj_set_style_text_font(tab_btns, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(tab_btns, &lv_font_montserrat_24, 0);
     lv_obj_set_style_bg_color(tab_btns, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(tab_btns, LV_OPA_COVER, 0);
     lv_obj_set_style_text_color(tab_btns, lv_color_hex(0x888888), 0);
@@ -792,7 +956,7 @@ static void create_ui(void)
 
     lv_obj_t * t1 = lv_tabview_add_tab(tabview, "Main");
     lv_obj_t * t2 = lv_tabview_add_tab(tabview, "Presets");
-    lv_obj_t * t3 = lv_tabview_add_tab(tabview, "Men\u00fc");
+    lv_obj_t * t3 = lv_tabview_add_tab(tabview, "Menu");
 
     config_create(t1);
     defaults_create(t2);
@@ -1070,6 +1234,17 @@ void loop()
                     if(info_mode_label)  lv_label_set_text(info_mode_label, ms);
                     if(test_type_label)  lv_label_set_text(test_type_label,
                         att_relay_mode == 1 ? "Static-Test" : "Bridge-Test");
+                }
+                else if(input.startsWith("TESTSTATE:")) {
+                    String data = input.substring(10);
+                    int comma = data.indexOf(',');
+                    if(comma > 0) {
+                        int sel  = data.substring(0, comma).toInt();
+                        int stat = data.substring(comma + 1).toInt();
+                        if(sel >= 0 && sel < 16) test_states_arr[sel] = stat;
+                        test_sel_idx = sel;
+                        test_ui_update();
+                    }
                 }
                 else {
                     /* Parse number: accept plain number or "xxdB" format */
