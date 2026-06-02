@@ -72,6 +72,9 @@ static int raw_uart_last_value = -1;
 
 static const unsigned long ENCODER_SETTLE_TIME = 300;
 static const unsigned long LONG_PRESS_TIME      = 800;
+static const unsigned long TIMED_SETTLE_TIME    = 300;
+static bool          timed_apply_pending = false;
+static unsigned long timed_last_rx       = 0;
 
 /* Doppelklick-Erkennung */
 static unsigned long last_click_time = 0;
@@ -373,6 +376,9 @@ static void apply_attenuation_from_esp_db(int32_t db_value)
         Serial.println(" dB");
         return;
     }
+    /* Coalesce schnelle Repeats: Relais erst schalten wenn keine weiteren
+     * Frames im UART-RX-Puffer warten (spart delay(20) je Bit-Wechsel). */
+    if(Serial1.available()) return;
     if(!suppress_relay_update) apply_relays(current_db);
 }
 
@@ -523,7 +529,7 @@ void setup()
 
     /* Init ESP32 serial */
     Serial1.begin(115200);
-    Serial1.setTimeout(100);
+    Serial1.setTimeout(20);
     delay(10);
 
     /* Init debug serial */
@@ -682,6 +688,20 @@ void loop()
         Serial1.println("dB");
     }
 
+    /* Set-Time: nach Ruhe der TIMED-Frames Relais schalten */
+    if(timed_apply_pending && !test_mode && (now - timed_last_rx) >= TIMED_SETTLE_TIME) {
+        timed_apply_pending = false;
+        Serial.print("TIMED settled -> apply ");
+        Serial.print(current_db);
+        Serial.println(" dB");
+        apply_relays(current_db);
+        Serial1.print(current_db);
+        Serial1.println("dB");
+        led_solid_mode  = true;
+        led_solid_start = now;
+        digitalWrite(LED_BUILTIN, HIGH);
+    }
+
     /* Read Encoder Button */
     int sw_state = digitalRead(ENCODER_SW);
 
@@ -755,6 +775,7 @@ void loop()
     if(Serial1.available()) {
         String input = Serial1.readStringUntil('\n');
         input.trim();
+        Serial.print("RX from ESP: \""); Serial.print(input); Serial.println("\"");
 
         if(input == "?") {
             Serial1.print("Current: "); Serial1.print(current_db); Serial1.println(" dB");
@@ -778,6 +799,23 @@ void loop()
             if(rmt_test_active) rmt_test_action();
         } else if(input == "TEST:END") {
             rmt_test_end();
+        } else if(input.startsWith("TIMED:")) {
+            /* Set-Time: Anzeige sofort, Relais nach TIMED_SETTLE_TIME Ruhe */
+            String sub = input.substring(6);
+            sub.toLowerCase();
+            int dbPos = sub.indexOf("db");
+            if(dbPos >= 0) sub = sub.substring(0, dbPos);
+            sub.trim();
+            int val = sub.toInt();
+            if(val > 0 || sub == "0") {
+                Serial.print("TIMED RX: "); Serial.println(val);
+                update_attenuation_display_state(val);
+                timed_apply_pending = true;
+                timed_last_rx       = now;
+                led_solid_mode  = true;
+                led_solid_start = now;
+                digitalWrite(LED_BUILTIN, HIGH);
+            }
         } else {
             bool force_apply = false;
             if(input.startsWith("SET:")) {
@@ -833,5 +871,5 @@ void loop()
         }
     }
 
-    delay(10);
+    delay(2);
 }

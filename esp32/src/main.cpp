@@ -58,9 +58,10 @@ static lv_obj_t * kb = NULL;
 static lv_obj_t * ta = NULL;
 static int editing_index = -1;
 static bool long_press_active = false;
-bool autoset = true;
+int set_mode = 0;  /* 0=Set-Direct, 1=Set-Time, 2=Set-Button */
+bool autoset = true;  /* abgeleitet: true wenn set_mode==0 */
 static lv_obj_t * btn_set = NULL;
-static lv_obj_t * ae_switch = NULL;
+static lv_obj_t * ae_btnmatrix = NULL;
 #if RAW_UART_TEST_MODE
 static uint32_t raw_uart_test_tx_count = 0;
 #endif
@@ -269,6 +270,13 @@ void apply_attenuation_set(void)
     send_attenuation_command(true);
 }
 
+void apply_attenuation_timed(void)
+{
+    int32_t att_v = (db_value / att_step) * att_step;
+    if(att_v > att_max_val) att_v = att_max_val;
+    Serial.printf("TIMED:%ddB\n", (int)att_v);
+}
+
 static void set_config_value(int32_t val, bool apply_auto_command)
 {
     db_value = val;
@@ -290,7 +298,9 @@ static void btn_up_cb(lv_event_t * e)
 #if RAW_UART_TEST_MODE
     send_raw_uart_test_value();
 #else
-    if(autoset) apply_attenuation();
+    if(set_mode == 0)      apply_attenuation();        /* Set-Direct: sofort */
+    else if(set_mode == 1) apply_attenuation_timed();  /* Set-Time:  verzögert */
+    /* Set-Button (2): nichts senden – erst beim Set-Klick */
 #endif
 }
 
@@ -307,8 +317,17 @@ static void btn_down_cb(lv_event_t * e)
 #if RAW_UART_TEST_MODE
     send_raw_uart_test_value();
 #else
-    if(autoset) apply_attenuation();
+    if(set_mode == 0)      apply_attenuation();        /* Set-Direct: sofort */
+    else if(set_mode == 1) apply_attenuation_timed();  /* Set-Time:  verzögert */
+    /* Set-Button (2): nichts senden – erst beim Set-Klick */
 #endif
+}
+
+static const char * set_mode_label_str()
+{
+    if(set_mode == 1) return "SET-TIME";
+    if(set_mode == 2) return "SET-BUTTON";
+    return "SET-DIRECT";
 }
 
 static void config_create(lv_obj_t * parent)
@@ -382,7 +401,7 @@ static void config_create(lv_obj_t * parent)
     
     /* AUTO-Set Status Label (kleine Schrift unter den Digits) */
     auto_set_label = lv_label_create(parent);
-    lv_label_set_text(auto_set_label, "AUTO: OFF");
+    lv_label_set_text(auto_set_label, set_mode_label_str());
     lv_obj_set_style_text_font(auto_set_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(auto_set_label, lv_color_hex(0xffa500), 0);
     lv_obj_align_to(auto_set_label, digit_cont, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
@@ -410,6 +429,7 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_width(btn_up, 88);
     lv_obj_add_style(btn_up, &style_btn, 0);
     lv_obj_add_event_cb(btn_up, btn_up_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_up, btn_up_cb, LV_EVENT_LONG_PRESSED_REPEAT, NULL);
     lv_obj_t * lbl_up = lv_label_create(btn_up);
     lv_label_set_text(lbl_up, "UP");
     lv_obj_center(lbl_up);
@@ -418,6 +438,7 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_width(btn_down, 88);
     lv_obj_add_style(btn_down, &style_btn, 0);
     lv_obj_add_event_cb(btn_down, btn_down_cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_add_event_cb(btn_down, btn_down_cb, LV_EVENT_LONG_PRESSED_REPEAT, NULL);
     lv_obj_t * lbl_down = lv_label_create(btn_down);
     lv_label_set_text(lbl_down, "Down");
     lv_obj_center(lbl_down);
@@ -578,27 +599,32 @@ static void menu_create(lv_obj_t * parent)
     info_create(submenu_pages[1]);
     test_create(submenu_pages[2]);
 
-    /* Verhalten: Auto-Set */
+    /* Verhalten: Set-Modus (1 aus 3) */
     {
+        static const char * btn_map[] = { "Set-Direct", "Set-Time", "Set-Button", "" };
         lv_obj_t * page = submenu_pages[3];
         lv_obj_t * label = lv_label_create(page);
-        lv_label_set_text(label, "Auto-Set");
+        lv_label_set_text(label, "Verhalten");
         lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
         lv_obj_set_style_text_color(label, lv_color_white(), 0);
         lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
-        lv_obj_t * sw = lv_switch_create(page);
-        ae_switch = sw;
-        lv_obj_align_to(sw, label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
-        lv_obj_set_style_bg_color(sw, lv_color_hex(0x1a5090), 0);
-        lv_obj_set_style_bg_opa(sw, LV_OPA_COVER, 0);
-        lv_obj_set_style_bg_color(sw, lv_color_hex(0x008000), LV_PART_INDICATOR | LV_STATE_CHECKED);
-        if(autoset) lv_obj_add_state(sw, LV_STATE_CHECKED);
-        lv_obj_add_event_cb(sw, [](lv_event_t * e) {
-            autoset = lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-            prefs.putBool("ae", autoset);
-            if(auto_set_label) {
-                lv_label_set_text(auto_set_label, autoset ? "AUTO: ON" : "AUTO: OFF");
-            }
+        lv_obj_t * btnm = lv_btnmatrix_create(page);
+        ae_btnmatrix = btnm;
+        lv_btnmatrix_set_map(btnm, btn_map);
+        lv_obj_set_size(btnm, 290, 56);
+        lv_obj_align_to(btnm, label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
+        for(int i = 0; i < 3; i++)
+            lv_btnmatrix_set_btn_ctrl(btnm, i, LV_BTNMATRIX_CTRL_CHECKABLE);
+        lv_btnmatrix_set_one_checked(btnm, true);
+        lv_btnmatrix_set_btn_ctrl(btnm, (uint16_t)set_mode, LV_BTNMATRIX_CTRL_CHECKED);
+        lv_obj_add_event_cb(btnm, [](lv_event_t * e) {
+            lv_obj_t * obj = lv_event_get_target(e);
+            int idx = (int)lv_btnmatrix_get_selected_btn(obj);
+            set_mode = idx;
+            autoset  = (set_mode != 2);  /* true für Direct+Time, false nur für Button */
+            prefs.putInt("setmode", set_mode);
+            if(auto_set_label)
+                lv_label_set_text(auto_set_label, set_mode_label_str());
             if(btn_set) {
                 if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
                 else        lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
@@ -910,13 +936,13 @@ void web_update_defaults(void)
 /* Called from webserver.h when web client changes autoset */
 void web_update_ae(void)
 {
-    if(ae_switch) {
-        if(autoset) lv_obj_add_state(ae_switch, LV_STATE_CHECKED);
-        else          lv_obj_clear_state(ae_switch, LV_STATE_CHECKED);
-    }
-    if(auto_set_label) {
-        lv_label_set_text(auto_set_label, autoset ? "AUTO: ON" : "AUTO: OFF");
-    }
+    /* Web-Interface kennt nur bool → autoset=true → Set-Direct, false → Set-Button */
+    set_mode = autoset ? 0 : 2;
+    prefs.putInt("setmode", set_mode);
+    if(ae_btnmatrix)
+        lv_btnmatrix_set_btn_ctrl(ae_btnmatrix, (uint16_t)set_mode, LV_BTNMATRIX_CTRL_CHECKED);
+    if(auto_set_label)
+        lv_label_set_text(auto_set_label, set_mode_label_str());
     if(btn_set) {
         if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
         else          lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
@@ -1055,7 +1081,8 @@ void setup()
         snprintf(key, sizeof(key), "def%d", i);
         default_values[i] = prefs.getInt(key, default_values[i]);
     }
-    autoset = prefs.getBool("ae", true);
+    set_mode = prefs.getInt("setmode", 0);
+    autoset  = (set_mode != 2);
     wifi_mode_setting = prefs.getUChar("wmode", 2);
     if(wifi_mode_setting != 0) {
         wifi_mode_setting = 2;
@@ -1101,6 +1128,7 @@ void setup()
     lv_indev_drv_init(&indev_drv);
     indev_drv.type = LV_INDEV_TYPE_POINTER;
     indev_drv.read_cb = my_touchpad_read;
+    indev_drv.long_press_repeat_time = 150;  /* ms zwischen Repeat-Events beim Halten */
     lv_indev_drv_register(&indev_drv);
 
     // Create custom UI
@@ -1152,27 +1180,24 @@ void loop()
                 /* Check für AUTO-Set Status vom Pico */
                 else if(input.startsWith("AUTO:")) {
                     /* Format: "AUTO:ON" oder "AUTO:OFF" */
-                    bool new_autoset = input.endsWith("ON");
-                    autoset = new_autoset;
-                    prefs.putBool("ae", autoset);
-                    
+                    autoset  = input.endsWith("ON");
+                    set_mode = autoset ? 0 : 2;
+                    prefs.putInt("setmode", set_mode);
+
                     /* Update Label im Main-Tab */
-                    if(auto_set_label) {
-                        lv_label_set_text(auto_set_label, input.c_str());
-                    }
-                    
-                    /* Update Switch im Config-Tab */
-                    if(ae_switch) {
-                        if(autoset) lv_obj_add_state(ae_switch, LV_STATE_CHECKED);
-                        else lv_obj_clear_state(ae_switch, LV_STATE_CHECKED);
-                    }
-                    
+                    if(auto_set_label)
+                        lv_label_set_text(auto_set_label, set_mode_label_str());
+
+                    /* Update Btnmatrix im Config-Tab */
+                    if(ae_btnmatrix)
+                        lv_btnmatrix_set_btn_ctrl(ae_btnmatrix, (uint16_t)set_mode, LV_BTNMATRIX_CTRL_CHECKED);
+
                     /* Update SET-Button Sichtbarkeit */
                     if(btn_set) {
                         if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
                         else lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
                     }
-                    
+
                     ws_broadcast_ae();
                 }
                 /* Attenuator-Infos vom Pico beim Programmstart */
