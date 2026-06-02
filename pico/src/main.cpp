@@ -221,8 +221,6 @@ static void sync_state_to_esp32()
         Serial1.print(current_db);
         Serial1.println("dB");
     }
-    Serial1.print("AUTO:");
-    Serial1.println(auto_set_mode ? "ON" : "OFF");
     Serial1.print("SETMODE:");
     Serial1.println(pico_set_mode);
     Serial1.print("SEL");
@@ -566,8 +564,6 @@ static void runtime_menu()
                             /* ESP32 informieren */
                             Serial1.print("SETMODE:");
                             Serial1.println(pico_set_mode);
-                            Serial1.print("AUTO:");
-                            Serial1.println(auto_set_mode ? "ON" : "OFF");
                         }
                         break;
                     }
@@ -892,12 +888,6 @@ void loop()
             pico_set_mode = input.substring(8).toInt();
             auto_set_mode = (pico_set_mode != 2);
             Serial.print("ESP32 SETMODE: "); Serial.println(pico_set_mode);
-            refresh_attenuation_display();
-        } else if(input.startsWith("AUTO:")) {
-            auto_set_mode = input.endsWith("ON");
-            if(auto_set_mode && pico_set_mode == 2) pico_set_mode = 0;
-            else if(!auto_set_mode) pico_set_mode = 2;
-            Serial.print("ESP32 AUTO-Set: "); Serial.println(auto_set_mode ? "ON" : "OFF");
             refresh_attenuation_display();
         } else if(input == "TEST:START") {
             rmt_test_start();

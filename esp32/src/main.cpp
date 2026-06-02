@@ -630,8 +630,6 @@ static void menu_create(lv_obj_t * parent)
                 else        lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
             }
 #if !RAW_UART_TEST_MODE
-            Serial.print("AUTO:");
-            Serial.println(autoset ? "ON" : "OFF");
             Serial.printf("SETMODE:%d\n", set_mode);
 #endif
             ws_broadcast_ae();
@@ -950,8 +948,6 @@ void web_update_ae(void)
     }
     /* Sende Status an Pico über Serial */
 #if !RAW_UART_TEST_MODE
-    Serial.print("AUTO:");
-    Serial.println(autoset ? "ON" : "OFF");
     Serial.printf("SETMODE:%d\n", set_mode);
 #endif
 }
@@ -1198,29 +1194,6 @@ void loop()
                         }
                         ws_broadcast_ae();
                     }
-                }
-                /* Check für AUTO-Set Status vom Pico */
-                else if(input.startsWith("AUTO:")) {
-                    /* Format: "AUTO:ON" oder "AUTO:OFF" */
-                    autoset  = input.endsWith("ON");
-                    set_mode = autoset ? 0 : 2;
-                    prefs.putInt("setmode", set_mode);
-
-                    /* Update Label im Main-Tab */
-                    if(auto_set_label)
-                        lv_label_set_text(auto_set_label, set_mode_label_str());
-
-                    /* Update Btnmatrix im Config-Tab */
-                    if(ae_btnmatrix)
-                        lv_btnmatrix_set_btn_ctrl(ae_btnmatrix, (uint16_t)set_mode, LV_BTNMATRIX_CTRL_CHECKED);
-
-                    /* Update SET-Button Sichtbarkeit */
-                    if(btn_set) {
-                        if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
-                        else lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
-                    }
-
-                    ws_broadcast_ae();
                 }
                 /* Attenuator-Infos vom Pico beim Programmstart */
                 else if(input.startsWith("RELAYS:")) {
