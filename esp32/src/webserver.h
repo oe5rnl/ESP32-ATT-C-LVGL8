@@ -27,6 +27,7 @@ extern Preferences prefs;
 extern int32_t db_value;
 extern int32_t default_values[DEFAULT_BUTTON_COUNT];
 extern bool autoset;
+extern int  set_mode;          /* 0=Set-Direct, 1=Set-Time, 2=Set-Button */
 extern int selected_digit;
 extern uint8_t wifi_mode_setting;
 extern lv_obj_t * ip_label;
@@ -40,13 +41,14 @@ void apply_preset_value(int32_t val);
 void apply_web_preset_value(int32_t val);
 void web_update_defaults(void);
 void web_update_ae(void);
+void web_update_setmode(void);
 void web_update_seldigit(void);
 
 /* -------------------------------------------------------
  * FreeRTOS queue for inter-core LVGL command dispatch
  * Core 0 (WebSocket task) enqueues, Core 1 (loop) dequeues
  * ------------------------------------------------------- */
-enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET, WS_CMD_WIFI_APPLY };
+enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET, WS_CMD_WIFI_APPLY, WS_CMD_SETMODE };
 struct WsCmdMsg { WsCmdType type; int32_t val; int32_t idx; bool bval; };
 static QueueHandle_t ws_cmd_queue = nullptr;
 
@@ -79,6 +81,9 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   .defaults{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
   .defaults button{width:100%}
   .defaults button.active{background:#e94560;outline:2px solid #7ec8e3}
+  .modegrp{display:flex;gap:6px;flex-wrap:wrap}
+  .modegrp button{flex:1;min-width:90px;background:#0f3460}
+  .modegrp button.active{background:#1a5090;outline:2px solid #7ec8e3}
   .switch-row{display:flex;align-items:center;gap:12px}
   input[type=checkbox]{width:40px;height:22px;cursor:pointer;accent-color:#7ec8e3}
   #status{text-align:center;font-size:.85em;color:#888;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px}
@@ -116,10 +121,11 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
 </div>
 
 <div class="card">
-  <h2>Config</h2>
-  <div class="switch-row">
-    <label>Auto-Set</label>
-    <input type="checkbox" id="swAE" onchange="sendAE()">
+  <h2>Verhalten</h2>
+  <div class="modegrp" id="modegrp">
+    <button id="mode0" onclick="sendMode(0)">Set-Direct</button>
+    <button id="mode1" onclick="sendMode(1)">Set-Time</button>
+    <button id="mode2" onclick="sendMode(2)">Set-Button</button>
   </div>
 </div>
 
@@ -165,6 +171,7 @@ const DEFAULT_BUTTON_COUNT = 9;
 let ws;
 let selDigit = 2;
 let curVal = 0;
+let curMode = 0;
 const defaults = Array(DEFAULT_BUTTON_COUNT).fill(0);
 let activeDefIdx = -1;
 let lastContact = 0;
@@ -204,8 +211,8 @@ function connectWS(){
       document.querySelector('.digits').classList.add('visible');
       for(let i=0;i<DEFAULT_BUTTON_COUNT;i++) defaults[i]=msg.def[i];
       renderDefaults();
-      document.getElementById('swAE').checked = msg.ae;
-      document.getElementById('btnSet').style.display = msg.ae ? 'none' : 'inline-block';
+      if(msg.setmode !== undefined) applyMode(msg.setmode);
+      else applyMode(msg.ae ? 0 : 2);
       if(msg.sel !== undefined) applyDigitSelection(msg.sel);
       if(msg.maxVal !== undefined) maxVal=msg.maxVal;
       if(msg.attStep !== undefined) attStep=msg.attStep;
@@ -227,8 +234,10 @@ function connectWS(){
       applyDigitSelection(msg.idx);
     }
     if(msg.type === 'ae'){
-      document.getElementById('swAE').checked = msg.val;
-      document.getElementById('btnSet').style.display = msg.val ? 'none' : 'inline-block';
+      applyMode(msg.val ? 0 : 2);
+    }
+    if(msg.type === 'setmode'){
+      applyMode(msg.val);
     }
   };
 }
@@ -282,8 +291,23 @@ function step(dir){
 }
 
 function sendSet(){
-  if(document.getElementById('swAE').checked) return;
+  if(curMode !== 2) return;
   ws.send(JSON.stringify({cmd:'set', val:curVal}));
+}
+
+function applyMode(m){
+  if(m<0||m>2) return;
+  curMode = m;
+  for(let i=0;i<3;i++){
+    const el=document.getElementById('mode'+i);
+    if(el) el.classList.toggle('active', i===m);
+  }
+  document.getElementById('btnSet').style.display = (m===2) ? 'inline-block' : 'none';
+}
+
+function sendMode(m){
+  applyMode(m);
+  ws.send(JSON.stringify({cmd:'setmode', val:m}));
 }
 
 function renderDefaults(){
@@ -319,9 +343,8 @@ function renderDefaults(){
 }
 
 function sendAE(){
-  const v = document.getElementById('swAE').checked;
-  document.getElementById('btnSet').style.display = v ? 'none' : 'inline-block';
-  ws.send(JSON.stringify({cmd:'ae', val:v}));
+  /* veraltet – bleibt für Kompatibilität */
+  sendMode(curMode===2 ? 0 : 2);
 }
 
 function digitDown(evt,i){
@@ -480,7 +503,7 @@ setInterval(()=>{
  * ------------------------------------------------------- */
 static void ws_send_state(AsyncWebSocketClient * client = nullptr)
 {
-  char buf[320];
+  char buf[360];
     // Build the def array part
   char defArr[128];
   snprintf(defArr, sizeof(defArr),
@@ -490,9 +513,9 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
     (int)default_values[6], (int)default_values[7], (int)default_values[8]);
 
     snprintf(buf, sizeof(buf),
-        "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"sel\":%d,"
+        "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"setmode\":%d,\"sel\":%d,"
         "\"maxVal\":%d,\"attStep\":%d,\"digitMax\":[%d,%d,%d]}",
-        (int)db_value, defArr, autoset ? "true" : "false", selected_digit,
+        (int)db_value, defArr, autoset ? "true" : "false", set_mode, selected_digit,
         (int)att_max_val, (int)att_step, (int)digit_max[0], (int)digit_max[1], (int)digit_max[2]);
 
     if(client) client->text(buf);
@@ -531,6 +554,13 @@ static void ws_send_ae(void)
 {
     char buf[32];
     snprintf(buf, sizeof(buf), "{\"type\":\"ae\",\"val\":%s}", autoset ? "true" : "false");
+    ws.textAll(buf);
+}
+
+static void ws_send_setmode(void)
+{
+    char buf[40];
+    snprintf(buf, sizeof(buf), "{\"type\":\"setmode\",\"val\":%d}", set_mode);
     ws.textAll(buf);
 }
 
@@ -650,9 +680,25 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             bool v = autoset;
             if(getBool(msg, "val", v)) {
                 autoset = v;
+                set_mode = v ? 0 : 2;
+                prefs.putBool("ae", autoset);
+                prefs.putInt("setmode", set_mode);
+                ws_send_ae();
+                ws_send_setmode();
+                WsCmdMsg m = {WS_CMD_AE, 0, 0, v};
+                xQueueSend(ws_cmd_queue, &m, 0);
+            }
+        }
+        else if(strcmp(cmd, "setmode") == 0) {
+            int32_t v = set_mode;
+            if(getInt(msg, "val", v) && v >= 0 && v <= 2) {
+                set_mode = (int)v;
+                autoset  = (set_mode != 2);
+                prefs.putInt("setmode", set_mode);
                 prefs.putBool("ae", autoset);
                 ws_send_ae();
-                WsCmdMsg m = {WS_CMD_AE, 0, 0, v};
+                ws_send_setmode();
+                WsCmdMsg m = {WS_CMD_SETMODE, v, 0, autoset};
                 xQueueSend(ws_cmd_queue, &m, 0);
             }
         }
@@ -973,6 +1019,11 @@ static void webserver_loop(void)
                 autoset = m.bval;
                 web_update_ae();
                 break;
+            case WS_CMD_SETMODE:
+                set_mode = (int)m.val;
+                autoset  = (set_mode != 2);
+                web_update_setmode();
+                break;
             case WS_CMD_SELDIGIT:
                 selected_digit = m.idx;
                 web_update_seldigit();
@@ -991,6 +1042,6 @@ static void webserver_loop(void)
 /* Called from main.cpp whenever db_value changes from LVGL side */
 static void ws_broadcast_val(void)        { ws_send_val(); }
 static void ws_broadcast_def(int i)       { ws_send_def(i); }
-static void ws_broadcast_ae(void)         { ws_send_ae(); }
+static void ws_broadcast_ae(void)         { ws_send_ae(); ws_send_setmode(); }
 static void ws_broadcast_active_def(int i){ ws_send_active_def(i); }
 static void ws_broadcast_seldigit(int i)  { selected_digit = i; ws_send_seldigit(); }

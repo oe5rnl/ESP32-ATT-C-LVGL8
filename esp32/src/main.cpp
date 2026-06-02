@@ -932,14 +932,16 @@ void web_update_defaults(void)
     }
 }
 
-/* Called from webserver.h when web client changes autoset */
+/* Called from webserver.h when web client changes autoset (legacy bool path) */
 void web_update_ae(void)
 {
     /* Web-Interface kennt nur bool → autoset=true → Set-Direct, false → Set-Button */
     set_mode = autoset ? 0 : 2;
     prefs.putInt("setmode", set_mode);
-    if(ae_btnmatrix)
+    if(ae_btnmatrix) {
+        lv_btnmatrix_clear_btn_ctrl_all(ae_btnmatrix, LV_BTNMATRIX_CTRL_CHECKED);
         lv_btnmatrix_set_btn_ctrl(ae_btnmatrix, (uint16_t)set_mode, LV_BTNMATRIX_CTRL_CHECKED);
+    }
     if(auto_set_label)
         lv_label_set_text(auto_set_label, set_mode_label_str());
     if(btn_set) {
@@ -947,6 +949,26 @@ void web_update_ae(void)
         else          lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
     }
     /* Sende Status an Pico über Serial */
+#if !RAW_UART_TEST_MODE
+    Serial.printf("SETMODE:%d\n", set_mode);
+#endif
+}
+
+/* Called from webserver.h when web client picks new set_mode (0/1/2) */
+void web_update_setmode(void)
+{
+    autoset = (set_mode != 2);
+    prefs.putInt("setmode", set_mode);
+    if(ae_btnmatrix) {
+        lv_btnmatrix_clear_btn_ctrl_all(ae_btnmatrix, LV_BTNMATRIX_CTRL_CHECKED);
+        lv_btnmatrix_set_btn_ctrl(ae_btnmatrix, (uint16_t)set_mode, LV_BTNMATRIX_CTRL_CHECKED);
+    }
+    if(auto_set_label)
+        lv_label_set_text(auto_set_label, set_mode_label_str());
+    if(btn_set) {
+        if(set_mode == 2) lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+        else              lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+    }
 #if !RAW_UART_TEST_MODE
     Serial.printf("SETMODE:%d\n", set_mode);
 #endif
