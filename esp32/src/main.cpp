@@ -404,7 +404,7 @@ static void config_create(lv_obj_t * parent)
     lv_label_set_text(auto_set_label, set_mode_label_str());
     lv_obj_set_style_text_font(auto_set_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(auto_set_label, lv_color_hex(0xffa500), 0);
-    lv_obj_align_to(auto_set_label, digit_cont, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 5);
+    lv_obj_align_to(auto_set_label, digit_cont, LV_ALIGN_OUT_BOTTOM_LEFT, 10, 25);
 
     /* Container for buttons, right-aligned */
     lv_obj_t * btn_cont = lv_obj_create(parent);
@@ -632,6 +632,7 @@ static void menu_create(lv_obj_t * parent)
 #if !RAW_UART_TEST_MODE
             Serial.print("AUTO:");
             Serial.println(autoset ? "ON" : "OFF");
+            Serial.printf("SETMODE:%d\n", set_mode);
 #endif
             ws_broadcast_ae();
         }, LV_EVENT_VALUE_CHANGED, NULL);
@@ -951,6 +952,7 @@ void web_update_ae(void)
 #if !RAW_UART_TEST_MODE
     Serial.print("AUTO:");
     Serial.println(autoset ? "ON" : "OFF");
+    Serial.printf("SETMODE:%d\n", set_mode);
 #endif
 }
 
@@ -1175,6 +1177,26 @@ void loop()
                         selected_digit = idx;
                         update_cursor();
                         ws_broadcast_seldigit(selected_digit);
+                    }
+                }
+                /* Set-Modus vom Pico */
+                else if(input.startsWith("SETMODE:")) {
+                    int m = input.substring(8).toInt();
+                    if(m >= 0 && m <= 2) {
+                        set_mode = m;
+                        autoset  = (set_mode != 2);
+                        prefs.putInt("setmode", set_mode);
+                        if(auto_set_label)
+                            lv_label_set_text(auto_set_label, set_mode_label_str());
+                        if(ae_btnmatrix) {
+                            lv_btnmatrix_clear_btn_ctrl_all(ae_btnmatrix, LV_BTNMATRIX_CTRL_CHECKED);
+                            lv_btnmatrix_set_btn_ctrl(ae_btnmatrix, (uint16_t)set_mode, LV_BTNMATRIX_CTRL_CHECKED);
+                        }
+                        if(btn_set) {
+                            if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+                            else        lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+                        }
+                        ws_broadcast_ae();
                     }
                 }
                 /* Check für AUTO-Set Status vom Pico */

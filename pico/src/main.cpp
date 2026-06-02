@@ -86,6 +86,13 @@ static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner */
 
 /* AUTO-Set Mode */
 static bool auto_set_mode = true;
+static int  pico_set_mode = 0;   /* 0=Direct, 1=Time, 2=Button */
+
+static const char* pico_set_mode_str() {
+    if(pico_set_mode == 1) return "SET-TIME";
+    if(pico_set_mode == 2) return "SET-BUTTON";
+    return "SET-DIRECT";
+}
 
 /* Test Mode */
 static bool test_mode = false;
@@ -113,7 +120,8 @@ static mbed::BlockDevice * storage_bd = nullptr;
 static mbed::LittleFileSystem storage_fs("fs");
 static bool storage_ready = false;
 static bool has_persisted_db = false;
-static const char * DB_STORE_FILE = "/fs/att_db.txt";
+static const char * DB_STORE_FILE      = "/fs/att_db.txt";
+static const char * SETMODE_STORE_FILE = "/fs/setmode.txt";
 
 #if RAW_UART_TEST_MODE
 static void update_raw_uart_test_display()
@@ -185,6 +193,28 @@ static void save_persisted_db_if_changed(int32_t db_value)
     persisted_db_cache = db_value;
 }
 
+static void load_persisted_setmode()
+{
+    if(!storage_ready) return;
+    FILE * f = fopen(SETMODE_STORE_FILE, "r");
+    if(!f) return;
+    int m = 0;
+    if(fscanf(f, "%d", &m) == 1 && m >= 0 && m <= 2) {
+        pico_set_mode = m;
+        auto_set_mode = (pico_set_mode != 2);
+    }
+    fclose(f);
+}
+
+static void save_persisted_setmode()
+{
+    if(!storage_ready) return;
+    FILE * f = fopen(SETMODE_STORE_FILE, "w");
+    if(!f) return;
+    fprintf(f, "%d\n", pico_set_mode);
+    fclose(f);
+}
+
 static void sync_state_to_esp32()
 {
     if(has_persisted_db) {
@@ -193,6 +223,8 @@ static void sync_state_to_esp32()
     }
     Serial1.print("AUTO:");
     Serial1.println(auto_set_mode ? "ON" : "OFF");
+    Serial1.print("SETMODE:");
+    Serial1.println(pico_set_mode);
     Serial1.print("SEL");
     Serial1.println(selected_digit);
 }
@@ -343,7 +375,7 @@ static void update_attenuation_display_state(int32_t db_value)
     display.drawBigNumber(10, 16, (uint16_t)dv);
     display.drawString(90, 28, "dB");
     drawCursor();
-    display.drawString(0, 56, auto_set_mode ? "AUTO-SET: ON" : "AUTO-SET: OFF");
+    display.drawString(0, 56, pico_set_mode_str());
     display.display();
 }
 
@@ -451,16 +483,16 @@ static void runtime_menu()
     bool use_bridge = !att || (att->relay_mode() == BRIDGE);
     const char* test_label = use_bridge ? "Bridge" : "statisch";
 
-    const char* menu_items[4] = { "Zurueck", "Info", test_label, "Reset" };
-    const int MENU_COUNT = 4;
+    const char* menu_items[5] = { "Zurueck", "Info", test_label, "Verhalten", "Reset" };
+    const int MENU_COUNT = 5;
     int sel = 0;
 
     auto draw_menu = [&]() {
         display.clear();
         display.drawString(0, 0, "MENU");
         for(int i = 0; i < MENU_COUNT; i++) {
-            if(i == sel) display.drawString(0, 16 + i * 12, ">");
-            display.drawString(10, 16 + i * 12, menu_items[i]);
+            if(i == sel) display.drawString(0, 12 + i * 10, ">");
+            display.drawString(10, 12 + i * 10, menu_items[i]);
         }
         display.display();
     };
@@ -497,7 +529,53 @@ static void runtime_menu()
                 if(use_bridge) hbridge_startup_test();
                 else           static_gpio_test();
                 draw_menu();
-            } else { /* Reset */
+            } else if(sel == 3) {
+                /* Verhalten: 1 aus 3 Auswahl (Set-Direct/Set-Time/Set-Button) */
+                const char* mode_items[3] = { "Set-Direct", "Set-Time", "Set-Button" };
+                int msel = pico_set_mode;
+                auto draw_mode = [&]() {
+                    display.clear();
+                    display.drawString(0, 0, "Verhalten");
+                    for(int i = 0; i < 3; i++) {
+                        if(i == msel) display.drawString(0, 16 + i * 12, ">");
+                        display.drawString(10, 16 + i * 12, mode_items[i]);
+                        if(i == pico_set_mode) display.drawString(110, 16 + i * 12, "*");
+                    }
+                    display.display();
+                };
+                draw_mode();
+                int mclk = digitalRead(ENCODER_CLK);
+                int msw  = HIGH;
+                while(true) {
+                    int c = digitalRead(ENCODER_CLK);
+                    if(c != mclk && c == LOW) {
+                        int dir = (digitalRead(ENCODER_DT) != c) ? 1 : -1;
+                        msel = (msel + (dir > 0 ? 1 : 2)) % 3;
+                        draw_mode();
+                    }
+                    mclk = c;
+                    int s = digitalRead(ENCODER_SW);
+                    if(s == LOW && msw == HIGH) {
+                        delay(20);
+                        while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
+                        delay(50);
+                        if(msel != pico_set_mode) {
+                            pico_set_mode = msel;
+                            auto_set_mode = (pico_set_mode != 2);
+                            save_persisted_setmode();
+                            /* ESP32 informieren */
+                            Serial1.print("SETMODE:");
+                            Serial1.println(pico_set_mode);
+                            Serial1.print("AUTO:");
+                            Serial1.println(auto_set_mode ? "ON" : "OFF");
+                        }
+                        break;
+                    }
+                    msw = s;
+                    delay(5);
+                }
+                draw_menu();
+            } else if(sel == 4) {
                 display.clear();
                 display.drawString(0, 24, "RESET...");
                 display.display();
@@ -578,6 +656,7 @@ void setup()
     }
 
     init_persistent_storage();
+    load_persisted_setmode();
     load_persisted_db();
     /* Gespeicherten Wert auf gültigen Step des aktiven Attenuators runden */
     if(att) {
@@ -661,11 +740,21 @@ void loop()
             }
 
             if(new_db != current_db) {
-                suppress_relay_update = true;
-                apply_attenuation(new_db);
-                suppress_relay_update = false;
-                encoder_apply_pending = true;
-                last_encoder_change   = now;
+                if(pico_set_mode == 0) {
+                    /* Set-Direct: Relais sofort schalten */
+                    apply_attenuation(new_db);
+                    encoder_apply_pending = false;
+                } else {
+                    /* Set-Time (1) + Set-Button (2): nur Anzeige */
+                    suppress_relay_update = true;
+                    apply_attenuation(new_db);
+                    suppress_relay_update = false;
+                    if(pico_set_mode == 1) {
+                        encoder_apply_pending = true;
+                        last_encoder_change   = now;
+                    }
+                    /* Set-Button: kein pending – wartet auf Encoder-Click */
+                }
 
                 Serial1.print(current_db);
                 Serial1.println("dB");
@@ -725,7 +814,19 @@ void loop()
         if(test_mode) {
             if(att) att->test_toggle();
         } else if(!long_press_executed) {
-            if(waiting_for_double_click && (now - last_click_time) < DOUBLE_CLICK_TIME) {
+            if(pico_set_mode == 2) {
+                /* Set-Button: einfacher Klick übernimmt sofort */
+                Serial.print("SET-BUTTON CLICK -> Apply value: ");
+                Serial.print(current_db);
+                Serial.println(" dB");
+                waiting_for_double_click = false;
+                apply_relays(current_db);
+                Serial1.print(current_db);
+                Serial1.println("dB");
+                led_solid_mode  = true;
+                led_solid_start = now;
+                digitalWrite(LED_BUILTIN, HIGH);
+            } else if(waiting_for_double_click && (now - last_click_time) < DOUBLE_CLICK_TIME) {
                 Serial.println("DOUBLE CLICK -> Toggle Digit Selection");
                 waiting_for_double_click = false;
                 { int md = att ? att->digit_count() : 2;
@@ -787,8 +888,15 @@ void loop()
                 Serial.print("ESP32 selected digit: "); Serial.println(digit);
                 refresh_attenuation_display();
             }
+        } else if(input.startsWith("SETMODE:")) {
+            pico_set_mode = input.substring(8).toInt();
+            auto_set_mode = (pico_set_mode != 2);
+            Serial.print("ESP32 SETMODE: "); Serial.println(pico_set_mode);
+            refresh_attenuation_display();
         } else if(input.startsWith("AUTO:")) {
             auto_set_mode = input.endsWith("ON");
+            if(auto_set_mode && pico_set_mode == 2) pico_set_mode = 0;
+            else if(!auto_set_mode) pico_set_mode = 2;
             Serial.print("ESP32 AUTO-Set: "); Serial.println(auto_set_mode ? "ON" : "OFF");
             refresh_attenuation_display();
         } else if(input == "TEST:START") {
