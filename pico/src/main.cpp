@@ -267,8 +267,7 @@ static void send_info_to_esp32()
     Serial1.println(att ? att->relay_count() : 0);
     Serial1.print("ATTNAME:");
     Serial1.println(att ? att->att_name() : "UNKNOWN");
-    Serial1.print("DIGITS:");
-    Serial1.println(att ? att->digit_count() : 2);
+    /* DIGITS: entfällt – ESP32 leitet das aus STEP + MAXDB ab */
     Serial1.print("STEP:");
     Serial1.println(att ? (int)att->step_db() : 10);
     Serial1.print("MAXDB:");
@@ -410,6 +409,12 @@ static void update_attenuation_display_state(int32_t db_value)
     display.drawString(90, 28, "dB");
     drawCursor();
     display.drawString(0, 56, pico_set_mode_str());
+    if(att && att->rf_switch()) {
+        const char* rf_txt = att->get_rf() ? "ON" : "OFF";
+        /* 6 px pro Zeichen, rechtsbündig auf x=127 */
+        int w = (int)strlen(rf_txt) * 8;
+        display.drawString(128 - w, 56, rf_txt);
+    }
     display.display();
 }
 
@@ -515,18 +520,33 @@ static void runtime_menu()
 {
     /* Test-Eintrag je nach Relais-Modus des aktiven Attenuators */
     bool use_bridge = !att || (att->relay_mode() == BRIDGE);
-    const char* test_label = use_bridge ? "Bridge" : "statisch";
+    const char* test_label = use_bridge ? "Bridge-Test" : "Statc-Test";
 
-    const char* menu_items[5] = { "Zurueck", "Info", test_label, "Verhalten", "Reset" };
-    const int MENU_COUNT = 5;
+    /* RF-Eintrag nur wenn vom Attenuator unterstützt */
+    bool has_rf = (att && att->rf_switch());
+    char rf_label[12];
+    auto update_rf_label = [&]() {
+        snprintf(rf_label, sizeof(rf_label), "RF: %s",
+                 (att && att->get_rf()) ? "AN" : "AUS");
+    };
+    if(has_rf) update_rf_label();
+
+    const char* menu_items[6];
+    int menu_count = 0;
+    int idx_rf        = -1;
+    if(has_rf) { idx_rf = menu_count; menu_items[menu_count++] = rf_label; }
+    int idx_zurueck   = menu_count; menu_items[menu_count++] = "Zurueck";
+    int idx_info      = menu_count; menu_items[menu_count++] = "Info";
+    int idx_test      = menu_count; menu_items[menu_count++] = test_label;
+    int idx_verhalten = menu_count; menu_items[menu_count++] = "Verhalten";
+    int idx_reset     = menu_count; menu_items[menu_count++] = "Reset";
     int sel = 0;
 
     auto draw_menu = [&]() {
         display.clear();
-        display.drawString(0, 0, "MENU");
-        for(int i = 0; i < MENU_COUNT; i++) {
-            if(i == sel) display.drawString(0, 12 + i * 10, ">");
-            display.drawString(10, 12 + i * 10, menu_items[i]);
+        for(int i = 0; i < menu_count; i++) {
+            if(i == sel) display.drawString(0, 2 + i * 10, ">");
+            display.drawString(10, 2 + i * 10, menu_items[i]);
         }
         display.display();
     };
@@ -544,7 +564,7 @@ static void runtime_menu()
         int clk = digitalRead(ENCODER_CLK);
         if(clk != last_clk && clk == LOW) {
             int dir = (digitalRead(ENCODER_DT) != clk) ? 1 : -1;
-            sel = (sel + (dir > 0 ? 1 : MENU_COUNT - 1)) % MENU_COUNT;
+            sel = (sel + (dir > 0 ? 1 : menu_count - 1)) % menu_count;
             draw_menu();
         }
         last_clk = clk;
@@ -554,16 +574,25 @@ static void runtime_menu()
             delay(20); /* debounce */
             while(digitalRead(ENCODER_SW) == LOW) { delay(10); }
             delay(50);
-            if(sel == 0) {
+            if(sel == idx_zurueck) {
                 return; /* Zurueck -> Normalbetrieb */
-            } else if(sel == 1) {
+            } else if(sel == idx_info) {
                 info_screen();
                 draw_menu();
-            } else if(sel == 2) {
+            } else if(sel == idx_test) {
                 if(use_bridge) hbridge_startup_test();
                 else           static_gpio_test();
                 draw_menu();
-            } else if(sel == 3) {
+            } else if(has_rf && sel == idx_rf) {
+                /* RF direkt im Menü umschalten, Sync zu ESP32 (und Web) */
+                bool new_state = !att->get_rf();
+                att->set_rf(new_state);
+                save_persisted_rf_state(new_state);
+                Serial1.print("RF:");
+                Serial1.println(att->get_rf() ? 1 : 0);
+                update_rf_label();
+                draw_menu();
+            } else if(sel == idx_verhalten) {
                 /* Verhalten: 1 aus 3 Auswahl (Set-Direct/Set-Time/Set-Button) */
                 const char* mode_items[3] = { "Set-Direct", "Set-Time", "Set-Button" };
                 int msel = pico_set_mode;
@@ -607,7 +636,7 @@ static void runtime_menu()
                     delay(5);
                 }
                 draw_menu();
-            } else if(sel == 4) {
+            } else if(sel == idx_reset) {
                 display.clear();
                 display.drawString(0, 24, "RESET...");
                 display.display();
@@ -618,6 +647,34 @@ static void runtime_menu()
         last_sw = sw;
         delay(5);
     }
+}
+
+/* -------------------------------------------------------
+ * Stellen-Auswahl: nur aktive Stellen je nach digit_mask
+ * (Bit 0 = Hunderter, Bit 1 = Zehner, Bit 2 = Einer)
+ * ------------------------------------------------------- */
+static uint8_t active_digit_mask()
+{
+    return att ? att->digit_mask() : 0x04;
+}
+
+static int next_active_digit(int cur, int dir)
+{
+    uint8_t mask = active_digit_mask();
+    int n = cur;
+    for(int i = 0; i < 3; i++) {
+        n = (n + (dir > 0 ? 1 : 2)) % 3;
+        if(mask & (1 << n)) return n;
+    }
+    return cur;
+}
+
+static int first_active_digit()
+{
+    uint8_t mask = active_digit_mask();
+    if(mask & 0x02) return 1;   /* Zehner bevorzugt */
+    if(mask & 0x01) return 0;
+    return 2;
 }
 
 /* -------------------------------------------------------
@@ -704,6 +761,8 @@ void setup()
         att->set_rf(rf_on);
     }
 
+    /* Cursor auf erste aktive Stelle des Attenuators setzen */
+    selected_digit = first_active_digit();
 
     send_info_to_esp32();
 
@@ -867,8 +926,7 @@ void loop()
             } else if(waiting_for_double_click && (now - last_click_time) < DOUBLE_CLICK_TIME) {
                 Serial.println("DOUBLE CLICK -> Toggle Digit Selection");
                 waiting_for_double_click = false;
-                { int md = att ? att->digit_count() : 2;
-                  selected_digit = (selected_digit >= md - 1) ? 0 : (selected_digit + 1); }
+                selected_digit = next_active_digit(selected_digit, +1);
                 refresh_attenuation_display();
                 Serial1.print("SEL");
                 Serial1.println(selected_digit);
@@ -920,8 +978,8 @@ void loop()
             Serial1.print("Current: "); Serial1.print(current_db); Serial1.println(" dB");
         } else if(input.startsWith("SEL")) {
             int digit = input.substring(3).toInt();
-            int max_digits = att ? att->digit_count() : 2;
-            if(digit >= 0 && digit < max_digits) {
+            uint8_t mask = active_digit_mask();
+            if(digit >= 0 && digit < 3 && (mask & (1 << digit))) {
                 selected_digit = digit;
                 Serial.print("ESP32 selected digit: "); Serial.println(digit);
                 refresh_attenuation_display();
@@ -941,6 +999,7 @@ void loop()
                 /* Bestätigung an ESP32 zurücksenden */
                 Serial1.print("RF:");
                 Serial1.println(att->get_rf() ? 1 : 0);
+                refresh_attenuation_display();
             }
         } else if(input == "TEST:START") {
             rmt_test_start();

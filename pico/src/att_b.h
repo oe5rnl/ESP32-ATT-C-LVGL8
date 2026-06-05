@@ -14,7 +14,6 @@ public:
     int32_t     step_db()     const override { return   1; }
     int         relay_count() const override { return 0; }
     const char* att_name()    const override { return "ATT-B"; }
-    int         digit_count() const override { return 2; }
     void    show_info()           override;
     void    test_init()           override;
     void    test_rotate(int dir)  override;

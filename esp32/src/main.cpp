@@ -44,7 +44,7 @@ int selected_digit = (DIGIT_MAX_2 > 0) ? 2 : (DIGIT_MAX_1 > 0) ? 1 : 0;
 
 /* — Laufzeit-Attenuatorkonfiguration (wird beim Start vom Pico empfangen) — */
 static int         att_relay_count = 4;
-static String      att_name_str    = "";
+String             att_name_str    = "";
 int32_t            att_step        = 10;
 int32_t            att_max_val     = DIGIT_MAX_VAL;
 static lv_obj_t * tabview;
@@ -289,42 +289,32 @@ static void set_config_value(int32_t val, bool apply_auto_command)
     if(apply_auto_command) apply_attenuation();
 }
 
-static void btn_up_cb(lv_event_t * e)
+void web_apply_step(int dir)
 {
     if(digit_max[selected_digit] == 0) return;
     int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : (int)att_step;
-    db_value += multiplier;
+    db_value += dir * multiplier;
+    if(db_value < 0) db_value = 0;
     if(db_value > att_max_val) db_value = att_max_val;
-    /* Auf gültigen Step runden */
     db_value = (db_value / att_step) * att_step;
     update_digit_labels();
     ws_broadcast_val();
 #if RAW_UART_TEST_MODE
     send_raw_uart_test_value();
 #else
-    if(set_mode == 0)      apply_attenuation();        /* Set-Direct: sofort */
-    else if(set_mode == 1) apply_attenuation_timed();  /* Set-Time:  verzögert */
-    /* Set-Button (2): nichts senden – erst beim Set-Klick */
+    if(set_mode == 0)      apply_attenuation();
+    else if(set_mode == 1) apply_attenuation_timed();
 #endif
+}
+
+static void btn_up_cb(lv_event_t * e)
+{
+    web_apply_step(+1);
 }
 
 static void btn_down_cb(lv_event_t * e)
 {
-    if(digit_max[selected_digit] == 0) return;
-    int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : (int)att_step;
-    db_value -= multiplier;
-    if(db_value < 0) db_value = 0;
-    /* Auf gültigen Step runden */
-    db_value = (db_value / att_step) * att_step;
-    update_digit_labels();
-    ws_broadcast_val();
-#if RAW_UART_TEST_MODE
-    send_raw_uart_test_value();
-#else
-    if(set_mode == 0)      apply_attenuation();        /* Set-Direct: sofort */
-    else if(set_mode == 1) apply_attenuation_timed();  /* Set-Time:  verzögert */
-    /* Set-Button (2): nichts senden – erst beim Set-Klick */
-#endif
+    web_apply_step(-1);
 }
 
 static const char * set_mode_label_str()
@@ -379,11 +369,11 @@ static void config_create(lv_obj_t * parent)
         lv_obj_set_style_text_align(digit_labels[i], LV_TEXT_ALIGN_CENTER, 0);
         char d[2] = { (char)('0' + digits[i]), 0 };
         lv_label_set_text(digit_labels[i], d);
-        if(digit_max[i] > 0) {
-            lv_obj_add_flag(digit_labels[i], LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_event_cb(digit_labels[i], digit_click_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
-            lv_obj_add_event_cb(digit_labels[i], digit_long_press_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
-        }
+        /* Handler immer registrieren – die Callbacks prüfen digit_max[i] zur Laufzeit,
+         * da digit_max erst durch STEP/MAXDB vom Pico final feststeht. */
+        lv_obj_add_flag(digit_labels[i], LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_event_cb(digit_labels[i], digit_click_cb, LV_EVENT_CLICKED, (void *)(intptr_t)i);
+        lv_obj_add_event_cb(digit_labels[i], digit_long_press_cb, LV_EVENT_LONG_PRESSED, (void *)(intptr_t)i);
     }
 
     /* Cursor line under selected digit */
@@ -404,7 +394,7 @@ static void config_create(lv_obj_t * parent)
     lv_style_set_text_font(&style_unit, &lv_font_montserrat_24);
     lv_style_set_text_color(&style_unit, lv_color_hex(0xcccccc));
     lv_obj_add_style(unit_label, &style_unit, 0);
-    lv_obj_align_to(unit_label, digit_cont, LV_ALIGN_OUT_RIGHT_BOTTOM, 2, 8);
+    lv_obj_align_to(unit_label, digit_cont, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
     
     /* AUTO-Set Status Label (kleine Schrift unter den Digits) */
     auto_set_label = lv_label_create(parent);
@@ -413,12 +403,12 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_style_text_color(auto_set_label, lv_color_hex(0xffa500), 0);
     lv_obj_align_to(auto_set_label, digit_cont, LV_ALIGN_OUT_BOTTOM_LEFT, 10, 25);
 
-    /* Container for buttons, right-aligned */
+    /* Container for buttons, top-right aligned so UP/Down stay put when Set is hidden */
     lv_obj_t * btn_cont = lv_obj_create(parent);
     lv_obj_set_size(btn_cont, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(btn_cont, LV_ALIGN_RIGHT_MID, 8, 15);
+    lv_obj_align(btn_cont, LV_ALIGN_TOP_RIGHT, 8, 20);
     lv_obj_set_flex_flow(btn_cont, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(btn_cont, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_flex_align(btn_cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_gap(btn_cont, 10, 0);
     lv_obj_set_style_bg_opa(btn_cont, LV_OPA_TRANSP, 0);
     lv_obj_set_style_border_opa(btn_cont, LV_OPA_TRANSP, 0);
@@ -462,9 +452,12 @@ static void config_create(lv_obj_t * parent)
     lv_obj_center(lbl_set);
     if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
 
-    /* RF-Schalter (nur sichtbar wenn att_has_rf_switch) */
-    btn_rf = lv_btn_create(btn_cont);
-    lv_obj_set_width(btn_rf, 88);
+    /* RF-Schalter: freistehend, Position per x/y (nur sichtbar wenn att_has_rf_switch). */
+    btn_rf = lv_btn_create(parent);
+    lv_obj_set_size(btn_rf, 70, 36);
+    /* x,y in Pixel relativ zur linken oberen Ecke des Tab-Inhalts.
+     * y ist so gewählt, dass btn_rf auf gleicher Höhe wie der Set-Button liegt. */
+    lv_obj_set_pos(btn_rf, 120, 138);
     lv_obj_set_style_bg_color(btn_rf, lv_color_hex(rf_state ? 0x0a6640 : 0xa02020), 0);
     lv_obj_set_style_bg_opa(btn_rf, LV_OPA_COVER, 0);
     lv_obj_set_style_text_color(btn_rf, lv_color_white(), 0);
@@ -1010,6 +1003,30 @@ void web_update_seldigit(void)
     update_cursor();
 }
 
+/* Bitmask-Konvention identisch zum Pico:
+ * Bit 0 = Hunderter, Bit 1 = Zehner, Bit 2 = Einer.
+ * Aus att_max_val und att_step abgeleitet. */
+static void recompute_digit_max(void)
+{
+    digit_max[0] = (att_max_val >= 100) ? (uint8_t)(att_max_val / 100) : 0;
+    digit_max[1] = (att_max_val >=  10) ? 9 : 0;
+    digit_max[2] = (att_step    <   10) ? 9 : 0;
+
+    /* db_value auf gültige Stellen kürzen */
+    if(digit_max[2] == 0) db_value = (db_value / 10) * 10;
+    if(digit_max[1] == 0) db_value = (db_value / 100) * 100;
+    if(db_value > att_max_val) db_value = att_max_val;
+    if(digit_labels[0]) update_digit_labels();
+
+    /* Cursor auf gültige Stelle setzen falls nötig */
+    if(digit_max[selected_digit] == 0) {
+        if(digit_max[1] > 0)      selected_digit = 1;
+        else if(digit_max[0] > 0) selected_digit = 0;
+        else                      selected_digit = 2;
+    }
+    if(digit_cursor) update_cursor();
+}
+
 /* Called from webserver.h when web client toggles the RF switch, or after
  * the Pico has confirmed a new RF state. Updates the LVGL button visuals. */
 void web_update_rf(void)
@@ -1271,20 +1288,7 @@ void loop()
                     att_name_str = input.substring(8);
                     if(title_label)     lv_label_set_text(title_label,     att_name_str.c_str());
                     if(info_name_label) lv_label_set_text(info_name_label, att_name_str.c_str());
-                }
-                else if(input.startsWith("DIGITS:")) {
-                    int d = input.substring(7).toInt();
-                    digit_max[2] = (d >= 3) ? 9 : 0;
-                    digit_max[1] = (d >= 2) ? 9 : 0;
-                    /* db_value auf gültige Stellen kürzen */
-                    if(digit_max[2] == 0) db_value = (db_value / 10) * 10;
-                    if(digit_max[1] == 0) db_value = (db_value / 100) * 100;
-                    update_digit_labels();
-                    /* Cursor auf gültige Stelle setzen falls nötig */
-                    if(digit_max[selected_digit] == 0) {
-                        selected_digit = (digit_max[1] > 0) ? 1 : 0;
-                    }
-                    update_cursor();
+                    ws_send_state();
                 }
                 else if(input.startsWith("STEP:")) {
                     att_step = input.substring(5).toInt();
@@ -1293,23 +1297,19 @@ void loop()
                         char buf[8]; snprintf(buf, sizeof(buf), "%d", (int)att_step);
                         lv_label_set_text(info_step_label, buf);
                     }
+                    recompute_digit_max();
+                    ws_send_state();
                 }
                 else if(input.startsWith("MAXDB:")) {
                     int32_t m = input.substring(6).toInt();
                     if(m > 0) {
                         att_max_val = m;
-                        /* Hunderter-Stelle aktivieren falls max >= 100 */
-                        digit_max[0] = (m >= 100) ? (m / 100) : 0;
-                        /* db_value auf neuen Maximalwert klämmern */
-                        if(db_value > att_max_val) {
-                            db_value = att_max_val;
-                            update_digit_labels();
-                        }
-                        update_cursor();
+                        recompute_digit_max();
                         if(info_max_label) {
                             char buf[8]; snprintf(buf, sizeof(buf), "%d", (int)att_max_val);
                             lv_label_set_text(info_max_label, buf);
                         }
+                        ws_send_state();
                     }
                 }
                 else if(input.startsWith("RELMODE:")) {

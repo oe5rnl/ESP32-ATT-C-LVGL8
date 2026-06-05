@@ -56,7 +56,6 @@ public:
     int32_t     step_db()     const override { return   5; }
     int         relay_count() const override { return RELAY_COUNT; }
     const char* att_name()    const override { return "RS-135dB"; }
-    int         digit_count() const override { return 3; }
     void    show_info()           override;
     void    test_init()           override;
     void    test_rotate(int dir)  override;

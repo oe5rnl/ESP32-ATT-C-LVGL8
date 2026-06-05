@@ -36,6 +36,7 @@ extern int32_t att_step;
 extern uint8_t digit_max[3];
 extern bool att_has_rf_switch;
 extern bool rf_state;
+extern String att_name_str;
 void update_config_value(int32_t val);
 void apply_attenuation(void);
 void apply_attenuation_set(void);
@@ -46,12 +47,13 @@ void web_update_ae(void);
 void web_update_setmode(void);
 void web_update_seldigit(void);
 void web_update_rf(void);
+void web_apply_step(int dir);
 
 /* -------------------------------------------------------
  * FreeRTOS queue for inter-core LVGL command dispatch
  * Core 0 (WebSocket task) enqueues, Core 1 (loop) dequeues
  * ------------------------------------------------------- */
-enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET, WS_CMD_WIFI_APPLY, WS_CMD_SETMODE, WS_CMD_RF };
+enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET, WS_CMD_WIFI_APPLY, WS_CMD_SETMODE, WS_CMD_RF, WS_CMD_STEP };
 struct WsCmdMsg { WsCmdType type; int32_t val; int32_t idx; bool bval; };
 static QueueHandle_t ws_cmd_queue = nullptr;
 
@@ -64,7 +66,7 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>26.5 GHz Attenuator</title>
+<title>Attenuator</title>
 <style>
   body{font-family:sans-serif;background:#1a1a2e;color:#eee;margin:0;padding:16px;max-width:480px;margin:auto}
   h1{text-align:center;color:#7ec8e3;font-size:1.3em;margin-bottom:20px}
@@ -108,7 +110,7 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
 </style>
 </head>
 <body>
-<h1>26.5 GHz Attenuator</h1>
+<h1 id="att-title">Attenuator</h1>
 
 <div class="card">
   <h2>Main</h2>
@@ -245,6 +247,11 @@ function connectWS(){
       if(msg.attStep !== undefined) attStep=msg.attStep;
       if(msg.digitMax !== undefined){digitMax=msg.digitMax;applyDigitDisable();}
       if(msg.rfSw !== undefined) applyRf(msg.rfSw, msg.rf);
+      if(msg.attname !== undefined){
+        const t = document.getElementById('att-title');
+        if(t) t.textContent = msg.attname + ' Attenuator';
+        document.title = msg.attname + ' Attenuator';
+      }
     }
     if(msg.type === 'val'){
       curVal = msg.val;
@@ -313,12 +320,7 @@ function selectDigit(i){
 
 function step(dir){
   if(digitMax[selDigit]===0) return;
-  const m = selDigit===0?100:selDigit===1?10:attStep;
-  curVal += dir*m;
-  if(curVal<0) curVal=0;
-  if(curVal>maxVal) curVal=maxVal;
-  renderDigits();
-  ws.send(JSON.stringify({cmd:'upd', val:curVal}));
+  ws.send(JSON.stringify({cmd:'step', dir:dir}));
 }
 
 function sendSet(){
@@ -534,7 +536,7 @@ setInterval(()=>{
  * ------------------------------------------------------- */
 static void ws_send_state(AsyncWebSocketClient * client = nullptr)
 {
-  char buf[400];
+  char buf[512];
     // Build the def array part
   char defArr[128];
   snprintf(defArr, sizeof(defArr),
@@ -543,13 +545,14 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
     (int)default_values[3], (int)default_values[4], (int)default_values[5],
     (int)default_values[6], (int)default_values[7], (int)default_values[8]);
 
+    const char * name_c = att_name_str.length() > 0 ? att_name_str.c_str() : "Attenuator";
     snprintf(buf, sizeof(buf),
         "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"setmode\":%d,\"sel\":%d,"
         "\"maxVal\":%d,\"attStep\":%d,\"digitMax\":[%d,%d,%d],"
-        "\"rfSw\":%s,\"rf\":%s}",
+        "\"rfSw\":%s,\"rf\":%s,\"attname\":\"%s\"}",
         (int)db_value, defArr, autoset ? "true" : "false", set_mode, selected_digit,
         (int)att_max_val, (int)att_step, (int)digit_max[0], (int)digit_max[1], (int)digit_max[2],
-        att_has_rf_switch ? "true" : "false", rf_state ? "true" : "false");
+        att_has_rf_switch ? "true" : "false", rf_state ? "true" : "false", name_c);
 
     if(client) client->text(buf);
     else        ws.textAll(buf);
@@ -671,12 +674,20 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             int32_t v = db_value;
             if(getInt(msg, "val", v)) {
                 if(v < 0) v = 0;
-                if(v > DIGIT_MAX_VAL) v = DIGIT_MAX_VAL;
-                if(DIGIT_MAX_2 == 0) v = (v / 10) * 10;
-                if(DIGIT_MAX_1 == 0) v = (v / 100) * 100;
+                if(v > att_max_val) v = att_max_val;
+                if(digit_max[2] == 0) v = (v / 10) * 10;
+                if(digit_max[1] == 0) v = (v / 100) * 100;
+                if(att_step > 1)     v = (v / att_step) * att_step;
                 db_value = v;
                 ws_send_val();
                 WsCmdMsg m = {WS_CMD_VAL, v, 0, false};
+                xQueueSend(ws_cmd_queue, &m, 0);
+            }
+        }
+        else if(strcmp(cmd, "step") == 0) {
+            int32_t dir = 0;
+            if(getInt(msg, "dir", dir) && (dir == 1 || dir == -1)) {
+                WsCmdMsg m = {WS_CMD_STEP, dir, 0, false};
                 xQueueSend(ws_cmd_queue, &m, 0);
             }
         }
@@ -684,9 +695,10 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             int32_t v = db_value;
             getInt(msg, "val", v);
             if(v < 0) v = 0;
-            if(v > DIGIT_MAX_VAL) v = DIGIT_MAX_VAL;
-            if(DIGIT_MAX_2 == 0) v = (v / 10) * 10;
-            if(DIGIT_MAX_1 == 0) v = (v / 100) * 100;
+            if(v > att_max_val) v = att_max_val;
+            if(digit_max[2] == 0) v = (v / 10) * 10;
+            if(digit_max[1] == 0) v = (v / 100) * 100;
+            if(att_step > 1)     v = (v / att_step) * att_step;
             db_value = v;
             ws_send_val();
             WsCmdMsg m = {WS_CMD_SET, v, 0, false};
@@ -696,9 +708,10 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
             int32_t idx = -1, val = 0;
           if(getInt(msg, "idx", idx) && getInt(msg, "val", val) && idx >= 0 && idx < DEFAULT_BUTTON_COUNT) {
                 if(val < 0) val = 0;
-                if(val > DIGIT_MAX_VAL) val = DIGIT_MAX_VAL;
-                if(DIGIT_MAX_2 == 0) val = (val / 10) * 10;
-                if(DIGIT_MAX_1 == 0) val = (val / 100) * 100;
+                if(val > att_max_val) val = att_max_val;
+                if(digit_max[2] == 0) val = (val / 10) * 10;
+                if(digit_max[1] == 0) val = (val / 100) * 100;
+                if(att_step > 1)     val = (val / att_step) * att_step;
                 default_values[idx] = val;
                 char key[8];
                 snprintf(key, sizeof(key), "def%d", (int)idx);
@@ -1061,6 +1074,9 @@ static void webserver_loop(void)
         switch(m.type) {
             case WS_CMD_VAL:
                 update_config_value(m.val);
+                break;
+            case WS_CMD_STEP:
+                web_apply_step((int)m.val);
                 break;
             case WS_CMD_APPLY_DEF:
               apply_web_preset_value(default_values[m.idx]);

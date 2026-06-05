@@ -60,7 +60,6 @@ public:
     int32_t     step_db()               const override { return   1; }
     int         relay_count()           const override { return RELAY_COUNT; }
     const char* att_name()              const override { return "RS-141dB"; }
-    int         digit_count()           const override { return 3; }
     void        show_info()             override;
     void        test_init()             override;
     int         relay_mode()  const override { return BRIDGE; }

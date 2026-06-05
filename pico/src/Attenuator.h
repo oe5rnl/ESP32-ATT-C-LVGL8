@@ -29,7 +29,24 @@ public:
     virtual int32_t     step_db()     const = 0;
     virtual int         relay_count() const = 0;
     virtual const char* att_name()    const = 0;
-    virtual int         digit_count() const = 0;
+
+    /* Bitmask der aktiven Stellen, abgeleitet aus max_db()/step_db().
+     * Bit 0 = Hunderter, Bit 1 = Zehner, Bit 2 = Einer.
+     * Subklassen müssen das normalerweise NICHT überschreiben. */
+    virtual uint8_t digit_mask() const {
+        uint8_t m = 0;
+        if(max_db()  >= 100) m |= 0x01;
+        if(max_db()  >=  10) m |= 0x02;
+        if(step_db() <   10) m |= 0x04;
+        if(!m) m = 0x04;          /* mindestens Einer */
+        return m;
+    }
+
+    /* Anzahl der aktiven Stellen (popcount(digit_mask())). */
+    virtual int digit_count() const {
+        uint8_t m = digit_mask();
+        return (m & 1) + ((m >> 1) & 1) + ((m >> 2) & 1);
+    }
 
     /* Show attenuator-specific info screen on SSD1306 at startup.
      * Responsible for clear() + draw + display() */

@@ -21,7 +21,6 @@ public:
     int32_t     step_db()     const override { return  10; }
     int         relay_count() const override { return RELAY_COUNT; }
     const char* att_name()    const override { return "26.5 GHz Attenuator"; }
-    int         digit_count() const override { return 2; }
     void    show_info()           override;
     void    test_init()           override;
     void    test_rotate(int dir)  override;
