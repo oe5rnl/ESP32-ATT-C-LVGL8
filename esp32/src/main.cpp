@@ -82,6 +82,10 @@ static lv_obj_t * info_step_label  = NULL;
 static lv_obj_t * info_mode_label  = NULL;
 static lv_obj_t * test_type_label  = NULL;
 static int        att_relay_mode   = 0;   /* 0=BRIDGE, 1=STATIC */
+bool              att_has_rf_switch = false;  /* vom Pico via RFSWITCH: gemeldet */
+bool              rf_state          = true;   /* aktueller RF-Schalter-Zustand (gespiegelt vom Pico) */
+static lv_obj_t * btn_rf            = NULL;
+static lv_obj_t * lbl_rf            = NULL;
 
 /* Remote-Test-UI */
 static lv_obj_t * test_controls    = NULL;
@@ -330,6 +334,9 @@ static const char * set_mode_label_str()
     return "SET-DIRECT";
 }
 
+/* Forward-Deklaration: definiert weiter unten im File. */
+void web_update_rf(void);
+
 static void config_create(lv_obj_t * parent)
 {
     lv_obj_clear_flag(parent, LV_OBJ_FLAG_SCROLLABLE);
@@ -454,6 +461,29 @@ static void config_create(lv_obj_t * parent)
     lv_label_set_text(lbl_set, "Set");
     lv_obj_center(lbl_set);
     if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
+
+    /* RF-Schalter (nur sichtbar wenn att_has_rf_switch) */
+    btn_rf = lv_btn_create(btn_cont);
+    lv_obj_set_width(btn_rf, 88);
+    lv_obj_set_style_bg_color(btn_rf, lv_color_hex(rf_state ? 0x0a6640 : 0xa02020), 0);
+    lv_obj_set_style_bg_opa(btn_rf, LV_OPA_COVER, 0);
+    lv_obj_set_style_text_color(btn_rf, lv_color_white(), 0);
+    lv_obj_set_style_radius(btn_rf, 6, 0);
+    lv_obj_add_event_cb(btn_rf, [](lv_event_t * e) {
+        LV_UNUSED(e);
+        if(!att_has_rf_switch) return;
+        rf_state = !rf_state;
+        web_update_rf();
+        /* Befehl an Pico senden */
+#if !RAW_UART_TEST_MODE
+        Serial.printf("RF:%d\n", rf_state ? 1 : 0);
+#endif
+        ws_broadcast_rf();
+    }, LV_EVENT_CLICKED, NULL);
+    lbl_rf = lv_label_create(btn_rf);
+    lv_label_set_text(lbl_rf, rf_state ? "RF ON" : "RF OFF");
+    lv_obj_center(lbl_rf);
+    if(!att_has_rf_switch) lv_obj_add_flag(btn_rf, LV_OBJ_FLAG_HIDDEN);
 }
 
 void update_config_value(int32_t val)
@@ -980,6 +1010,18 @@ void web_update_seldigit(void)
     update_cursor();
 }
 
+/* Called from webserver.h when web client toggles the RF switch, or after
+ * the Pico has confirmed a new RF state. Updates the LVGL button visuals. */
+void web_update_rf(void)
+{
+    if(btn_rf) {
+        if(att_has_rf_switch) lv_obj_clear_flag(btn_rf, LV_OBJ_FLAG_HIDDEN);
+        else                  lv_obj_add_flag(btn_rf, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_style_bg_color(btn_rf, lv_color_hex(rf_state ? 0x0a6640 : 0xa02020), 0);
+    }
+    if(lbl_rf) lv_label_set_text(lbl_rf, rf_state ? "RF ON" : "RF OFF");
+}
+
 static void create_ui(void)
 {
     /* Dark background matching web: #1a1a2e */
@@ -1276,6 +1318,16 @@ void loop()
                     if(info_mode_label)  lv_label_set_text(info_mode_label, ms);
                     if(test_type_label)  lv_label_set_text(test_type_label,
                         att_relay_mode == 1 ? "Static-Test" : "Bridge-Test");
+                }
+                else if(input.startsWith("RFSWITCH:")) {
+                    att_has_rf_switch = (input.substring(9).toInt() != 0);
+                    web_update_rf();
+                    ws_broadcast_rf();
+                }
+                else if(input.startsWith("RF:")) {
+                    rf_state = (input.substring(3).toInt() != 0);
+                    web_update_rf();
+                    ws_broadcast_rf();
                 }
                 else if(input.startsWith("TESTSTATE:")) {
                     String data = input.substring(10);

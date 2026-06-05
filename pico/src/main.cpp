@@ -122,6 +122,8 @@ static bool storage_ready = false;
 static bool has_persisted_db = false;
 static const char * DB_STORE_FILE      = "/fs/att_db.txt";
 static const char * SETMODE_STORE_FILE = "/fs/setmode.txt";
+static const char * RF_STORE_FILE      = "/fs/rfstate.txt";
+static int          rf_persisted_cache = -1;   /* -1 = unbekannt, 0/1 = letzter persistierter Wert */
 
 #if RAW_UART_TEST_MODE
 static void update_raw_uart_test_display()
@@ -215,6 +217,34 @@ static void save_persisted_setmode()
     fclose(f);
 }
 
+/* RF-Schalter-Zustand persistieren (Default: AN). */
+static bool load_persisted_rf_state(bool default_on)
+{
+    bool state = default_on;
+    if(storage_ready) {
+        FILE * f = fopen(RF_STORE_FILE, "r");
+        if(f) {
+            int v = default_on ? 1 : 0;
+            if(fscanf(f, "%d", &v) == 1) state = (v != 0);
+            fclose(f);
+        }
+    }
+    rf_persisted_cache = state ? 1 : 0;
+    return state;
+}
+
+static void save_persisted_rf_state(bool state)
+{
+    int v = state ? 1 : 0;
+    if(rf_persisted_cache == v) return;
+    if(!storage_ready) return;
+    FILE * f = fopen(RF_STORE_FILE, "w");
+    if(!f) return;
+    fprintf(f, "%d\n", v);
+    fclose(f);
+    rf_persisted_cache = v;
+}
+
 static void sync_state_to_esp32()
 {
     if(has_persisted_db) {
@@ -225,6 +255,10 @@ static void sync_state_to_esp32()
     Serial1.println(pico_set_mode);
     Serial1.print("SEL");
     Serial1.println(selected_digit);
+    if(att && att->rf_switch()) {
+        Serial1.print("RF:");
+        Serial1.println(att->get_rf() ? 1 : 0);
+    }
 }
 
 static void send_info_to_esp32()
@@ -241,6 +275,8 @@ static void send_info_to_esp32()
     Serial1.println(att ? (int)att->max_db() : 110);
     Serial1.print("RELMODE:");
     Serial1.println(att ? att->relay_mode() : BRIDGE);
+    Serial1.print("RFSWITCH:");
+    Serial1.println(att && att->rf_switch() ? 1 : 0);
 }
 
 /* -------------------------------------------------------
@@ -662,6 +698,12 @@ void setup()
         persisted_db_cache = current_db;
     }
 
+    /* RF-Schalter: gespeicherten Zustand laden (Default AN) und an Hardware anwenden */
+    if(att && att->rf_switch()) {
+        bool rf_on = load_persisted_rf_state(true);
+        att->set_rf(rf_on);
+    }
+
 
     send_info_to_esp32();
 
@@ -890,6 +932,16 @@ void loop()
             save_persisted_setmode();
             Serial.print("ESP32 SETMODE: "); Serial.println(pico_set_mode);
             refresh_attenuation_display();
+        } else if(input.startsWith("RF:")) {
+            if(att && att->rf_switch()) {
+                bool on = (input.substring(3).toInt() != 0);
+                att->set_rf(on);
+                save_persisted_rf_state(on);
+                Serial.print("ESP32 RF: "); Serial.println(on ? "ON" : "OFF");
+                /* Bestätigung an ESP32 zurücksenden */
+                Serial1.print("RF:");
+                Serial1.println(att->get_rf() ? 1 : 0);
+            }
         } else if(input == "TEST:START") {
             rmt_test_start();
         } else if(input.startsWith("TEST:SEL:")) {

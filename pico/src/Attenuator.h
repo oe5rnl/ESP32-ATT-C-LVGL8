@@ -54,6 +54,12 @@ public:
      * Default: false.  Override with true for types that have an RF switch. */
     virtual bool    rf_switch()   const { return false; }
 
+    /* Current RF switch state (true = RF ON).  Only meaningful when rf_switch() == true. */
+    virtual bool    get_rf()      const { return false; }
+
+    /* Switch the RF relay.  No-op for types without an RF switch. */
+    virtual void    set_rf(bool /*on*/) {}
+
     /* Safety watchdog – call from loop().
      * Default: no-op.  Implementations may use this to enforce
      * hardware constraints (e.g. max pulse width on relay coils). */

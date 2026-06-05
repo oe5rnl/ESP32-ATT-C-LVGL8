@@ -77,10 +77,10 @@ void Att135dB::apply(int32_t dv)
     bool a20b = (rem >= 20); if(a20b) rem -= 20;
     bool a10  = (rem >= 10); if(a10)  rem -= 10;
     bool a5   = (rem >= 5);
-    bool rf   = true;  /* Relay 7 (RF) always ON */
 
-    /* relay order must match _relays[]: 40A,20A,5dB,20B,10dB,40B,RF */
-    bool desired[RELAY_COUNT] = {a40a, a20a, a5, a20b, a10, a40b, rf};
+    /* relay order must match _relays[]: 40A,20A,5dB,20B,10dB,40B,RF
+     * RF (index 6) is NOT touched here – it is controlled separately via set_rf() */
+    bool desired[RELAY_COUNT] = {a40a, a20a, a5, a20b, a10, a40b, _states[6]};
 
     /* Set all needed pins HIGH in parallel */
     bool any_change = false;
@@ -122,6 +122,13 @@ void Att135dB::show_info()
     display.drawString(3, 20, "Att: 135dB");
     display.drawString(3, 30, "Steps: 5dB");
     display.display();
+}
+
+void Att135dB::set_rf(bool on)
+{
+    if(_states[6] == on) return;
+    pulse(6, on);
+    _states[6] = on;
 }
 
 void Att135dB::test_init()

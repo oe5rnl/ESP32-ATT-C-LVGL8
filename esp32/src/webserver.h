@@ -34,6 +34,8 @@ extern lv_obj_t * ip_label;
 extern int32_t att_max_val;
 extern int32_t att_step;
 extern uint8_t digit_max[3];
+extern bool att_has_rf_switch;
+extern bool rf_state;
 void update_config_value(int32_t val);
 void apply_attenuation(void);
 void apply_attenuation_set(void);
@@ -43,12 +45,13 @@ void web_update_defaults(void);
 void web_update_ae(void);
 void web_update_setmode(void);
 void web_update_seldigit(void);
+void web_update_rf(void);
 
 /* -------------------------------------------------------
  * FreeRTOS queue for inter-core LVGL command dispatch
  * Core 0 (WebSocket task) enqueues, Core 1 (loop) dequeues
  * ------------------------------------------------------- */
-enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET, WS_CMD_WIFI_APPLY, WS_CMD_SETMODE };
+enum WsCmdType : uint8_t { WS_CMD_VAL, WS_CMD_APPLY_DEF, WS_CMD_DEF_SET, WS_CMD_AE, WS_CMD_SELDIGIT, WS_CMD_SET, WS_CMD_WIFI_APPLY, WS_CMD_SETMODE, WS_CMD_RF };
 struct WsCmdMsg { WsCmdType type; int32_t val; int32_t idx; bool bval; };
 static QueueHandle_t ws_cmd_queue = nullptr;
 
@@ -78,6 +81,8 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   button{padding:10px 22px;border:none;border-radius:6px;font-size:1em;cursor:pointer;background:#0f3460;color:#fff}
   button:hover{background:#e94560}
   #btnSet{display:none}
+  #btnRf{display:none;background:#0a6640}
+  #btnRf.off{background:#a02020}
   .defaults{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
   .defaults button{width:100%}
   .defaults button.active{background:#e94560;outline:2px solid #7ec8e3}
@@ -117,6 +122,7 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
     <button onclick="step(-1)">DOWN</button>
     <button onclick="step(1)">UP</button>
     <button id="btnSet" onclick="sendSet()">Set</button>
+    <button id="btnRf" onclick="toggleRf()">RF</button>
   </div>
 </div>
 
@@ -180,6 +186,27 @@ let digitLpFired = false;
 let maxVal = 999;
 let digitMax = [9,9,9];
 let attStep = 10;
+let rfSwitch = false;
+let rfOn = true;
+
+function applyRf(rsw, on){
+  rfSwitch = !!rsw;
+  rfOn = !!on;
+  const b = document.getElementById('btnRf');
+  if(!b) return;
+  b.style.display = rfSwitch ? 'inline-block' : 'none';
+  b.textContent = 'RF ' + (rfOn ? 'ON' : 'OFF');
+  b.classList.toggle('off', !rfOn);
+}
+
+function toggleRf(){
+  if(!rfSwitch) return;
+  const next = !rfOn;
+  applyRf(true, next);
+  if(ws && ws.readyState===WebSocket.OPEN){
+    ws.send(JSON.stringify({cmd:'rf', val:next?1:0}));
+  }
+}
 
 function applyDigitDisable(){
   for(let i=0;i<3;i++){
@@ -217,6 +244,7 @@ function connectWS(){
       if(msg.maxVal !== undefined) maxVal=msg.maxVal;
       if(msg.attStep !== undefined) attStep=msg.attStep;
       if(msg.digitMax !== undefined){digitMax=msg.digitMax;applyDigitDisable();}
+      if(msg.rfSw !== undefined) applyRf(msg.rfSw, msg.rf);
     }
     if(msg.type === 'val'){
       curVal = msg.val;
@@ -238,6 +266,9 @@ function connectWS(){
     }
     if(msg.type === 'setmode'){
       applyMode(msg.val);
+    }
+    if(msg.type === 'rf'){
+      applyRf(rfSwitch || msg.sw, msg.val);
     }
   };
 }
@@ -503,7 +534,7 @@ setInterval(()=>{
  * ------------------------------------------------------- */
 static void ws_send_state(AsyncWebSocketClient * client = nullptr)
 {
-  char buf[360];
+  char buf[400];
     // Build the def array part
   char defArr[128];
   snprintf(defArr, sizeof(defArr),
@@ -514,9 +545,11 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
 
     snprintf(buf, sizeof(buf),
         "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"setmode\":%d,\"sel\":%d,"
-        "\"maxVal\":%d,\"attStep\":%d,\"digitMax\":[%d,%d,%d]}",
+        "\"maxVal\":%d,\"attStep\":%d,\"digitMax\":[%d,%d,%d],"
+        "\"rfSw\":%s,\"rf\":%s}",
         (int)db_value, defArr, autoset ? "true" : "false", set_mode, selected_digit,
-        (int)att_max_val, (int)att_step, (int)digit_max[0], (int)digit_max[1], (int)digit_max[2]);
+        (int)att_max_val, (int)att_step, (int)digit_max[0], (int)digit_max[1], (int)digit_max[2],
+        att_has_rf_switch ? "true" : "false", rf_state ? "true" : "false");
 
     if(client) client->text(buf);
     else        ws.textAll(buf);
@@ -561,6 +594,15 @@ static void ws_send_setmode(void)
 {
     char buf[40];
     snprintf(buf, sizeof(buf), "{\"type\":\"setmode\",\"val\":%d}", set_mode);
+    ws.textAll(buf);
+}
+
+static void ws_send_rf(void)
+{
+    char buf[64];
+    snprintf(buf, sizeof(buf), "{\"type\":\"rf\",\"sw\":%s,\"val\":%s}",
+             att_has_rf_switch ? "true" : "false",
+             rf_state ? "true" : "false");
     ws.textAll(buf);
 }
 
@@ -709,6 +751,18 @@ static void onWsEvent(AsyncWebSocket * /*server*/, AsyncWebSocketClient * client
                 ws_send_seldigit();
                 WsCmdMsg m = {WS_CMD_SELDIGIT, 0, idx, false};
                 xQueueSend(ws_cmd_queue, &m, 0);
+            }
+        }
+        else if(strcmp(cmd, "rf") == 0) {
+            if(att_has_rf_switch) {
+                int32_t v = rf_state ? 1 : 0;
+                if(getInt(msg, "val", v)) {
+                    bool on = (v != 0);
+                    rf_state = on;
+                    ws_send_rf();
+                    WsCmdMsg m = {WS_CMD_RF, on ? 1 : 0, 0, on};
+                    xQueueSend(ws_cmd_queue, &m, 0);
+                }
             }
         }
     }
@@ -1035,6 +1089,11 @@ static void webserver_loop(void)
             case WS_CMD_WIFI_APPLY:
                 apply_wifi_mode();
                 break;
+            case WS_CMD_RF:
+                web_update_rf();
+                /* Befehl an Pico weiterleiten (m.bval enthält den Zielzustand) */
+                Serial.printf("RF:%d\n", m.bval ? 1 : 0);
+                break;
         }
     }
 }
@@ -1045,3 +1104,4 @@ static void ws_broadcast_def(int i)       { ws_send_def(i); }
 static void ws_broadcast_ae(void)         { ws_send_ae(); ws_send_setmode(); }
 static void ws_broadcast_active_def(int i){ ws_send_active_def(i); }
 static void ws_broadcast_seldigit(int i)  { selected_digit = i; ws_send_seldigit(); }
+static void ws_broadcast_rf(void)         { ws_send_rf(); }

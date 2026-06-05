@@ -64,6 +64,8 @@ public:
     void    update_test_display() override;
     int     relay_mode()  const override { return BRIDGE; }
     bool    rf_switch()   const override { return true; }
+    bool    get_rf()      const override { return _states[6]; }
+    void    set_rf(bool on) override;
 
     /* Safety watchdog: forces any relay pin LOW if it has been HIGH
      * for more than PIN_MAX_HIGH_MS milliseconds. Call from loop(). */
