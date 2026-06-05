@@ -81,9 +81,9 @@ static lv_obj_t * info_max_label   = NULL;
 static lv_obj_t * info_step_label  = NULL;
 static lv_obj_t * info_mode_label  = NULL;
 static lv_obj_t * test_type_label  = NULL;
-static int        att_relay_mode   = 0;   /* 0=BRIDGE, 1=STATIC */
-bool              att_has_rf_switch = false;  /* vom Pico via RFSWITCH: gemeldet */
-bool              rf_state          = true;   /* aktueller RF-Schalter-Zustand (gespiegelt vom Pico) */
+static int        att_relay_mode   = 0;         /* Testmode: 0=BRIDGE, 1=STATIC */
+bool              att_has_rf_switch = false;    /* vom Pico via RFSWITCH: gemeldet */
+bool              rf_state          = true;     /* aktueller RF-Schalter-Zustand (gespiegelt vom Pico) */
 static lv_obj_t * btn_rf            = NULL;
 static lv_obj_t * lbl_rf            = NULL;
 
@@ -401,7 +401,7 @@ static void config_create(lv_obj_t * parent)
     lv_label_set_text(auto_set_label, set_mode_label_str());
     lv_obj_set_style_text_font(auto_set_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(auto_set_label, lv_color_hex(0xffa500), 0);
-    lv_obj_align_to(auto_set_label, digit_cont, LV_ALIGN_OUT_BOTTOM_LEFT, 10, 25);
+    lv_obj_align_to(auto_set_label, digit_cont, LV_ALIGN_OUT_BOTTOM_LEFT, 10, 38);
 
     /* Container for buttons, top-right aligned so UP/Down stay put when Set is hidden */
     lv_obj_t * btn_cont = lv_obj_create(parent);
@@ -457,7 +457,7 @@ static void config_create(lv_obj_t * parent)
     lv_obj_set_size(btn_rf, 70, 36);
     /* x,y in Pixel relativ zur linken oberen Ecke des Tab-Inhalts.
      * y ist so gewählt, dass btn_rf auf gleicher Höhe wie der Set-Button liegt. */
-    lv_obj_set_pos(btn_rf, 120, 138);
+    lv_obj_set_pos(btn_rf, 120, 142);
     lv_obj_set_style_bg_color(btn_rf, lv_color_hex(rf_state ? 0x0a6640 : 0xa02020), 0);
     lv_obj_set_style_bg_opa(btn_rf, LV_OPA_COVER, 0);
     lv_obj_set_style_text_color(btn_rf, lv_color_white(), 0);
