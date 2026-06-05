@@ -50,6 +50,10 @@ public:
     /* Relay driving mode: BRIDGE (H-bridge) or STATIC (direct GPIO) */
     virtual int     relay_mode()  const = 0;
 
+    /* RF switch relay present (used to enable/disable RF path).
+     * Default: false.  Override with true for types that have an RF switch. */
+    virtual bool    rf_switch()   const { return false; }
+
     /* Safety watchdog – call from loop().
      * Default: no-op.  Implementations may use this to enforce
      * hardware constraints (e.g. max pulse width on relay coils). */

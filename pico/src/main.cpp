@@ -887,6 +887,7 @@ void loop()
         } else if(input.startsWith("SETMODE:")) {
             pico_set_mode = input.substring(8).toInt();
             auto_set_mode = (pico_set_mode != 2);
+            save_persisted_setmode();
             Serial.print("ESP32 SETMODE: "); Serial.println(pico_set_mode);
             refresh_attenuation_display();
         } else if(input == "TEST:START") {

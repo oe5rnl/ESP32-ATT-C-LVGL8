@@ -1,0 +1,5 @@
+Schaltung/
+Schaltung (Kopie)/
+pico/docu/
+**/*.step
+esp32/docu/
