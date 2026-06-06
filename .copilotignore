@@ -3,6 +3,7 @@ Schaltung/
 Schaltung (Kopie)/
 pico/docu/
 esp32/docu/
+esp32/.pio
 Attenuator
 RPI_PICO-20260406-v1.28.0.uf2
 **/*.step
