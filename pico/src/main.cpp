@@ -411,12 +411,6 @@ static void update_attenuation_display_state(int32_t db_value)
     drawCursor();
     display.drawString(0, 56, pico_set_mode_str());
     int rf_w = 0;
-    if(att && att->rf_switch()) {
-        const char* rf_txt = att->get_rf() ? "ON" : "OFF";
-        /* 6 px pro Zeichen, rechtsbündig auf x=127 */
-        rf_w = (int)strlen(rf_txt) * 8;
-        display.drawString(128 - rf_w, 56, rf_txt);
-    }
     if(pico_set_mode == 2 && pico_set_pending) {
         int star_x = (rf_w > 0) ? (128 - rf_w - 12) : (128 - 8);
         display.drawString(star_x, 56, "*");

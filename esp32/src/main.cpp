@@ -295,7 +295,7 @@ static void set_button_set_pending(bool pending)
     set_pending = pending;
     if(lbl_set) {
         lv_obj_set_style_text_color(lbl_set,
-            pending ? lv_color_hex(0xff3030) : lv_color_white(), 0);
+            pending ? lv_color_hex(0xFF0000) : lv_color_white(), 0); // xb01010
     }
     char buf[40];
     snprintf(buf, sizeof(buf), "{\"type\":\"setpend\",\"val\":%d}", pending ? 1 : 0);
@@ -480,14 +480,14 @@ static void config_create(lv_obj_t * parent)
     lv_label_set_text(lbl_set, "Set");
     lv_obj_center(lbl_set);
     lv_obj_set_style_text_color(lbl_set,
-        set_pending ? lv_color_hex(0xff3030) : lv_color_white(), 0);
+        set_pending ? lv_color_hex(0xFF0000) : lv_color_white(), 0);
     if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
 
     /* RF-Schalter: freistehend, Position per x/y (nur sichtbar wenn att_has_rf_switch). */
     btn_rf = lv_btn_create(parent);
     lv_obj_set_size(btn_rf, 70, 36);
     /* x,y in Pixel relativ zur linken oberen Ecke des Tab-Inhalts.
-     * y ist so gewählt, dass btn_rf auf gleicher Höhe wie der Set-Button liegt. */
+     * y ist so gewählt, dass btn_rf auf mittig zu wie der Set-Button liegt. */
     lv_obj_set_pos(btn_rf, 120, 142);
     lv_obj_set_style_bg_color(btn_rf, lv_color_hex(rf_state ? 0x0a6640 : 0xa02020), 0);
     lv_obj_set_style_bg_opa(btn_rf, LV_OPA_COVER, 0);

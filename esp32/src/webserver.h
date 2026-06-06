@@ -83,8 +83,10 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
   button{padding:10px 22px;border:none;border-radius:6px;font-size:1em;cursor:pointer;background:#0f3460;color:#fff}
   button:hover{background:#e94560}
-  #btnSet{display:none}
-  #btnSet.pending{color:#ff3030}
+  #btnSet{display:none;background:#0f3460}
+  #btnSet:hover{background:#0f3460}
+  #btnSet.pending{color:#ff3030;background:#0f3460}
+  #btnSet.pending:hover{background:#0f3460}
   #btnRf{display:none;background:#0a6640}
   #btnRf.off{background:#a02020}
   .defaults{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
