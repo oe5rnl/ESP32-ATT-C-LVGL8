@@ -87,6 +87,7 @@ static int selected_digit = 1;  /* 0 = Hunderter, 1 = Zehner */
 /* AUTO-Set Mode */
 static bool auto_set_mode = true;
 static int  pico_set_mode = 0;   /* 0=Direct, 1=Time, 2=Button */
+static bool pico_set_pending = false;  /* set_mode==2: dB geaendert, noch nicht via Set angewendet */
 
 static const char* pico_set_mode_str() {
     if(pico_set_mode == 1) return "SET-TIME";
@@ -409,11 +410,16 @@ static void update_attenuation_display_state(int32_t db_value)
     display.drawString(90, 28, "dB");
     drawCursor();
     display.drawString(0, 56, pico_set_mode_str());
+    int rf_w = 0;
     if(att && att->rf_switch()) {
         const char* rf_txt = att->get_rf() ? "ON" : "OFF";
         /* 6 px pro Zeichen, rechtsbündig auf x=127 */
-        int w = (int)strlen(rf_txt) * 8;
-        display.drawString(128 - w, 56, rf_txt);
+        rf_w = (int)strlen(rf_txt) * 8;
+        display.drawString(128 - rf_w, 56, rf_txt);
+    }
+    if(pico_set_mode == 2 && pico_set_pending) {
+        int star_x = (rf_w > 0) ? (128 - rf_w - 12) : (128 - 8);
+        display.drawString(star_x, 56, "*");
     }
     display.display();
 }
@@ -440,6 +446,7 @@ static void apply_attenuation(int32_t db_value)
 
 static void apply_attenuation_from_esp_db(int32_t db_value)
 {
+    if(pico_set_mode == 2 && db_value != current_db) pico_set_pending = true;
     update_attenuation_display_state(db_value);
     if(!auto_set_mode) {
         Serial.print("ESP32 dB command -> display only: ");
@@ -455,6 +462,7 @@ static void apply_attenuation_from_esp_db(int32_t db_value)
 
 static void apply_attenuation_from_esp_set(int32_t db_value)
 {
+    pico_set_pending = false;
     update_attenuation_display_state(db_value);
     if(!suppress_relay_update) apply_relays(current_db);
 }
@@ -625,6 +633,7 @@ static void runtime_menu()
                         if(msel != pico_set_mode) {
                             pico_set_mode = msel;
                             auto_set_mode = (pico_set_mode != 2);
+                            pico_set_pending = false;
                             save_persisted_setmode();
                             /* ESP32 informieren */
                             Serial1.print("SETMODE:");
@@ -843,6 +852,7 @@ void loop()
                     encoder_apply_pending = false;
                 } else {
                     /* Set-Time (1) + Set-Button (2): nur Anzeige */
+                    if(pico_set_mode == 2) pico_set_pending = true;
                     suppress_relay_update = true;
                     apply_attenuation(new_db);
                     suppress_relay_update = false;
@@ -850,7 +860,6 @@ void loop()
                         encoder_apply_pending = true;
                         last_encoder_change   = now;
                     }
-                    /* Set-Button: kein pending – wartet auf Encoder-Click */
                 }
 
                 Serial1.print(current_db);
@@ -917,9 +926,13 @@ void loop()
                 Serial.print(current_db);
                 Serial.println(" dB");
                 waiting_for_double_click = false;
+                bool had_pending = pico_set_pending;
+                pico_set_pending = false;
                 apply_relays(current_db);
                 Serial1.print(current_db);
                 Serial1.println("dB");
+                Serial1.println("SETOK");
+                if(had_pending) refresh_attenuation_display();
                 led_solid_mode  = true;
                 led_solid_start = now;
                 digitalWrite(LED_BUILTIN, HIGH);
@@ -987,6 +1000,7 @@ void loop()
         } else if(input.startsWith("SETMODE:")) {
             pico_set_mode = input.substring(8).toInt();
             auto_set_mode = (pico_set_mode != 2);
+            pico_set_pending = false;
             save_persisted_setmode();
             Serial.print("ESP32 SETMODE: "); Serial.println(pico_set_mode);
             refresh_attenuation_display();

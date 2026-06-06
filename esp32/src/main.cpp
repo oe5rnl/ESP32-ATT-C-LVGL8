@@ -61,6 +61,8 @@ static bool long_press_active = false;
 int set_mode = 0;  /* 0=Set-Direct, 1=Set-Time, 2=Set-Button */
 bool autoset = true;  /* abgeleitet: true wenn set_mode==0 */
 static lv_obj_t * btn_set = NULL;
+static lv_obj_t * lbl_set = NULL;
+bool              set_pending = false;
 static lv_obj_t * ae_btnmatrix = NULL;
 #if RAW_UART_TEST_MODE
 static uint32_t raw_uart_test_tx_count = 0;
@@ -269,9 +271,12 @@ void apply_attenuation(void)
     send_attenuation_command(false);
 }
 
+static void set_button_set_pending(bool pending);  /* fwd */
+
 void apply_attenuation_set(void)
 {
     send_attenuation_command(true);
+    set_button_set_pending(false);
 }
 
 void apply_attenuation_timed(void)
@@ -281,18 +286,38 @@ void apply_attenuation_timed(void)
     Serial.printf("TIMED:%ddB\n", (int)att_v);
 }
 
+/* Set-Button: rote Schrift wenn dB-Wert seit letztem Apply geaendert wurde
+ * (nur relevant in set_mode==2). Sync zu Web ueber WS-Nachricht "setpend". */
+static void set_button_set_pending(bool pending)
+{
+    if(set_mode != 2) pending = false;
+    if(set_pending == pending) return;
+    set_pending = pending;
+    if(lbl_set) {
+        lv_obj_set_style_text_color(lbl_set,
+            pending ? lv_color_hex(0xff3030) : lv_color_white(), 0);
+    }
+    char buf[40];
+    snprintf(buf, sizeof(buf), "{\"type\":\"setpend\",\"val\":%d}", pending ? 1 : 0);
+    ws.textAll(buf);
+}
+
 static void set_config_value(int32_t val, bool apply_auto_command)
 {
+    bool changed = (val != db_value);
+    if(set_mode == 2 && changed) set_button_set_pending(true);
     db_value = val;
     update_digit_labels();
     lv_tabview_set_act(tabview, 0, LV_ANIM_OFF);
     if(apply_auto_command) apply_attenuation();
+    else if(set_mode == 2 && changed) apply_attenuation();  /* display-only sync zum Pico */
 }
 
 void web_apply_step(int dir)
 {
     if(digit_max[selected_digit] == 0) return;
     int multiplier = (selected_digit == 0) ? 100 : (selected_digit == 1) ? 10 : (int)att_step;
+    int32_t old_db = db_value;
     db_value += dir * multiplier;
     if(db_value < 0) db_value = 0;
     if(db_value > att_max_val) db_value = att_max_val;
@@ -304,6 +329,10 @@ void web_apply_step(int dir)
 #else
     if(set_mode == 0)      apply_attenuation();
     else if(set_mode == 1) apply_attenuation_timed();
+    else if(set_mode == 2 && db_value != old_db) {
+        set_button_set_pending(true);
+        apply_attenuation();  /* display-only sync zum Pico */
+    }
 #endif
 }
 
@@ -447,9 +476,11 @@ static void config_create(lv_obj_t * parent)
         LV_UNUSED(e);
         apply_attenuation_set();
     }, LV_EVENT_CLICKED, NULL);
-    lv_obj_t * lbl_set = lv_label_create(btn_set);
+    lbl_set = lv_label_create(btn_set);
     lv_label_set_text(lbl_set, "Set");
     lv_obj_center(lbl_set);
+    lv_obj_set_style_text_color(lbl_set,
+        set_pending ? lv_color_hex(0xff3030) : lv_color_white(), 0);
     if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
 
     /* RF-Schalter: freistehend, Position per x/y (nur sichtbar wenn att_has_rf_switch). */
@@ -960,6 +991,7 @@ void web_update_ae(void)
 {
     /* Web-Interface kennt nur bool → autoset=true → Set-Direct, false → Set-Button */
     set_mode = autoset ? 0 : 2;
+    set_button_set_pending(false);
     prefs.putInt("setmode", set_mode);
     if(ae_btnmatrix) {
         lv_btnmatrix_clear_btn_ctrl_all(ae_btnmatrix, LV_BTNMATRIX_CTRL_CHECKED);
@@ -981,6 +1013,7 @@ void web_update_ae(void)
 void web_update_setmode(void)
 {
     autoset = (set_mode != 2);
+    set_button_set_pending(false);
     prefs.putInt("setmode", set_mode);
     if(ae_btnmatrix) {
         lv_btnmatrix_clear_btn_ctrl_all(ae_btnmatrix, LV_BTNMATRIX_CTRL_CHECKED);
@@ -1262,6 +1295,7 @@ void loop()
                     if(m >= 0 && m <= 2) {
                         set_mode = m;
                         autoset  = (set_mode != 2);
+                        set_button_set_pending(false);
                         prefs.putInt("setmode", set_mode);
                         if(auto_set_label)
                             lv_label_set_text(auto_set_label, set_mode_label_str());
@@ -1340,6 +1374,10 @@ void loop()
                         test_ui_update();
                     }
                 }
+                else if(input.equalsIgnoreCase("SETOK")) {
+                    /* Pico hat im Set-Button-Modus per Klick angewendet → Pending loeschen */
+                    set_button_set_pending(false);
+                }
                 else {
                     /* Parse number: accept plain number or "xxdB" format */
                     input.toLowerCase();
@@ -1369,6 +1407,7 @@ void loop()
                         if(digit_max[1] == 0) val = (val / 100) * 100;  /* 100 dB Schritte */
                         
                         /* Aktualisiere nur Display, NICHT Relais (Pico hat bereits gesetzt) */
+                        if(set_mode == 2 && val != db_value) set_button_set_pending(true);
                         db_value = val;
                         update_digit_labels();
                         

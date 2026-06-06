@@ -36,6 +36,7 @@ extern int32_t att_step;
 extern uint8_t digit_max[3];
 extern bool att_has_rf_switch;
 extern bool rf_state;
+extern bool set_pending;
 extern String att_name_str;
 void update_config_value(int32_t val);
 void apply_attenuation(void);
@@ -83,6 +84,7 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   button{padding:10px 22px;border:none;border-radius:6px;font-size:1em;cursor:pointer;background:#0f3460;color:#fff}
   button:hover{background:#e94560}
   #btnSet{display:none}
+  #btnSet.pending{color:#ff3030}
   #btnRf{display:none;background:#0a6640}
   #btnRf.off{background:#a02020}
   .defaults{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
@@ -190,6 +192,13 @@ let digitMax = [9,9,9];
 let attStep = 10;
 let rfSwitch = false;
 let rfOn = true;
+let setPending = false;
+
+function applySetPending(p){
+  setPending = !!p;
+  const b = document.getElementById('btnSet');
+  if(b) b.classList.toggle('pending', setPending && curMode === 2);
+}
 
 function applyRf(rsw, on){
   rfSwitch = !!rsw;
@@ -247,6 +256,7 @@ function connectWS(){
       if(msg.attStep !== undefined) attStep=msg.attStep;
       if(msg.digitMax !== undefined){digitMax=msg.digitMax;applyDigitDisable();}
       if(msg.rfSw !== undefined) applyRf(msg.rfSw, msg.rf);
+      if(msg.setpend !== undefined) applySetPending(msg.setpend);
       if(msg.attname !== undefined){
         const t = document.getElementById('att-title');
         if(t) t.textContent = msg.attname + ' Attenuator';
@@ -254,6 +264,7 @@ function connectWS(){
       }
     }
     if(msg.type === 'val'){
+      if(curMode === 2 && msg.val !== curVal) applySetPending(true);
       curVal = msg.val;
       renderDigits();
       renderDefaults();
@@ -276,6 +287,9 @@ function connectWS(){
     }
     if(msg.type === 'rf'){
       applyRf(rfSwitch || msg.sw, msg.val);
+    }
+    if(msg.type === 'setpend'){
+      applySetPending(msg.val);
     }
   };
 }
@@ -325,6 +339,7 @@ function step(dir){
 
 function sendSet(){
   if(curMode !== 2) return;
+  applySetPending(false);
   ws.send(JSON.stringify({cmd:'set', val:curVal}));
 }
 
@@ -336,6 +351,8 @@ function applyMode(m){
     if(el) el.classList.toggle('active', i===m);
   }
   document.getElementById('btnSet').style.display = (m===2) ? 'inline-block' : 'none';
+  if(m !== 2) applySetPending(false);
+  else applySetPending(setPending);
 }
 
 function sendMode(m){
@@ -549,10 +566,11 @@ static void ws_send_state(AsyncWebSocketClient * client = nullptr)
     snprintf(buf, sizeof(buf),
         "{\"type\":\"state\",\"val\":%d,\"def\":%s,\"ae\":%s,\"setmode\":%d,\"sel\":%d,"
         "\"maxVal\":%d,\"attStep\":%d,\"digitMax\":[%d,%d,%d],"
-        "\"rfSw\":%s,\"rf\":%s,\"attname\":\"%s\"}",
+        "\"rfSw\":%s,\"rf\":%s,\"setpend\":%d,\"attname\":\"%s\"}",
         (int)db_value, defArr, autoset ? "true" : "false", set_mode, selected_digit,
         (int)att_max_val, (int)att_step, (int)digit_max[0], (int)digit_max[1], (int)digit_max[2],
-        att_has_rf_switch ? "true" : "false", rf_state ? "true" : "false", name_c);
+        att_has_rf_switch ? "true" : "false", rf_state ? "true" : "false",
+        set_pending ? 1 : 0, name_c);
 
     if(client) client->text(buf);
     else        ws.textAll(buf);
