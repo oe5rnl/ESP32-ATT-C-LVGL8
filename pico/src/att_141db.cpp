@@ -67,8 +67,8 @@ void Att141dB::apply(int32_t dv)
     bool a2   = (rem >= 2);  if(a2)   rem -= 2;
     bool a1   = (rem >= 1);
 
-    /* relay order must match _relays[]: 4A,40A,10,20A,40B,4B,2,20B,1 */
-    bool desired[RELAY_COUNT] = {a4a, a40a, a10, a20a, a40b, a4b, a2, a20b, a1};
+    /* relay order must match _relays[]: 1, 20A, 2, 4A, 40A, 20B, 10, 40B, 4B */
+    bool desired[RELAY_COUNT] = {a1, a20a, a2, a4a, a40a, a20b, a10, a40b, a4b};
 
     for(int i = 0; i < RELAY_COUNT; i++) {
         if(desired[i] != _states[i]) {
