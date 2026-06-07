@@ -81,7 +81,7 @@ static const char WEB_PAGE[] PROGMEM = R"rawhtml(
   
   .unit{font-size:28px;margin-bottom:8px;color:#aaa}
   .btns{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-  button{padding:10px 22px;border:none;border-radius:6px;font-size:1em;cursor:pointer;background:#0f3460;color:#fff}
+  button{padding:6px 22px;border:none;border-radius:6px;font-size:1em;cursor:pointer;background:#0f3460;color:#fff}
   button:hover{background:#e94560}
   #btnSet{display:none;background:#0f3460}
   #btnSet:hover{background:#0f3460}
@@ -434,8 +434,21 @@ function digitModalCancel(){
 // --- WiFi-Setup (sichtbar solange WLAN aktiv ist) ---
 let scannedNets=[];
 fetch('/api/mode').then(r=>r.json()).then(d=>{
-  if(d.mode!==0) document.getElementById('wifiSetup').style.display='block';
+  if(d.mode!==0){
+    document.getElementById('wifiSetup').style.display='block';
+    refreshWifiStatus();
+  }
 }).catch(()=>{});
+
+function refreshWifiStatus(){
+  fetch('/api/wifistatus').then(r=>r.json()).then(s=>{
+    if(!s.connected) return;
+    const stat=document.getElementById('wifiStatus');
+    if(!stat) return;
+    stat.style.color='#0a0';
+    stat.innerHTML='Verbunden mit <b>'+escH(s.ssid)+'</b><br>Client-IP: '+s.ip+' | AP: '+s.ap_ip+'<br>Signal: '+s.rssi+' dBm<br>Erreichbar \u00fcber beide IPs und <b>esp32-att.local</b>';
+  }).catch(()=>{});
+}
 
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
@@ -520,7 +533,7 @@ function connectWifi(){
             if(s.connected){
               stopWifiStatusPoll();
               stat.style.color='#0a0';
-              stat.innerHTML='Verbunden mit <b>'+escH(s.ssid)+'</b><br>Client-IP: '+s.ip+' | AP: '+s.ap_ip+'<br>Erreichbar \u00fcber beide IPs und <b>esp32-att.local</b>';
+              stat.innerHTML='Verbunden mit <b>'+escH(s.ssid)+'</b><br>Client-IP: '+s.ip+' | AP: '+s.ap_ip+'<br>Signal: '+s.rssi+' dBm<br>Erreichbar \u00fcber beide IPs und <b>esp32-att.local</b>';
             }
           }).catch(()=>{});
         },2000);

@@ -597,14 +597,14 @@ static void menu_create(lv_obj_t * parent)
     const char * item_labels[4] = { "WLAN", "Info", "Test", "Verhalten" };
     for(int i = 0; i < 4; i++) {
         lv_obj_t * btn = lv_btn_create(submenu_btn_cont);
-        lv_obj_set_size(btn, 290, 38);
-        lv_obj_set_pos(btn, 15, 10 + i * 46);
+        lv_obj_set_size(btn, 290, 37);
+        lv_obj_set_pos(btn, 15, 4 + i * 48);
         lv_obj_set_style_bg_color(btn, lv_color_hex(0x1a5090), 0);
         lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, 0);
         lv_obj_set_style_radius(btn, 6, 0);
         lv_obj_t * lbl = lv_label_create(btn);
         lv_label_set_text(lbl, item_labels[i]);
-        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_14, 0);
+        lv_obj_set_style_text_font(lbl, &lv_font_montserrat_24, 0);
         lv_obj_set_style_text_color(lbl, lv_color_white(), 0);
         lv_obj_align(lbl, LV_ALIGN_LEFT_MID, 8, 0);
         lv_obj_add_event_cb(btn, [](lv_event_t * e) {
@@ -632,18 +632,24 @@ static void menu_create(lv_obj_t * parent)
 
     /* Verhalten: Set-Modus (1 aus 3) */
     {
-        static const char * btn_map[] = { "Set-Direct", "Set-Time", "Set-Button", "" };
+        static const char * btn_map[] = { "Direct", "Time", "Set", "" };
         lv_obj_t * page = submenu_pages[3];
         lv_obj_t * label = lv_label_create(page);
-        lv_label_set_text(label, "Verhalten");
+        lv_label_set_text(label, "Set-DB Verhalten");
         lv_obj_set_style_text_font(label, &lv_font_montserrat_24, 0);
         lv_obj_set_style_text_color(label, lv_color_white(), 0);
         lv_obj_align(label, LV_ALIGN_TOP_LEFT, 10, 10);
         lv_obj_t * btnm = lv_btnmatrix_create(page);
         ae_btnmatrix = btnm;
         lv_btnmatrix_set_map(btnm, btn_map);
-        lv_obj_set_size(btnm, 290, 56);
+        lv_obj_set_size(btnm, 290, 70);
         lv_obj_align_to(btnm, label, LV_ALIGN_OUT_BOTTOM_LEFT, 0, 10);
+        lv_obj_set_style_border_width(btnm, 0, 0);
+        lv_obj_set_style_bg_opa(btnm, LV_OPA_TRANSP, 0);
+        lv_obj_set_style_pad_all(btnm, 2, 0);
+        lv_obj_set_style_pad_gap(btnm, 6, 0);
+        lv_obj_set_style_text_font(btnm, &lv_font_montserrat_20, LV_PART_ITEMS);
+        lv_obj_set_style_border_width(btnm, 0, LV_PART_ITEMS);
         for(int i = 0; i < 3; i++)
             lv_btnmatrix_set_btn_ctrl(btnm, i, LV_BTNMATRIX_CTRL_CHECKABLE);
         lv_btnmatrix_set_one_checked(btnm, true);
@@ -667,14 +673,14 @@ static void menu_create(lv_obj_t * parent)
 
     /* --- Zurück-Schaltfläche --- */
     submenu_back_btn = lv_btn_create(parent);
-    lv_obj_set_size(submenu_back_btn, 90, 28);
-    lv_obj_set_pos(submenu_back_btn, 10, 170);
+    lv_obj_set_size(submenu_back_btn, 120, 36);
+    lv_obj_set_pos(submenu_back_btn, 10, 160);
     lv_obj_set_style_bg_color(submenu_back_btn, lv_color_hex(0x444444), 0);
     lv_obj_set_style_bg_opa(submenu_back_btn, LV_OPA_COVER, 0);
     lv_obj_set_style_radius(submenu_back_btn, 6, 0);
     lv_obj_t * back_lbl = lv_label_create(submenu_back_btn);
     lv_label_set_text(back_lbl, "< Zuruck");
-    lv_obj_set_style_text_font(back_lbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(back_lbl, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(back_lbl, lv_color_white(), 0);
     lv_obj_center(back_lbl);
     lv_obj_add_flag(submenu_back_btn, LV_OBJ_FLAG_HIDDEN);
@@ -822,7 +828,7 @@ static void test_create(lv_obj_t * parent)
     lv_obj_set_style_radius(test_start_btn, 8, 0);
     lv_obj_t * slbl = lv_label_create(test_start_btn);
     lv_label_set_text(slbl, "Test starten");
-    lv_obj_set_style_text_font(slbl, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(slbl, &lv_font_montserrat_20, 0);
     lv_obj_set_style_text_color(slbl, lv_color_white(), 0);
     lv_obj_center(slbl);
     lv_obj_add_event_cb(test_start_btn, [](lv_event_t * e) {
