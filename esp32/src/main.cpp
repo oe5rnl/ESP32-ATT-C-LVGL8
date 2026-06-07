@@ -27,7 +27,7 @@ Preferences prefs;
 // ----------------------------
 LV_FONT_DECLARE(lv_font_digits_72);
 
-/* Gesamtmaximum und Maximalwert je Ziffer (0 = Stelle deaktiviert) */
+/* Default: Gesamtmaximum und Maximalwert je Ziffer (0 = Stelle deaktiviert) */
 #define DIGIT_MAX_VAL  110   /* maximaler Gesamtwert in dB             */
 #define DIGIT_MAX_0      1   /* Hunderter: 0 .. DIGIT_MAX_0           */
 #define DIGIT_MAX_1      9   /* Zehner:    0 .. DIGIT_MAX_1           */
@@ -1143,12 +1143,6 @@ void setup()
     Serial.begin(115200);
     delay(200);
     
-    // Serial2 nicht mehr verwenden - wir nutzen Serial direkt
-    // Serial2.begin(115200, SERIAL_8N1, 3, 1);  // RX=3, TX=1
-    // Serial2.setRxBufferSize(256);
-    
-    // Serial.println("Serial initialized on GPIO3 (RX) and GPIO1 (TX)");  // Kein Debug mehr über USB
-
     /* Load saved default values from NVS */
     prefs.begin("att", false);
     for(int i = 0; i < DEFAULT_BUTTON_COUNT; i++) {
@@ -1164,14 +1158,6 @@ void setup()
         prefs.putUChar("wmode", wifi_mode_setting);
     }
 
-    /* Beim Boot KEIN dB-Kommando an den Pico senden:
-     * Der Pico haelt den persistierten Wert und sendet ihn beim Start
-     * von sich aus per UART. Wuerden wir hier "0dB" senden, wuerde der
-     * gespeicherte Wert auf 0 ueberschrieben. */
-
-    // String info = "LVGL version ";
-    // info += String('V') + lv_version_major() + "." + lv_version_minor() + "." + lv_version_patch();
-    // Serial.println(info);
 
     lv_init();
 
