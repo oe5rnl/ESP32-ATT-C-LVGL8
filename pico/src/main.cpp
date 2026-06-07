@@ -30,8 +30,6 @@
 #include "version.h"
 
 
-#define RAW_UART_TEST_MODE 0  /* 1 = einfacher ESP32->Pico Rohdaten-Test, 0 = Normalbetrieb */
-
 /* I2C Display SSD1306 (128x64) using I2C0 on GPIO4 PIN6 (SDA) / GPIO5 PIN7 (SCL) */
 SSD1306 display(&Wire);
 
@@ -68,10 +66,6 @@ static unsigned long button_press_start = 0;
 static bool button_was_pressed = false;
 static bool long_press_executed = false;
 static bool suppress_relay_update = false;
-#if RAW_UART_TEST_MODE
-static uint32_t raw_uart_rx_count = 0;
-static int raw_uart_last_value = -1;
-#endif
 
 static const unsigned long ENCODER_SETTLE_TIME = 300;
 static const unsigned long LONG_PRESS_TIME      = 800;
@@ -97,9 +91,6 @@ static const char* pico_set_mode_str() {
     if(pico_set_mode == 2) return "SET-BUTTON";
     return "SET-DIRECT";
 }
-
-/* Test Mode */
-static bool test_mode = false;
 
 /* -------------------------------------------------------
  * Remote-Test-Modus (gesteuert vom ESP32 per Serial1)
@@ -128,25 +119,6 @@ static const char * DB_STORE_FILE      = "/fs/att_db.txt";
 static const char * SETMODE_STORE_FILE = "/fs/setmode.txt";
 static const char * RF_STORE_FILE      = "/fs/rfstate.txt";
 static int          rf_persisted_cache = -1;   /* -1 = unbekannt, 0/1 = letzter persistierter Wert */
-
-#if RAW_UART_TEST_MODE
-static void update_raw_uart_test_display()
-{
-    char line[32];
-    display.clear();
-    display.drawString(0, 0, "UART TEST ESP->PICO");
-    snprintf(line, sizeof(line), "RX COUNT: %lu", (unsigned long)raw_uart_rx_count);
-    display.drawString(0, 18, line);
-    if(raw_uart_last_value >= 0) {
-        snprintf(line, sizeof(line), "LAST RAW: %d", raw_uart_last_value);
-        display.drawString(0, 34, line);
-    } else {
-        display.drawString(0, 34, "LAST RAW: ---");
-    }
-    display.drawString(0, 50, "UP/DOWN am ESP druecken");
-    display.display();
-}
-#endif
 
 /* -------------------------------------------------------
  * Persistent Storage
@@ -403,11 +375,6 @@ static void update_attenuation_display_state(int32_t db_value)
     current_db = dv;
     if(current_db != prev_db) {
         save_persisted_db_if_changed(current_db);
-    }
-
-    if(test_mode) {
-        if(att) att->update_test_display();
-        return;
     }
 
     display.clear();
@@ -804,10 +771,6 @@ void setup()
         sync_state_to_esp32();
         delay(80);
     }
-
-#if RAW_UART_TEST_MODE
-    update_raw_uart_test_display();
-#endif
 }
 
 /* -------------------------------------------------------
@@ -837,54 +800,49 @@ void loop()
     /* Read KY-040 Rotary Encoder */
     int clk_state = digitalRead(ENCODER_CLK);
     if(clk_state != encoder_last_clk && clk_state == LOW) {
-        if(test_mode) {
-            int dir = (digitalRead(ENCODER_DT) != clk_state) ? 1 : -1;
-            if(att) att->test_rotate(dir);
+        Serial.println("*\n");
+        int step      = encoder_step();
+        int32_t max_v = att_max_db();
+        int new_db    = current_db;
+
+        if(digitalRead(ENCODER_DT) != clk_state) {
+            new_db += step;
+            if(new_db > max_v) new_db = max_v;
+            encoder_position++;
         } else {
-            Serial.println("*\n");
-            int step      = encoder_step();
-            int32_t max_v = att_max_db();
-            int new_db    = current_db;
+            new_db -= step;
+            if(new_db < 0) new_db = 0;
+            encoder_position--;
+        }
 
-            if(digitalRead(ENCODER_DT) != clk_state) {
-                new_db += step;
-                if(new_db > max_v) new_db = max_v;
-                encoder_position++;
+        if(new_db != current_db) {
+            if(pico_set_mode == 0) {
+                /* Set-Direct: Relais sofort schalten */
+                apply_attenuation(new_db);
+                encoder_apply_pending = false;
             } else {
-                new_db -= step;
-                if(new_db < 0) new_db = 0;
-                encoder_position--;
-            }
-
-            if(new_db != current_db) {
-                if(pico_set_mode == 0) {
-                    /* Set-Direct: Relais sofort schalten */
-                    apply_attenuation(new_db);
-                    encoder_apply_pending = false;
-                } else {
-                    /* Set-Time (1) + Set-Button (2): nur Anzeige */
-                    if(pico_set_mode == 2) pico_set_pending = true;
-                    suppress_relay_update = true;
-                    apply_attenuation(new_db);
-                    suppress_relay_update = false;
-                    if(pico_set_mode == 1) {
-                        encoder_apply_pending = true;
-                        last_encoder_change   = now;
-                    }
+                /* Set-Time (1) + Set-Button (2): nur Anzeige */
+                if(pico_set_mode == 2) pico_set_pending = true;
+                suppress_relay_update = true;
+                apply_attenuation(new_db);
+                suppress_relay_update = false;
+                if(pico_set_mode == 1) {
+                    encoder_apply_pending = true;
+                    last_encoder_change   = now;
                 }
-
-                Serial1.print(current_db);
-                Serial1.println("dB");
-
-                led_solid_mode  = true;
-                led_solid_start = now;
-                digitalWrite(LED_BUILTIN, HIGH);
             }
+
+            Serial1.print(current_db);
+            Serial1.println("dB");
+
+            led_solid_mode  = true;
+            led_solid_start = now;
+            digitalWrite(LED_BUILTIN, HIGH);
         }
     }
     encoder_last_clk = clk_state;
 
-    if(encoder_apply_pending && !test_mode && (now - last_encoder_change) >= ENCODER_SETTLE_TIME) {
+    if(encoder_apply_pending && (now - last_encoder_change) >= ENCODER_SETTLE_TIME) {
         encoder_apply_pending = false;
         Serial.print("Encoder settled -> apply ");
         Serial.print(current_db);
@@ -895,7 +853,7 @@ void loop()
     }
 
     /* Set-Time: nach Ruhe der TIMED-Frames Relais schalten */
-    if(timed_apply_pending && !test_mode && (now - timed_last_rx) >= TIMED_SETTLE_TIME) {
+    if(timed_apply_pending && (now - timed_last_rx) >= TIMED_SETTLE_TIME) {
         timed_apply_pending = false;
         Serial.print("TIMED settled -> apply ");
         Serial.print(current_db);
@@ -928,9 +886,7 @@ void loop()
     if(sw_state == HIGH && encoder_last_sw == LOW && button_was_pressed) {
         button_was_pressed = false;
 
-        if(test_mode) {
-            if(att) att->test_toggle();
-        } else if(!long_press_executed) {
+        if(!long_press_executed) {
             if(pico_set_mode == 2) {
                 /* Set-Button: einfacher Klick übernimmt sofort */
                 Serial.print("SET-BUTTON CLICK -> Apply value: ");
@@ -967,7 +923,7 @@ void loop()
 
     if(waiting_for_double_click && (now - last_click_time) >= DOUBLE_CLICK_TIME) {
         waiting_for_double_click = false;
-        if(!test_mode && !auto_set_mode) {
+        if(!auto_set_mode) {
             Serial.print("SINGLE CLICK -> Apply value: ");
             Serial.print(current_db);
             Serial.println(" dB (AUTO-Set was OFF)");
@@ -981,18 +937,6 @@ void loop()
     }
 
     /* Check Serial1 (from ESP32) */
-#if RAW_UART_TEST_MODE
-    while(Serial1.available()) {
-        raw_uart_last_value = Serial1.read();
-        raw_uart_rx_count++;
-        Serial.print("RAW RX #"); Serial.print(raw_uart_rx_count);
-        Serial.print(": "); Serial.println(raw_uart_last_value);
-        update_raw_uart_test_display();
-        led_solid_mode  = true;
-        led_solid_start = now;
-        digitalWrite(LED_BUILTIN, HIGH);
-    }
-#else
     if(Serial1.available()) {
         String input = Serial1.readStringUntil('\n');
         input.trim();
@@ -1075,7 +1019,6 @@ void loop()
             }
         }
     }
-#endif
 
     /* Check USB Serial */
     while(Serial.available()) {

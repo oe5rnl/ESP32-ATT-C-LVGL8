@@ -48,22 +48,6 @@ public:
         return (m & 1) + ((m >> 1) & 1) + ((m >> 2) & 1);
     }
 
-    /* Show attenuator-specific info screen on SSD1306 at startup.
-     * Responsible for clear() + draw + display() */
-    virtual void    show_info()          = 0;
-
-    /* Test mode – called once when test mode is activated */
-    virtual void    test_init()          = 0;
-
-    /* Test mode – encoder rotation: dir > 0 = next relay, dir < 0 = previous */
-    virtual void    test_rotate(int dir) = 0;
-
-    /* Test mode – button press: toggle the currently selected relay */
-    virtual void    test_toggle()        = 0;
-
-    /* Test mode – redraw display with current relay name/state */
-    virtual void    update_test_display() = 0;
-
     /* Relay driving mode: BRIDGE (H-bridge) or STATIC (direct GPIO) */
     virtual int     relay_mode()  const = 0;
 

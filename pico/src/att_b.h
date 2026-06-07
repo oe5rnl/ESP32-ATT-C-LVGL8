@@ -14,10 +14,5 @@ public:
     int32_t     step_db()     const override { return   1; }
     int         relay_count() const override { return 0; }
     const char* att_name()    const override { return "ATT-B"; }
-    void    show_info()           override;
-    void    test_init()           override;
-    void    test_rotate(int dir)  override;
-    void    test_toggle()         override;
-    void    update_test_display() override;
     int     relay_mode()  const override { return BRIDGE; }
 };

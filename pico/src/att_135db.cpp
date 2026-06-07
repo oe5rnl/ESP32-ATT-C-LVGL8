@@ -114,62 +114,11 @@ void Att135dB::apply(int32_t dv)
     // Serial.println("]");
 }
 
-void Att135dB::show_info()
-{
-    Serial.println("R&S 135 dB");
-    display.clear();
-    display.drawString(3, 10, "RS-135 dB");
-    display.drawString(3, 20, "Att: 135dB");
-    display.drawString(3, 30, "Steps: 5dB");
-    display.display();
-}
-
 void Att135dB::set_rf(bool on)
 {
     if(_states[6] == on) return;
     pulse(6, !on);   /* GPIO inverted: ON-state uses OFF-pin and vice versa */
     _states[6] = on;
-}
-
-void Att135dB::test_init()
-{
-    _sel = 0;
-    for(int i = 0; i < RELAY_COUNT; i++) {
-        _states[i] = false;
-        pulse(i, false);
-    }
-}
-
-void Att135dB::test_rotate(int dir)
-{
-    _sel = (_sel + (dir > 0 ? 1 : RELAY_COUNT - 1)) % RELAY_COUNT;
-    Serial.print("Test 135dB: Relay -> ");
-    Serial.println(_relays[_sel].name);
-    update_test_display();
-}
-
-void Att135dB::test_toggle()
-{
-    _states[_sel] = !_states[_sel];
-    Serial.print("Test 135dB: Toggle ");
-    Serial.print(_relays[_sel].name);
-    Serial.print(" -> ");
-    Serial.println(_states[_sel] ? "ON" : "OFF");
-    pulse(_sel, _states[_sel]);
-    update_test_display();
-}
-
-void Att135dB::update_test_display()
-{
-    display.clear();
-    display.drawString(0,  0, "TEST MODE 135dB");
-    display.drawString(0, 16, "Relay:");
-    display.drawString(40, 16, _relays[_sel].name);
-    display.drawString(0, 32, "State:");
-    display.drawString(40, 32, _states[_sel] ? "ON" : "OFF");
-    display.drawString(0, 48, "Turn: Select");
-    display.drawString(0, 56, "Press: Toggle");
-    display.display();
 }
 
 /* ---- Safety watchdog ---- */

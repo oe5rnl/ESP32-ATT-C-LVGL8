@@ -35,8 +35,6 @@ LV_FONT_DECLARE(lv_font_digits_72);
 
 #include "webserver.h"
 
-#define RAW_UART_TEST_MODE 0  /* 1 = einfacher ESP32->Pico Rohdaten-Test, 0 = Normalbetrieb */
-
 int32_t db_value = 0;
 static lv_obj_t * digit_labels[3];  /* 0=hundreds, 1=tens, 2=ones */
 static lv_obj_t * digit_cursor;     /* underline indicator */
@@ -65,9 +63,6 @@ static lv_obj_t * btn_set = NULL;
 static lv_obj_t * lbl_set = NULL;
 bool              set_pending = false;
 static lv_obj_t * ae_btnmatrix = NULL;
-#if RAW_UART_TEST_MODE
-static uint32_t raw_uart_test_tx_count = 0;
-#endif
 
 
 
@@ -108,21 +103,8 @@ static lv_obj_t * submenu_btn_cont       = NULL;
 static lv_obj_t * submenu_pages[4]       = { NULL, NULL, NULL, NULL };
 static lv_obj_t * submenu_back_btn       = NULL;
 
-#if RAW_UART_TEST_MODE
-static void send_raw_uart_test_value(void)
-{
-    raw_uart_test_tx_count++;
-    Serial.write((uint8_t)db_value);
-    Serial.flush();
-}
-#endif
-
 static void send_attenuation_command(bool force_apply)
 {
-#if RAW_UART_TEST_MODE
-    LV_UNUSED(force_apply);
-    return;
-#else
     int32_t att = (db_value / att_step) * att_step;
     if(att > att_max_val) att = att_max_val;
     if(force_apply) {
@@ -131,7 +113,6 @@ static void send_attenuation_command(bool force_apply)
     else {
         Serial.printf("%ddB\n", (int)att);
     }
-#endif
 }
 
 static void kb_close(void)
@@ -239,9 +220,7 @@ static void digit_click_cb(lv_event_t * e)
     ws_broadcast_seldigit(idx);
     
     /* Sende Digit-Auswahl an Pico über Serial */
-#if !RAW_UART_TEST_MODE
     Serial.printf("SEL%d\n", idx);
-#endif
 }
 
 /* Digit long-press: open numeric keyboard for direct value entry */
@@ -328,16 +307,12 @@ void web_apply_step(int dir)
     db_value = (db_value / att_step) * att_step;
     update_digit_labels();
     ws_broadcast_val();
-#if RAW_UART_TEST_MODE
-    send_raw_uart_test_value();
-#else
     if(set_mode == 0)      apply_attenuation();
     else if(set_mode == 1) apply_attenuation_timed();
     else if(set_mode == 2 && db_value != old_db) {
         set_button_set_pending(true);
         apply_attenuation();  /* display-only sync zum Pico */
     }
-#endif
 }
 
 static void btn_up_cb(lv_event_t * e)
@@ -503,9 +478,7 @@ static void config_create(lv_obj_t * parent)
         rf_state = !rf_state;
         web_update_rf();
         /* Befehl an Pico senden */
-#if !RAW_UART_TEST_MODE
         Serial.printf("RF:%d\n", rf_state ? 1 : 0);
-#endif
         ws_broadcast_rf();
     }, LV_EVENT_CLICKED, NULL);
     lbl_rf = lv_label_create(btn_rf);
@@ -687,9 +660,7 @@ static void menu_create(lv_obj_t * parent)
                 if(autoset) lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
                 else        lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
             }
-#if !RAW_UART_TEST_MODE
             Serial.printf("SETMODE:%d\n", set_mode);
-#endif
             ws_broadcast_ae();
         }, LV_EVENT_VALUE_CHANGED, NULL);
     }
@@ -861,9 +832,7 @@ static void test_create(lv_obj_t * parent)
         test_count   = (att_relay_mode == 1) ? 4 : 9;
         test_ui_update();
         test_show_controls(true);
-#if !RAW_UART_TEST_MODE
         Serial.println("TEST:START");
-#endif
     }, LV_EVENT_CLICKED, NULL);
 
     /* --- Steuerungscontainer (anfangs versteckt) --- */
@@ -893,10 +862,8 @@ static void test_create(lv_obj_t * parent)
         if(test_count <= 0) return;
         test_sel_idx = (test_sel_idx + test_count - 1) % test_count;
         test_ui_update();
-#if !RAW_UART_TEST_MODE
         char cmd[20]; snprintf(cmd, sizeof(cmd), "TEST:SEL:%d", test_sel_idx);
         Serial.println(cmd);
-#endif
     }, LV_EVENT_CLICKED, NULL);
 
     test_relay_lbl = lv_label_create(test_controls);
@@ -923,10 +890,8 @@ static void test_create(lv_obj_t * parent)
         if(test_count <= 0) return;
         test_sel_idx = (test_sel_idx + 1) % test_count;
         test_ui_update();
-#if !RAW_UART_TEST_MODE
         char cmd[20]; snprintf(cmd, sizeof(cmd), "TEST:SEL:%d", test_sel_idx);
         Serial.println(cmd);
-#endif
     }, LV_EVENT_CLICKED, NULL);
 
     /* Status-Zeile */
@@ -956,9 +921,7 @@ static void test_create(lv_obj_t * parent)
     lv_obj_center(albl);
     lv_obj_add_event_cb(act_btn, [](lv_event_t * e) {
         (void)e;
-#if !RAW_UART_TEST_MODE
         Serial.println("TEST:ACTION");
-#endif
     }, LV_EVENT_CLICKED, NULL);
 
     /* Ende-Button */
@@ -976,9 +939,7 @@ static void test_create(lv_obj_t * parent)
     lv_obj_add_event_cb(end_btn, [](lv_event_t * e) {
         (void)e;
         test_show_controls(false);
-#if !RAW_UART_TEST_MODE
         Serial.println("TEST:END");
-#endif
     }, LV_EVENT_CLICKED, NULL);
 }
 
@@ -1010,9 +971,7 @@ void web_update_ae(void)
         else          lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
     }
     /* Sende Status an Pico über Serial */
-#if !RAW_UART_TEST_MODE
     Serial.printf("SETMODE:%d\n", set_mode);
-#endif
 }
 
 /* Called from webserver.h when web client picks new set_mode (0/1/2) */
@@ -1031,9 +990,7 @@ void web_update_setmode(void)
         if(set_mode == 2) lv_obj_clear_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
         else              lv_obj_add_flag(btn_set, LV_OBJ_FLAG_HIDDEN);
     }
-#if !RAW_UART_TEST_MODE
     Serial.printf("SETMODE:%d\n", set_mode);
-#endif
 }
 
 /* Called from webserver.h when web client changes selected digit */

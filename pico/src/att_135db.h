@@ -56,11 +56,6 @@ public:
     int32_t     step_db()     const override { return   5; }
     int         relay_count() const override { return RELAY_COUNT; }
     const char* att_name()    const override { return "RS-135dB"; }
-    void    show_info()           override;
-    void    test_init()           override;
-    void    test_rotate(int dir)  override;
-    void    test_toggle()         override;
-    void    update_test_display() override;
     int     relay_mode()  const override { return BRIDGE; }
     bool    rf_switch()   const override { return true; }
     bool    get_rf()      const override { return _states[6]; }
@@ -81,7 +76,6 @@ private:
     };
     static const RelayDef _relays[7];
 
-    int  _sel       = 0;
     bool _states[7] = {};
 
     /* Watchdog: timestamp (millis) when each pin was first seen HIGH.

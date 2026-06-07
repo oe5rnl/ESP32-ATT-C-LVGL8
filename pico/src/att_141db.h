@@ -61,12 +61,7 @@ public:
     int32_t     step_db()               const override { return   1; }
     int         relay_count()           const override { return RELAY_COUNT; }
     const char* att_name()              const override { return "RS-141dB"; }
-    void        show_info()             override;
-    void        test_init()             override;
     int         relay_mode()  const override { return BRIDGE; }
-    void        test_rotate(int dir)    override;
-    void        test_toggle()           override;
-    void        update_test_display()   override;
 
 private:
     static const int RELAY_COUNT = 9;
@@ -78,9 +73,5 @@ private:
     };
     static const RelayDef _relays[RELAY_COUNT];
 
-    int  _sel                 = 0;
     bool _states[RELAY_COUNT] = {};
-
-    static void pulse_pin(int pin);
-    void        pulse(int idx, bool activate);
 };

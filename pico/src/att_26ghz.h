@@ -21,18 +21,10 @@ public:
     int32_t     step_db()     const override { return  10; }
     int         relay_count() const override { return RELAY_COUNT; }
     const char* att_name()    const override { return "26.5 GHz Attenuator"; }
-    void    show_info()           override;
-    void    test_init()           override;
-    void    test_rotate(int dir)  override;
-    void    test_toggle()         override;
-    void    update_test_display() override;
     int     relay_mode()  const override { return STATIC; }
 
 private:
     static const int         RELAY_COUNT = 4;
     static const char* const _names[4];
     static const int         _gpios[4];
-
-    int  _sel       = 0;
-    bool _states[4] = {};
 };
