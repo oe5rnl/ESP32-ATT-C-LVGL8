@@ -55,10 +55,10 @@ void Att135dB::setup()
     for(int i = 0; i < RELAY_COUNT; i++) {
         digitalWrite(_relays[i].off_pin, LOW);
     }
-    /* Relay 7 (RF) always ON – pulse ON pin */
-    digitalWrite(_relays[6].on_pin, HIGH);
+    /* Relay 7 (RF) always ON – GPIO inverted: pulse OFF pin to activate */
+    digitalWrite(_relays[6].off_pin, HIGH);
     delay(20);
-    digitalWrite(_relays[6].on_pin, LOW);
+    digitalWrite(_relays[6].off_pin, LOW);
     _states[6] = true;
 
 }
@@ -127,7 +127,7 @@ void Att135dB::show_info()
 void Att135dB::set_rf(bool on)
 {
     if(_states[6] == on) return;
-    pulse(6, on);
+    pulse(6, !on);   /* GPIO inverted: ON-state uses OFF-pin and vice versa */
     _states[6] = on;
 }
 

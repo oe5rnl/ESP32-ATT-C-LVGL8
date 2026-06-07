@@ -57,6 +57,10 @@ cd pico
 Das Pico-Projekt ist komplett eigenständig und unabhängig vom ESP32-Projekt im Hauptordner.
 
 ```
+## Serieller Monitor
+der PICO isi im Betrieb  über die USB-serielle mit /dev/ttyACM0 erreichbar.
+
+OFFEN: Steuerung über usb-serielle
 
 
 ```
