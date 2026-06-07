@@ -673,7 +673,7 @@ static void menu_create(lv_obj_t * parent)
 
     /* --- Zurück-Schaltfläche --- */
     submenu_back_btn = lv_btn_create(parent);
-    lv_obj_set_size(submenu_back_btn, 120, 36);
+    lv_obj_set_size(submenu_back_btn, 120, 30);
     lv_obj_set_pos(submenu_back_btn, 10, 160);
     lv_obj_set_style_bg_color(submenu_back_btn, lv_color_hex(0x444444), 0);
     lv_obj_set_style_bg_opa(submenu_back_btn, LV_OPA_COVER, 0);
@@ -1216,6 +1216,44 @@ void loop()
 {
     lv_timer_handler();
     webserver_loop();
+
+    /* =======================================================
+     * UART-Kommunikation ESP32 <-> Pico  (115200 Baud, \n)
+     * =======================================================
+     *
+     * PICO → ESP32  (empfangen in loop())
+     * -------------------------------------------------------
+     * Startup-Info (einmalig beim Pico-Reset):
+     *   RELAYS:<n>          Anzahl Relais
+     *   ATTNAME:<name>      Attenuator-Name
+     *   STEP:<n>            Schrittweite in dB
+     *   MAXDB:<n>           Maximalwert in dB
+     *   RELMODE:<n>         Relay-Modus: 0=Bridge, 1=Static
+     *   RFSWITCH:<n>        RF-Schalter vorhanden: 0/1
+     *   PICOVER:<ver>       Pico-Firmware-Version
+     *
+     * Laufzeit:
+     *   <n>dB               Aktueller Dämpfungswert (Display-Sync)
+     *   SET:<n>dB           Bestätigung nach SET-Befehl (Pico hat gesetzt)
+     *   SEL<n>              Ausgewählte Stelle (0=Hunderter, 1=Zehner, 2=Einer)
+     *   SETMODE:<n>         Set-Modus: 0=Direct, 1=Time, 2=Button
+     *   RF:<n>              RF-Schalter-Zustand: 0/1
+     *   TESTSTATE:<i>,<s>   Test: Relais-Index i, Zustand s (0/1)
+     *   SETOK               Pico hat im Set-Button-Modus angewendet
+     *
+     * ESP32 → PICO  (gesendet via Serial.printf/println)
+     * -------------------------------------------------------
+     *   <n>dB               Dämpfung setzen (nur Display-Sync, kein Relais)
+     *   SET:<n>dB           Dämpfung sofort schalten (Relais)
+     *   TIMED:<n>dB         Zeitgesteuert schalten
+     *   SEL<n>              Aktive Stelle ändern
+     *   SETMODE:<n>         Set-Modus umschalten
+     *   RF:<n>              RF-Schalter setzen: 0/1
+     *   TEST:START          Relay-Test starten
+     *   TEST:SEL:<i>        Test-Relais i auswählen
+     *   TEST:ACTION         Test: Puls/Toggle am gewählten Relais
+     *   TEST:END            Test beenden
+     * ======================================================= */
     
     /* Empfange Werte vom Pico über Serial (UART0) */
     static String serial_buffer = "";
