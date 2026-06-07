@@ -57,7 +57,8 @@ Die Anbindung erfolgt 12C
 40 VBUS
 
 
-## Attenuator Erkennung
+## Attenuator Erkennung  
+
 Die Erkennung erfolgt über den ADC:
 
     if(v >= 0.0f && v < 0.8f) return ATTENUATOR_26_5GHz;
@@ -66,4 +67,37 @@ Die Erkennung erfolgt über den ADC:
     if(v >= 2.4f)             return ATTENUATOR_RS_135DB;
 
     
+### Benötigte Widerstände  
 
+              3,3V 
+               |  
+              R10  
+ Pico ADC -----|  
+               |  
+              R11  
+               |  
+              GND    
+
+R10 geht direkt zum 3,3V Ausgang 
+R11 
+
+| Attenuator                 |  R10  |  R11  |
+|---------------------------:|:-----:|:-----:|
+| ATTENUATOR_26_5GHz         | offen | offen |
+| ATTENUATOR_RS_141DB        |  3k3  |  4k7  |
+| ATTENUATOR_B               |  4k7  |  3k3  |
+| ATTENUATOR_RS_135DB        | 0 Ohm | offen |
+
+**ACHTUNG:**  
+    Auf keinen Fall zwei 0 Ohm Widerstände einbauen.  
+    Das würde den 3,3V Ausgang des PICO kurzschiessen
+
+Nach dem Einbau der Widerstände/Jumper VOR dem Verbinden  
+des Attenuators mit der Steuerplatine im PICO oder ESP   
+Display testen ob der gewünschte Attenuator angezeigt wird.
+
+**ACHTUNG:**  
+    Wenn als Attenuator Type ATTENUATOR_26_5GHz eingestellt  
+    wird, aber eine ATT-Type verwendet wird bei dem die  
+    Ansteuerung der Relais über H-Brücken ,  
+    kann es zur Zerstörung der Relais kommen!!!
