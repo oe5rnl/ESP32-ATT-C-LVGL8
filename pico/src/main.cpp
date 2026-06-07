@@ -1,6 +1,6 @@
 /* Raspberry Pi Pico - Attenuator Controller
  *
- * Version 0.4 - 2026-04-13
+ * Version:  shared/version.h 
  *
  * Hardware: Raspberry Pi Pico
  *
@@ -724,7 +724,8 @@ void setup()
 
     Serial.println("\n\n=================================");
     Serial.println("Raspberry Pi Pico Attenuator");
-    Serial.println("Version 0.4");
+    Serial.print("PICO_VERSION: "); Serial.println(PICO_VERSION);
+    Serial.print("ESP_VERSION : "); Serial.println(ESP_VERSION);
     Serial.println("=================================\n");
     Serial.println("Serial1 (GP0 TX / GP1 RX) ready for ESP32-Controller communication");
 

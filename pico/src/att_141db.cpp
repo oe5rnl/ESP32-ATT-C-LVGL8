@@ -42,10 +42,14 @@ void Att141dB::setup()
         digitalWrite(_relays[i].on_pin,  LOW);
         digitalWrite(_relays[i].off_pin, LOW);
     }
-    /* Bring all bistable relays to a defined OFF state at startup */
+    /* Bring all bistable relays to OFF state in parallel */
     for(int i = 0; i < RELAY_COUNT; i++) {
-        pulse(i, false);
+        digitalWrite(_relays[i].off_pin, HIGH);
         _states[i] = false;
+    }
+    delay(20);
+    for(int i = 0; i < RELAY_COUNT; i++) {
+        digitalWrite(_relays[i].off_pin, LOW);
     }
 }
 
@@ -70,10 +74,23 @@ void Att141dB::apply(int32_t dv)
     /* relay order must match _relays[]: 1, 20A, 2, 4A, 40A, 20B, 10, 40B, 4B */
     bool desired[RELAY_COUNT] = {a1, a20a, a2, a4a, a40a, a20b, a10, a40b, a4b};
 
+    /* Set all needed pins HIGH in parallel, then pulse LOW together */
+    bool any_change = false;
     for(int i = 0; i < RELAY_COUNT; i++) {
         if(desired[i] != _states[i]) {
-            pulse(i, desired[i]);
-            _states[i] = desired[i];
+            int pin = desired[i] ? _relays[i].on_pin : _relays[i].off_pin;
+            digitalWrite(pin, HIGH);
+            any_change = true;
+        }
+    }
+    if(any_change) {
+        delay(20);
+        for(int i = 0; i < RELAY_COUNT; i++) {
+            if(desired[i] != _states[i]) {
+                int pin = desired[i] ? _relays[i].on_pin : _relays[i].off_pin;
+                digitalWrite(pin, LOW);
+                _states[i] = desired[i];
+            }
         }
     }
 }
