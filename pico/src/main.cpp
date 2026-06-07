@@ -27,6 +27,10 @@
 #include "Attenuator.h"
 #include "test.h"
 
+#define PICO_VERSION "0.9"
+#define ESP_VERSION  "0.9"
+
+
 #define RAW_UART_TEST_MODE 0  /* 1 = einfacher ESP32->Pico Rohdaten-Test, 0 = Normalbetrieb */
 
 /* I2C Display SSD1306 (128x64) using I2C0 on GPIO4 PIN6 (SDA) / GPIO5 PIN7 (SCL) */
@@ -494,12 +498,23 @@ static void info_screen()
     const char* att_label = att ? att->att_name() : "UNKNOWN";
     char buf[24];
     display.clear();
-    display.drawString(15,  0, "Att detected");
+    //display.drawString(15,  0, "Att detected");
     //snprintf(buf, sizeof(buf), "ADC:%d.%02dV %d",(int)adc_v, (int)(adc_v * 100) % 100, adc_raw);
-    snprintf(buf, sizeof(buf), "ADC: %d.%02dV",(int)adc_v, (int)(adc_v * 100) % 100);
-    display.drawString(0, 16, buf);
+
+   
     snprintf(buf, sizeof(buf), "Code:%d %s", att_code, att_label);
-    display.drawString(0, 32, buf);
+    display.drawString(0, 0, buf);
+
+    snprintf(buf, sizeof(buf), "ADC    : %d.%02dV",(int)adc_v, (int)(adc_v * 100) % 100);
+    display.drawString(0, 14, buf);
+ 
+    snprintf(buf, sizeof(buf), "P-Vers.: %s", PICO_VERSION);
+    display.drawString(0, 26, buf);
+
+    snprintf(buf, sizeof(buf), "E-Vers.: %s", ESP_VERSION);
+    display.drawString(0, 38, buf);
+
+
     display.drawString(0, 56, "Taste: zurueck");
     display.display();
 

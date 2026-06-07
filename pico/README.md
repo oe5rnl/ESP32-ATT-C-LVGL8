@@ -55,3 +55,15 @@ Die Anbindung erfolgt 12C
 38 GND
 39 VSYS
 40 VBUS
+
+
+## Attenuator Erkennung
+Die Erkennung erfolgt über den ADC:
+
+    if(v >= 0.0f && v < 0.8f) return ATTENUATOR_26_5GHz;
+    if(v >= 0.8f && v < 1.6f) return ATTENUATOR_RS_141DB;
+    if(v >= 1.6f && v < 2.4f) return ATTENUATOR_B;
+    if(v >= 2.4f)             return ATTENUATOR_RS_135DB;
+
+    
+

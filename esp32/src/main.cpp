@@ -761,12 +761,12 @@ static void info_create(lv_obj_t * parent)
         lv_style_set_text_color(&style_val, lv_color_white());
     }
 
-    const char*   keys[5] = { "Name:", "Relais:", "Max dB:", "Schritt:", "Modus:" };
-    lv_obj_t**    vals[5] = { &info_name_label, &info_relay_label, &info_max_label,
-                               &info_step_label, &info_mode_label };
-    int           ys[5]   = { 10, 42, 74, 106, 138 };
+    const char*   keys[6] = { "Name:", "Relais:", "Max dB:", "Schritt:", "Modus:", "Version:" };
+    lv_obj_t**    vals[6] = { &info_name_label, &info_relay_label, &info_max_label,
+                               &info_step_label, &info_mode_label, &version_label };
+    int           ys[6]   = { 10, 32, 64, 96, 128, 135 };
 
-    for(int i = 0; i < 5; i++) {
+    for(int i = 0; i < 6; i++) {
         lv_obj_t * k = lv_label_create(parent);
         lv_label_set_text(k, keys[i]);
         lv_obj_add_style(k, &style_key, 0);
