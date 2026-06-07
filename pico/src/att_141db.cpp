@@ -6,15 +6,15 @@ extern SSD1306 display;
 
 const Att141dB::RelayDef Att141dB::_relays[] = {
 
-    {"4A",  GPIO_A_4DB_ON_A,    GPIO_A_4DB_OFF_A},      // 1
-    {"40A", GPIO_A_40DB_ON_A,   GPIO_A_40DB_OFF_A},     // 2
-    {"10",  GPIO_A_10DB_ON,     GPIO_A_10DB_OFF},       // 3
-    {"20A", GPIO_A_20DB_ON_A,   GPIO_A_20DB_OFF_A},     // 4
-    {"40B", GPIO_A_40DB_ON_B,   GPIO_A_40DB_OFF_B},     // 5
-    {"4B",  GPIO_A_4DB_ON_B,    GPIO_A_4DB_OFF_B},      // 6
-    {"2",   GPIO_A_2DB_ON,      GPIO_A_2DB_OFF},        // 7
-    {"20B", GPIO_A_20DB_ON_B,   GPIO_A_20B_OFF_B},      // 8
-    {"1",   GPIO_A_1DB_ON,      GPIO_A_1DB_OFF},        // 9
+    {"1",   GPIO_A_1DB_ON,      GPIO_A_1DB_OFF},        // 1
+    {"20A", GPIO_A_20DB_ON_A,   GPIO_A_20DB_OFF_A},     // 2
+    {"2",   GPIO_A_2DB_ON,      GPIO_A_2DB_OFF},        // 3
+    {"4A",  GPIO_A_4DB_ON_A,    GPIO_A_4DB_OFF_A},      // 4
+    {"40A", GPIO_A_40DB_ON_A,   GPIO_A_40DB_OFF_A},     // 5
+    {"20B", GPIO_A_20DB_ON_B,   GPIO_A_20B_OFF_B},      // 6
+    {"10",  GPIO_A_10DB_ON,     GPIO_A_10DB_OFF},       // 7
+    {"40B", GPIO_A_40DB_ON_B,   GPIO_A_40DB_OFF_B},     // 8
+    {"4B",  GPIO_A_4DB_ON_B,    GPIO_A_4DB_OFF_B},      // 9
 
 };
 
