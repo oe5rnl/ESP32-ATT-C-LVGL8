@@ -18,6 +18,7 @@
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
 #include <Preferences.h>
+#include "version.h"
 
 Preferences prefs;
 
@@ -82,6 +83,9 @@ static lv_obj_t * info_relay_label = NULL;
 static lv_obj_t * info_max_label   = NULL;
 static lv_obj_t * info_step_label  = NULL;
 static lv_obj_t * info_mode_label  = NULL;
+static lv_obj_t * version_label    = NULL;  /* ESP-Version */
+static lv_obj_t * pico_ver_label   = NULL;  /* Pico-Version */
+static String     pico_ver_str     = "";
 static lv_obj_t * test_type_label  = NULL;
 static int        att_relay_mode   = 0;         /* Testmode: 0=BRIDGE, 1=STATIC */
 bool              att_has_rf_switch = false;    /* vom Pico via RFSWITCH: gemeldet */
@@ -761,12 +765,12 @@ static void info_create(lv_obj_t * parent)
         lv_style_set_text_color(&style_val, lv_color_white());
     }
 
-    const char*   keys[6] = { "Name:", "Relais:", "Max dB:", "Schritt:", "Modus:", "Version:" };
-    lv_obj_t**    vals[6] = { &info_name_label, &info_relay_label, &info_max_label,
-                               &info_step_label, &info_mode_label, &version_label };
-    int           ys[6]   = { 10, 32, 64, 96, 128, 135 };
+    const char*   keys[7] = { "Name:", "Relais:", "Max dB:", "Schritt:", "Modus:", "ESP-Vers:", "PICO-Vers:" };
+    lv_obj_t**    vals[7] = { &info_name_label, &info_relay_label, &info_max_label,
+                               &info_step_label, &info_mode_label, &version_label, &pico_ver_label };
+    int           ys[7]   = { 5, 27, 49, 71, 93, 115, 140 };
 
-    for(int i = 0; i < 6; i++) {
+    for(int i = 0; i < 7; i++) {
         lv_obj_t * k = lv_label_create(parent);
         lv_label_set_text(k, keys[i]);
         lv_obj_add_style(k, &style_key, 0);
@@ -789,6 +793,8 @@ static void info_create(lv_obj_t * parent)
     snprintf(buf, sizeof(buf), "%d", (int)att_step);
     lv_label_set_text(info_step_label, buf);
     lv_label_set_text(info_mode_label, att_relay_mode == 1 ? "Static" : "Bridge");
+    lv_label_set_text(version_label, ESP_VERSION);
+    lv_label_set_text(pico_ver_label, pico_ver_str.length() > 0 ? pico_ver_str.c_str() : "-");
 }
 
 static const char* test_relay_name(int idx)
@@ -1357,6 +1363,10 @@ void loop()
                     att_has_rf_switch = (input.substring(9).toInt() != 0);
                     web_update_rf();
                     ws_broadcast_rf();
+                }
+                else if(input.startsWith("PICOVER:")) {
+                    pico_ver_str = input.substring(8);
+                    if(pico_ver_label) lv_label_set_text(pico_ver_label, pico_ver_str.c_str());
                 }
                 else if(input.startsWith("RF:")) {
                     rf_state = (input.substring(3).toInt() != 0);

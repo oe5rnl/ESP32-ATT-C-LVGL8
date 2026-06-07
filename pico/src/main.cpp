@@ -27,8 +27,7 @@
 #include "Attenuator.h"
 #include "test.h"
 
-#define PICO_VERSION "0.9"
-#define ESP_VERSION  "0.9"
+#include "version.h"
 
 
 #define RAW_UART_TEST_MODE 0  /* 1 = einfacher ESP32->Pico Rohdaten-Test, 0 = Normalbetrieb */
@@ -281,6 +280,8 @@ static void send_info_to_esp32()
     Serial1.println(att ? att->relay_mode() : BRIDGE);
     Serial1.print("RFSWITCH:");
     Serial1.println(att && att->rf_switch() ? 1 : 0);
+    Serial1.print("PICOVER:");
+    Serial1.println(PICO_VERSION);
 }
 
 /* -------------------------------------------------------
