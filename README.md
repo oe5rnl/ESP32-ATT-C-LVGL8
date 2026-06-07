@@ -1,8 +1,14 @@
 # Attenuator Controller — ESP32 + Pico
 
-Steuerungssystem für HF-Attenuatoren mit bistabilen Relais.
-Zwei unabhängig oder gemeinsam betreibbare Module. Version **0.5**
+Steuerungssystem für HF-Attenuatoren.  
 
+Es besteht  
+  * aus einem HW-Treiber der die Attenautoren ansteuert und einem  
+    optionalen 0.96" Display  sowie einem Rotary Encode zur Dateneingabe.
+  * Einem 
+
+
+ mit bistabilen Relais.
 ---
 
 ## Systemübersicht
