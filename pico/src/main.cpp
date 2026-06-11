@@ -346,10 +346,10 @@ int getAttenuator()
     Serial.print(" float=");
     Serial.println(v, 3);
 
-    if(v >= 0.0f && v < 0.8f) return ATTENUATOR_26_5GHz;
-    if(v >= 0.8f && v < 1.6f) return ATTENUATOR_RS_141DB;
-    if(v >= 1.6f && v < 2.4f) return ATTENUATOR_B;
-    if(v >= 2.4f)             return ATTENUATOR_RS_135DB;
+    if(v >= 0.0f && v < 0.7f) return ATTENUATOR_RS_141DB;
+    if(v >= 0.9f && v < 1.5f) return ATTENUATOR_26_5GHz;
+    if(v >= 1.7f && v < 2.3f) return ATTENUATOR_B;
+  ++       return ATTENUATOR_RS_135DB;
     return -1;
 }
 

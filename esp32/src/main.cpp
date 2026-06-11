@@ -345,7 +345,7 @@ static void config_create(lv_obj_t * parent)
 
     /* Title */
     title_label = lv_label_create(parent);
-    lv_label_set_text(title_label, att_name_str.length() > 0 ? att_name_str.c_str() : "Unknown Attenuator");
+    lv_label_set_text(title_label, att_name_str.length() > 0 ? att_name_str.c_str() : "Searching Attenuator");
     static lv_style_t style_title;
     lv_style_init(&style_title);
     lv_style_set_text_font(&style_title, &lv_font_montserrat_24);
