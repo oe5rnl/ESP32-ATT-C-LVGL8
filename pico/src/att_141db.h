@@ -4,7 +4,7 @@
 
 /* ============================================================
  *
- * Attenuator Type 141 dB (OE5JOM)
+ * Attenuator Type 141 dB 
  *
  * Pads: 1 dB, 20 dB, 2 dB, 4 dB, 40 dB, 20 dB, 10 dB, 40 db, 4 dB  →  max 141 dB in 1 dB steps
  *

@@ -349,8 +349,8 @@ int getAttenuator()
     if(v >= 0.0f && v < 0.7f) return ATTENUATOR_RS_141DB;
     if(v >= 0.9f && v < 1.5f) return ATTENUATOR_26_5GHz;
     if(v >= 1.7f && v < 2.3f) return ATTENUATOR_B;
-  ++       return ATTENUATOR_RS_135DB;
-    return -1;
+    if(v >= 2.4f && v <= 3.3f) return ATTENUATOR_RS_135DB;
+    return -1;   // ausserhalb aller Fenster -> NOT IMPLEMENTED, kein GPIO
 }
 
 /* -------------------------------------------------------
@@ -723,12 +723,12 @@ void setup()
     if(!att) {
         char buf[24];
         display.clear();
-        snprintf(buf, sizeof(buf), "Att-Code: %d", getAttenuator());
-        display.drawString(3, 10, "Error");
-        display.drawString(3, 20, "Attenuator");
+        snprintf(buf, sizeof(buf), "ADC out of range");
+        display.drawString(3, 10, "NOT IMPLEMENTED");
+        display.drawString(3, 20, "kein Attenuator");
         display.drawString(3, 30, buf);
         display.display();
-        while (1) {};
+        while (1) {};   // kein GPIO wird gesetzt
     }
 
     init_persistent_storage();

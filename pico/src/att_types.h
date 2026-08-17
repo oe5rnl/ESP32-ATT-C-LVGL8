@@ -4,9 +4,9 @@
  * Determined by voltage on ADC0 (GPIO26 / A0)
  *
  *  U_ADC            Type
- *  0.0 V .. 0.8 V   ATTENUATOR_26_5GHz
- *  0.8 V .. 1.6 V   ATTENUATOR_RS_141DB
- *  1.6 V .. 2.4 V   ATTENUATOR_B
+ *  0.0 V .. 0.7 V   ATTENUATOR_26_5GHz
+ *  0.9 V .. 1.5 V   ATTENUATOR_RS_141DB
+ *  1.7 V .. 2.3 V   ATTENUATOR_B
  *  2.4 V .. 3.2 V   ATTENUATOR_RS_135DB
  */
 
