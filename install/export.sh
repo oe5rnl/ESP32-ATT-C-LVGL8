@@ -10,9 +10,50 @@ ESP_DIR="$REPO_ROOT/esp32"
 PICO_DIR="$REPO_ROOT/pico"
 OUT="$SCRIPT_DIR/firmware"
 
-PIO="$HOME/.platformio/penv/bin/pio"
-ESPTOOL="$HOME/.platformio/penv/bin/esptool"
-BOOT_APP0="$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
+# --- Werkzeuge automatisch finden ------------------------------------------
+find_tool() {
+  # $1 = Name; sucht in PATH und in gaengigen PlatformIO-Pfaden
+  local name="$1" p
+  if command -v "$name" >/dev/null 2>&1; then command -v "$name"; return 0; fi
+  for p in \
+    "$HOME/.platformio/penv/bin/$name" \
+    "$HOME/.local/bin/$name" \
+    "/usr/local/bin/$name"; do
+    [ -x "$p" ] && { echo "$p"; return 0; }
+  done
+  return 1
+}
+
+PIO="$(find_tool pio || true)"
+if [ -z "$PIO" ]; then
+  echo "FEHLER: PlatformIO (pio) nicht gefunden."
+  echo "Installieren oder Pfad pruefen, z. B.:"
+  echo "  python3 -m pip install --user platformio"
+  exit 1
+fi
+
+# esptool: bevorzugt das mitgelieferte Binary im install/esptool/-Ordner
+if [ -x "$SCRIPT_DIR/esptool/esptool" ]; then
+  ESPTOOL="$SCRIPT_DIR/esptool/esptool"
+else
+  ESPTOOL="$(find_tool esptool || true)"
+fi
+if [ -z "$ESPTOOL" ]; then
+  echo "FEHLER: esptool nicht gefunden (weder in install/esptool/ noch im PATH)."
+  exit 1
+fi
+
+# boot_app0.bin im PlatformIO-Package-Verzeichnis suchen
+BOOT_APP0="$(find "$HOME/.platformio/packages" -path '*tools/partitions/boot_app0.bin' 2>/dev/null | head -n1)"
+if [ -z "$BOOT_APP0" ]; then
+  echo "FEHLER: boot_app0.bin nicht gefunden. Wurde das ESP32-Projekt schon einmal gebaut?"
+  exit 1
+fi
+
+echo "pio:       $PIO"
+echo "esptool:   $ESPTOOL"
+echo "boot_app0: $BOOT_APP0"
+echo
 
 mkdir -p "$OUT"
 
