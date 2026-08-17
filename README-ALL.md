@@ -44,7 +44,7 @@ Raspberry Pi Pico als Attenuator-Controller:
 
 ### Verdrahtung auf der Platine
 
-![Verdrahtung auf der Platine](docs/verdrahtung1.svg)
+<img src="docs/verdrahtung1.svg" alt="Verdrahtung auf der Platine" width="910">
 
 ---
 
