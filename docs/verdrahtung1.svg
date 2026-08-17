@@ -4,7 +4,7 @@
      font-family="Segoe UI, Arial, sans-serif">
   <defs>
     <style>
-      .box   { fill:#f5f7fa; stroke:#334155; stroke-width:2; }
+      .box   { fill:#f5f7fa; stroke:#16a34a; stroke-width:2; }
       .title { font-size:16px; font-weight:700; fill:#0f172a; }
       .sub   { font-size:11px; fill:#475569; }
       .pin   { font-size:11px; fill:#0f172a; }
@@ -28,10 +28,10 @@
 
   <!-- ============ Komponentenboxen ============ -->
   <!-- ESP32 CYD (oben links) -->
-  <rect class="box" x="360" y="70" width="250" height="110" rx="8"/>
-  <text class="title" x="485" y="100" text-anchor="middle">ESP32 CYD</text>
-  <text class="sub"   x="485" y="120" text-anchor="middle">Touch ILI9341 320x240</text>
-  <text class="sub"   x="485" y="136" text-anchor="middle">WiFi / WebGUI / LVGL8</text>
+  <rect class="box" x="364" y="70" width="162" height="110" rx="8"/>
+  <text class="title" x="445" y="100" text-anchor="middle">ESP32 CYD</text>
+  <text class="sub"   x="445" y="120" text-anchor="middle">Touch ILI9341 320x240</text>
+  <text class="sub"   x="445" y="136" text-anchor="middle">WiFi / WebGUI / LVGL8</text>
 
   <!-- SSD1306 OLED (rechts oben) -->
   <rect class="box" x="1050" y="360" width="210" height="110" rx="8"/>
@@ -43,7 +43,7 @@
   <text class="pin" x="1065" y="460" text-anchor="start" font-weight="700">GND</text>
 
   <!-- Drehgeber (rechts unten) -->
-  <rect class="box" x="1050" y="520" width="210" height="120" rx="8"/>
+  <rect class="box" x="1050" y="520" width="210" height="128" rx="8"/>
   <text class="title" x="1155" y="540" text-anchor="middle">Drehgeber</text>
   <!-- Beschriftung der Linien (v.o.n.u.) -->
   <text class="pin" x="1065" y="564" text-anchor="start" font-weight="700">CLK (A)</text>
@@ -53,28 +53,34 @@
   <text class="pin" x="1065" y="636" text-anchor="start" font-weight="700">GND</text>
 
   <!-- ============ Stecker-Markierungen auf der Platine ============ -->
+  <!-- Je ein 2cm-Strich nach oben von den beiden Klemmenschrauben -->
+  <line x1="807" y1="266" x2="807" y2="186" stroke="#dc2626" stroke-width="3"/>
+  <line x1="846" y1="266" x2="846" y2="186" stroke="#dc2626" stroke-width="3"/>
+  <!-- Vertikale Beschriftung der beiden Striche -->
+  <text class="pin" transform="rotate(-90 807 182)" x="807" y="182" text-anchor="start" style="fill:#eab308;font-size:15px" font-weight="700">GND</text>
+  <text class="pin" transform="rotate(-90 846 182)" x="846" y="182" text-anchor="start" style="fill:#eab308;font-size:15px" font-weight="700">+12V</text>
   <!-- J4 ESP-Display (oben links auf PCB) -->
-  <text class="lbl" x="455" y="237" text-anchor="middle" fill="#be123c" font-weight="700">J4 ESP-Display</text>
+  <text class="lbl" x="355" y="229" text-anchor="middle" style="fill:#eab308" font-weight="700">J4 ESP-Display</text>
 
   <!-- J6 PICO-Display (rechts, Mitte) -->
-  <text class="lbl" x="900" y="389" text-anchor="start" fill="#be123c" font-weight="700">J6 PICO-Display</text>
+  <text class="lbl" x="925" y="395" text-anchor="start" style="fill:#eab308" font-weight="700">J6 PICO-Display</text>
 
   <!-- J3 Drehgeber (rechts, unten) -->
-  <text class="lbl" x="905" y="525" text-anchor="start" fill="#be123c" font-weight="700">J3 Drehgeber</text>
+  <text class="lbl" x="925" y="503" text-anchor="start" style="fill:#eab308" font-weight="700">J3 Drehgeber</text>
 
   <!-- ============ Verbindungen ============ -->
   <!-- ESP32 CYD  <->  J4: 4 Loetpunkte (TX / RX / +3V / GND) -->
   <!-- Loetpunkte auf der Platine -->
   <!-- Verbindungen zu den Loetpunkten -->
-  <path class="conn" stroke="#dc2626" d="M422,180 C425,215 432,240 437,262"/>
-  <path class="conn" stroke="#dc2626" d="M460,180 C458,215 454,240 455,262"/>
-  <path class="conn" stroke="#dc2626" d="M500,180 C494,215 478,240 472,262"/>
-  <path class="conn" stroke="#dc2626" d="M538,180 C528,215 500,240 490,262"/>
+  <path class="conn" stroke="#dc2626" d="M391,180 C395,215 430,240 437,262"/>
+  <path class="conn" stroke="#dc2626" d="M427,180 C430,215 452,240 455,262"/>
+  <path class="conn" stroke="#dc2626" d="M463,180 C466,215 470,240 472,262"/>
+  <path class="conn" stroke="#dc2626" d="M499,180 C500,215 492,240 490,262"/>
   <!-- Beschriftung der Linien im ESP32-Block (v.l.n.r.) -->
-  <text class="pin" x="422" y="174" text-anchor="middle" font-weight="700">GND</text>
-  <text class="pin" x="460" y="174" text-anchor="middle" font-weight="700">RX</text>
-  <text class="pin" x="500" y="174" text-anchor="middle" font-weight="700">TX</text>
-  <text class="pin" x="538" y="174" text-anchor="middle" font-weight="700">+5V</text>
+  <text class="pin" x="391" y="174" text-anchor="middle" font-weight="700">GND</text>
+  <text class="pin" x="427" y="174" text-anchor="middle" font-weight="700">RX</text>
+  <text class="pin" x="463" y="174" text-anchor="middle" font-weight="700">TX</text>
+  <text class="pin" x="499" y="174" text-anchor="middle" font-weight="700">+5V</text>
   <text class="lbl" x="620" y="255" text-anchor="start" fill="#334155">4 Lötpunkte J4:</text>
   <text class="lbl" x="620" y="272" text-anchor="start" fill="#334155">
     <tspan fill="#eab308" font-weight="700">TX</tspan> ·
@@ -90,11 +96,11 @@
   <path class="conn" stroke="#dc2626" d="M898,457 C960,457 1000,456 1050,456"/>
 
   <!-- J3  <->  Drehgeber: 5 Loetpunkte (CLK / DT / SW / 3,3V / GND) -->
-  <path class="conn" stroke="#dc2626" d="M899,520 C960,520 1000,560 1050,560"/>
-  <path class="conn" stroke="#dc2626" d="M899,535 C960,535 1000,578 1050,578"/>
-  <path class="conn" stroke="#dc2626" d="M899,550 C960,550 1000,596 1050,596"/>
-  <path class="conn" stroke="#dc2626" d="M899,565 C960,565 1000,614 1050,614"/>
-  <path class="conn" stroke="#dc2626" d="M899,580 C960,580 1000,632 1050,632"/>
+  <path class="conn" stroke="#dc2626" d="M896,510 C960,510 1000,560 1050,560"/>
+  <path class="conn" stroke="#dc2626" d="M896,530 C960,530 1000,578 1050,578"/>
+  <path class="conn" stroke="#dc2626" d="M896,549 C960,549 1000,596 1050,596"/>
+  <path class="conn" stroke="#dc2626" d="M896,567 C960,567 1000,614 1050,614"/>
+  <path class="conn" stroke="#dc2626" d="M896,586 C960,586 1000,632 1050,632"/>
 
   <!-- ============ Legende ============ -->
   <text class="note" x="40" y="830" font-weight="700">Legende:</text>
