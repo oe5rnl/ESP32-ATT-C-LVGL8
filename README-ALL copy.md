@@ -3,15 +3,10 @@
 Das Projekt realisiert einen Controller für RF-Attenuators (HF-Dämpfungsglieder).
 
 
-Es besteht aus einer Basisplatine und den optionalen Bendienelementen:  
-* Ein ESP32 CYD Touch-Display  
-* Ein 2.8" OLED Display  
+Es besteht aus einer Basis Platine und den optionalen Bendienelementen:  
+* Ein Tocuh Display  
+* EIn 2.8" OLED Display  
 * Einen Drehgeber mit Druckschalter  
-
-Der Betrieb kann in folgenden Varianten erfolgen. Basisplatine und:  
-* Nur ESP Touch Display
-* OLED Display und Drehgeber
-* ESP Touch Display und oder/und OLED sowie oder/und Drehgeber 
 
 ---
 
@@ -41,10 +36,6 @@ Raspberry Pi Pico als Attenuator-Controller:
 - Automatische Attenuator-Erkennung über ADC (Spannungsteiler an GP26 / ADC0)
 - Bis zu 8 bistabile Relais (H-Brücke oder Einzel-Pin)
 - Serielle Steuerung über UART vom ESP32
-
-### Verdrahtung auf der Platine
-
-![Verdrahtung auf der Platine](docs/verdrahtung1.svg)
 
 ---
 

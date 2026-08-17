@@ -81,13 +81,6 @@
   <text class="pin" x="427" y="174" text-anchor="middle" font-weight="700">RX</text>
   <text class="pin" x="463" y="174" text-anchor="middle" font-weight="700">TX</text>
   <text class="pin" x="499" y="174" text-anchor="middle" font-weight="700">+5V</text>
-  <text class="lbl" x="620" y="255" text-anchor="start" fill="#334155">4 Lötpunkte J4:</text>
-  <text class="lbl" x="620" y="272" text-anchor="start" fill="#334155">
-    <tspan fill="#eab308" font-weight="700">TX</tspan> ·
-    <tspan fill="#f97316" font-weight="700">RX</tspan> ·
-    <tspan fill="#dc2626" font-weight="700">+3V</tspan> ·
-    <tspan fill="#111827" font-weight="700">GND</tspan>
-  </text>
 
   <!-- J6  <->  OLED: 4 Loetpunkte (SDA / SCL / 3,3V / GND) -->
   <path class="conn" stroke="#dc2626" d="M898,406 C960,405 1000,402 1050,402"/>
