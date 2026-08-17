@@ -12,6 +12,9 @@ build/
 .DS_Store
 Thumbs.db
 
+# LibreOffice/OpenOffice lock files (enthalten Benutzernamen)
+.~lock.*#
+
 
 # WiFi credentials (ESP32)
 esp32/src/wifi_credentials.h
