@@ -13,6 +13,22 @@ Der Betrieb kann in folgenden Varianten erfolgen. Basisplatine **und**:
 * OLED Display und Drehgeber
 * ESP Touch Display und oder/und OLED sowie oder/und Drehgeber 
 
+### Firmware installieren (ohne Installation)
+
+Für Endnutzer gibt es im Ordner [install/](install/) einen Offline-Flasher, der
+ohne PlatformIO oder Python auskommt — es wird nur ein mitgeliefertes Programm
+aufgerufen. Details siehe [install/README.md](install/README.md).
+
+- **ESP32:** Board per USB anstecken und `flash-esp32.sh` (Linux) bzw.
+  `flash-esp32.bat` (Windows) ausführen. Der serielle Port wird automatisch
+  erkannt; das eigenständige `esptool` ist bereits enthalten.
+- **Pico:** **BOOTSEL** gedrückt halten, einstecken und `firmware/firmware.uf2`
+  auf das Laufwerk `RPI-RP2` kopieren — ganz ohne Zusatzprogramm.
+
+> **Hinweis:** Die auslieferbaren Firmware-Dateien werden vom Entwickler einmalig
+> per [install/export.sh](install/export.sh) erzeugt (baut ESP32 + Pico und legt
+> `firmware-merged.bin` sowie `firmware.uf2` in `install/firmware/` ab).
+
 ---
 
 ## Systemübersicht
@@ -383,6 +399,7 @@ ESP32-ATT-C-LVGL8/
 │       ├── font.h              # OLED-Font
 │       └── toggle_gpio10_13.cpp # Standalone-GPIO-Testhilfe
 ├── Schaltung/                  # KiCad Schaltplan + PCB
+├── install/                    # Offline-Flasher (esptool + Skripte, ohne Installation)
 └── docs/                       # Zusätzliche Dokumentation
 ```
 
