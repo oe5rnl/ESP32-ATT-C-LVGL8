@@ -102,14 +102,47 @@
   <path class="conn" stroke="#dc2626" d="M896,567 C960,567 1000,614 1050,614"/>
   <path class="conn" stroke="#dc2626" d="M896,586 C960,586 1000,632 1050,632"/>
 
-  <!-- ============ Legende ============ -->
-  <text class="note" x="40" y="830" font-weight="700">Legende:</text>
-  <line x1="115" y1="826" x2="145" y2="826" stroke="#eab308" stroke-width="3"/>
-  <text class="note" x="150" y="830">UART ↔ ESP32 CYD (J4)</text>
-  <line x1="360" y1="826" x2="390" y2="826" stroke="#059669" stroke-width="3"/>
-  <text class="note" x="395" y="830">I2C ↔ OLED (J6)</text>
-  <line x1="600" y1="826" x2="630" y2="826" stroke="#9333ea" stroke-width="3"/>
-  <text class="note" x="635" y="830">Encoder ↔ Drehgeber (J3)</text>
+  <!-- ============ Relaisblock (links, ueber Steckerleiste J-links) ============ -->
+  <rect class="box" x="70" y="308" width="170" height="372" rx="8"/>
+  <text class="title" x="155" y="326" text-anchor="middle">Relais-Bank</text>
+  <text class="sub" x="155" y="341" text-anchor="middle">9 Relais (je 2 Pins)</text>
+  <rect x="150" y="358" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="373" text-anchor="middle" font-weight="700">K1</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,364 C300,364 340,360 383,360"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,374 C300,374 340,378 383,378"/>
+  <rect x="150" y="394" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="409" text-anchor="middle" font-weight="700">K2</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,400 C300,400 340,396 383,396"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,410 C300,410 340,414 383,414"/>
+  <rect x="150" y="430" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="445" text-anchor="middle" font-weight="700">K3</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,436 C300,436 340,432 383,432"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,446 C300,446 340,450 383,450"/>
+  <rect x="150" y="466" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="481" text-anchor="middle" font-weight="700">K4</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,472 C300,472 340,468 383,468"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,482 C300,482 340,486 383,486"/>
+  <rect x="150" y="502" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="517" text-anchor="middle" font-weight="700">K5</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,508 C300,508 340,504 383,504"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,518 C300,518 340,522 383,522"/>
+  <rect x="150" y="538" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="553" text-anchor="middle" font-weight="700">K6</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,544 C300,544 340,540 383,540"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,554 C300,554 340,558 383,558"/>
+  <rect x="150" y="574" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="589" text-anchor="middle" font-weight="700">K7</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,580 C300,580 340,576 383,576"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,590 C300,590 340,594 383,594"/>
+  <rect x="150" y="610" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="625" text-anchor="middle" font-weight="700">K8</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,616 C300,616 340,612 383,612"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,626 C300,626 340,630 383,630"/>
+  <rect x="150" y="646" width="66" height="22" rx="3" fill="#ffffff" stroke="#334155" stroke-width="1.5"/>
+  <text class="pin" x="183" y="661" text-anchor="middle" font-weight="700">K9</text>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,652 C300,652 340,648 383,648"/>
+  <path class="conn" stroke="#dc2626" stroke-width="1.5" d="M216,662 C300,662 340,666 383,666"/>
 
-  <text class="note" x="40" y="855">Hinweis: Steckerpositionen auf dem PCB-Bild sind näherungsweise markiert.</text>
+  <!-- ============ Hinweis ============ -->
+  <text class="note" x="40" y="855" font-weight="700">Hinweis: Die Beschriftung der Stifte für J6 sind auf der Platine nach oben verschoben!!!</text>
 </svg>
