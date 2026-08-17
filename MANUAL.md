@@ -7,7 +7,13 @@ WebSocket synchronisiert):
 - **Touch-Display** — LVGL-Oberfläche direkt am ESP32.
 - **Web-Oberfläche** — im Browser über WLAN erreichbar.
 
-Quellen: [esp32/src/main.cpp](esp32/src/main.cpp), [esp32/src/webserver.h](esp32/src/webserver.h).
+## Verkabelung
+
+<img src="docs/verdrahtung1.svg" alt="Verdrahtung" width="80%" />
+
+Der am häufigsten Abzutreffende Attenuatos ist die 135dB Variante.  
+Siehe dazu zur Verkabelung ATT_135db.md  
+Test der EinzelRelais mit dem Testmenü am Display und auf der Webseite.
 
 ---
 

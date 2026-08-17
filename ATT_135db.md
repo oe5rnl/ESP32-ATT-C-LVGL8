@@ -1,5 +1,7 @@
 # 135 dB Attenuator – Schaltplan
 
+DAs ist die am häfigsten anzutreffende Version des Abschwächers !!!
+
 Es gibt zwei Versionen von diesem Schater.  
 Die Lage der dB Schalter ist bei beiden gleich.  
 
@@ -10,10 +12,10 @@ Bei der Version B besteht ein Abstand zwischen des dB Schaltern und dem RF-Switc
 Von der Funktionalität sind beide Schalter gleich, nur
 der Frequenzgereich ist unterschiedlich.
 
-#Der Schalter mit dem Abstand hat Dioden zur Erkennung der Rückleistung
-#eigebaut. Diese begrenzen den Frequenzbereich.
+Der Schalter mit dem Abstand hat Dioden zur Erkennung der Rückleistung  
+eigebaut. Diese begrenzen den Frequenzbereich.
 
-Die Funktion der Dioden wird vom Controller nicht unterstützt!
+Die Funktion der Demodulator-Dioden wird vom Controller nicht unterstützt!
 
 
 

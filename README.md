@@ -21,6 +21,12 @@ ESP32 CYD (Touch-Display 320×240, WebGUI via WiFi, LVGL 8 UI) kommuniziert übe
 UART (115200 Baud) mit dem Raspberry Pi Pico (Drehgeber, SSD1306 OLED). Beide
 steuern gemeinsam die Attenuator-Relais.
 
+<img src="docs/verdrahtung1.svg" alt="Verdrahtung" width="80%" />
+
+Der am häufigsten Abzutreffende Attenuatos ist die 135dB Variante.  
+Siehe dazu zur Verkabelung ATT_135db.md  
+Test der EinzelRelais mit dem Testmenü am Display und auf der Webseite.
+
 ### ESP32 — Touch-Controller
 
 LVGL-8-Steuerungsoberfläche auf ESP32 CYD (Cheap Yellow Display):
@@ -251,6 +257,44 @@ cd pico
 
 **Voraussetzungen:** [PlatformIO](https://platformio.org/) (CLI oder VS-Code-Extension).
 
+### Tools einrichten
+
+1. **Repository holen**
+   ```bash
+   git clone <REPO-URL>
+   cd ESP32-ATT-C-LVGL8
+   ```
+
+2. **PlatformIO installieren** — eine der beiden Varianten:
+   - **VS Code + Extension (empfohlen):** [VS Code](https://code.visualstudio.com/)
+     installieren, dann die Extension **PlatformIO IDE** hinzufügen. Build/Upload
+     erfolgen über die PlatformIO-Toolbar.
+   - **CLI (Kommandozeile):**
+     ```bash
+     python3 -m pip install --user platformio
+     # oder das offizielle Installskript:
+     # curl -fsSL https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py | python3
+     ```
+     Danach steht `pio` unter `~/.platformio/penv/bin/pio` zur Verfügung
+     (ggf. in den `PATH` aufnehmen).
+
+3. **Toolchains & Bibliotheken** — werden beim ersten `pio run` automatisch
+   geladen (Platforms `espressif32` und `raspberrypi`, Frameworks und alle
+   `lib_deps` aus den jeweiligen [platformio.ini](esp32/platformio.ini)).
+   Eine manuelle Installation ist nicht nötig.
+
+4. **Serielle Rechte (Linux):** Für Upload/Monitor den eigenen Benutzer zur
+   Gruppe `dialout` hinzufügen und neu anmelden:
+   ```bash
+   sudo usermod -aG dialout $USER
+   ```
+
+5. **WLAN-Zugangsdaten (optional):** Nur nötig, wenn die Client-Zugangsdaten
+   bereits beim Kompilieren fest hinterlegt werden sollen — siehe Abschnitt
+   „WiFi-Credentials einstellen". Ohne diese Datei ist der Access Point trotzdem
+   erreichbar; die Client-Anbindung lässt sich zur Laufzeit über WebGUI/Display
+   setzen.
+
 ---
 
 ## Serielles Kommunikationsprotokoll (UART, 115200 Baud)
@@ -333,32 +377,14 @@ ESP32-ATT-C-LVGL8/
 │       ├── att_141db.h/.cpp    # RS-141 dB (Bridge)
 │       ├── att_b.h/.cpp        # Typ B (nicht implementiert)
 │       ├── att_types.h         # Typ-Konstanten + ADC-Grenzwerte (Kommentar veraltet)
+│       ├── test.h/.cpp         # Relay-Testmodus
 │       ├── SSD1306.h/.cpp      # OLED-Display-Treiber
-│       └── big_digits.h        # Große Ziffern für OLED
+│       ├── big_digits.h        # Große Ziffern für OLED
+│       ├── font.h              # OLED-Font
+│       └── toggle_gpio10_13.cpp # Standalone-GPIO-Testhilfe
 ├── Schaltung/                  # KiCad Schaltplan + PCB
 └── docs/                       # Zusätzliche Dokumentation
 ```
-
----
-
-## Korrekturen gegenüber den alten READMEs
-
-Beim Zusammenführen wurden folgende Abweichungen zwischen README-Text und
-Quellcode festgestellt und in dieser konsolidierten Fassung korrigiert:
-
-| Thema | Alter README-Text | Code-Realität |
-|-------|-------------------|---------------|
-| ESP32-UART-Pins | GPIO21 TX / GPIO22 RX ([esp32/README.md](esp32/README.md)) | `Serial` = UART0, GPIO1 TX / GPIO3 RX |
-| ESP32-Attenuator-GPIOs | GPIO 4/16/17/35, active LOW | im aktuellen Code nicht vorhanden (Relais steuert der Pico) |
-| ADC-Erkennung | 0.0–0.8→26.5G, 0.8–1.6→141, 1.6–2.4→B, ≥2.4→135 | 0.0–0.7→141, 0.9–1.5→26.5G, 1.7–2.3→B, 2.4–3.3→135, sonst→NOT IMPLEMENTED (kein GPIO) |
-| RS-141 dB | „nicht implementiert" | `Att141dB` ist implementiert |
-| Typ B | „nicht implementiert" | korrekt: `AttB` nicht implementiert |
-| Default-Buttons | 6 Werte `{20,40,60,10,30,50}` | 9 Werte `{20,40,60,10,30,50,70,80,90}`, `DEFAULT_BUTTON_COUNT=9` |
-| Version | 0.5 | 0.51 (siehe [shared/version.h](shared/version.h)) |
-
-Offene Punkte im Code (nicht in dieser README behoben):
-- Der ADC-Grenzwert-Kommentar in [pico/src/att_types.h](pico/src/att_types.h)
-  weicht vom tatsächlichen Erkennungscode ab.
 
 ---
 
@@ -369,6 +395,23 @@ MIT — siehe [LICENSE](LICENSE).
 Ausnahme: Der Ordner [esp32/docu/esp32-display/](esp32/docu/esp32-display/)
 enthält Hersteller-Dokumentation (Sunton) und ist **nicht** von der MIT-Lizenz
 abgedeckt.
+
+Build by OE5RNL & OE5NVL & Chatgpt & Claude
+
+### Haftungsausschluss
+
+Diese Hard- und Software wird „wie besehen" ohne jegliche Gewährleistung
+bereitgestellt — weder ausdrücklich noch stillschweigend, insbesondere keine
+Gewährleistung der Marktgängigkeit oder Eignung für einen bestimmten Zweck.
+Die Nutzung erfolgt auf eigene Gefahr. Die Autoren übernehmen keine Haftung für
+Schäden jeglicher Art (z. B. an Attenuatoren, Relais, Messgeräten oder sonstiger
+Ausrüstung), die aus dem Aufbau, dem Betrieb oder der Nutzung dieses Projekts
+entstehen.
+
+Insbesondere kann eine falsche Attenuator-Erkennung oder fehlerhafte Verdrahtung
+zur Zerstörung der Relais oder des angeschlossenen Dämpfungsglieds führen (siehe
+Warnhinweise im Abschnitt „Widerstände für den Spannungsteiler"). Vor dem
+Anschluss stets prüfen, ob der korrekte Attenuator angezeigt wird.
 
 ## Basiert auf
 

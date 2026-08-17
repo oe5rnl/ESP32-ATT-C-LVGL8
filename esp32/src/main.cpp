@@ -1234,7 +1234,6 @@ void loop()
      *
      * Laufzeit:
      *   <n>dB               Aktueller Dämpfungswert (Display-Sync)
-     *   SET:<n>dB           Bestätigung nach SET-Befehl (Pico hat gesetzt)
      *   SEL<n>              Ausgewählte Stelle (0=Hunderter, 1=Zehner, 2=Einer)
      *   SETMODE:<n>         Set-Modus: 0=Direct, 1=Time, 2=Button
      *   RF:<n>              RF-Schalter-Zustand: 0/1
